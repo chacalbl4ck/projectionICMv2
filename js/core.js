@@ -1575,13 +1575,22 @@ $("#btnAbout").click(function(){
         <p class="mb-3 text-light">Sistema avançado de projeção e transmissão de louvores, textos bíblicos e avisos para cultos.</p>
         
         <div class="card bg-secondary text-light p-3 mb-3 border-0">
-          <p class="mb-1 font-weight-bold"><i class="fas fa-user-cog mr-1 text-info"></i> Novo Manutenedor:</p>
-          <p class="mb-2 pl-3 font-weight-bold">Caio Monteiro</p>
+          <p class="mb-1 font-weight-bold"><i class="fas fa-users-cog mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.0.0):</p>
+          <p class="mb-2 text-warning small font-weight-bold"><i class="fas fa-church mr-1"></i> ICM - Leopoldina / MG</p>
           
-          <p class="mb-1 font-weight-bold"><i class="fas fa-address-book mr-1 text-info"></i> Contatos:</p>
-          <div class="pl-3">
-            <p class="mb-1"><i class="fas fa-envelope text-warning fa-fw"></i> <a href="mailto:caiormleo@outlook.com.br" class="text-info font-weight-bold">caiormleo@outlook.com.br</a></p>
-            <p class="mb-0"><i class="fab fa-github text-warning fa-fw"></i> <a href="https://github.com/chacalbl4ck" target="_blank" rel="noopener noreferrer" class="text-info font-weight-bold">chacalbl4ck</a></p>
+          <div class="border-top border-dark pt-2 mb-2">
+            <p class="mb-1 font-weight-bold"><i class="fas fa-user mr-1 text-info"></i> Caio Monteiro</p>
+            <div class="pl-3 small">
+              <p class="mb-1"><i class="fas fa-envelope text-warning fa-fw"></i> <a href="mailto:caiormleo@outlook.com.br" class="text-info font-weight-bold">caiormleo@outlook.com.br</a></p>
+              <p class="mb-0"><i class="fab fa-github text-warning fa-fw"></i> <a href="https://github.com/chacalbl4ck" target="_blank" rel="noopener noreferrer" class="text-info font-weight-bold">chacalbl4ck</a></p>
+            </div>
+          </div>
+
+          <div class="border-top border-dark pt-2">
+            <p class="mb-1 font-weight-bold"><i class="fas fa-user mr-1 text-info"></i> André Castilho</p>
+            <div class="pl-3 small">
+              <p class="mb-0"><i class="fas fa-envelope text-warning fa-fw"></i> <a href="mailto:atendimento@amcast.com.br" class="text-info font-weight-bold">atendimento@amcast.com.br</a></p>
+            </div>
           </div>
         </div>
 

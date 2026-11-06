@@ -459,3 +459,13 @@ Para a continuidade dos trabalhos de desenvolvimento, recomenda-se a seguinte or
    - Criação da view `obs.html` para transmissão em Lower Third (Melhoria 6).
    - Lazy-loading das bases bíblicas (Melhoria 7).
    - Migração para `IndexedDB` (Melhoria 3).
+
+---
+
+## 7. Manutenção do Projeto (v2.0.0)
+
+* **Origem:** ICM — Leopoldina / MG
+* **Manutenedores:**
+  * **Caio Monteiro:** `caiormleo@outlook.com.br` | GitHub: `@chacalbl4ck`
+  * **André Castilho:** `atendimento@amcast.com.br`
+* **Criadores Originais:** Ítalo Carvalho Zaina (Revisores originais: Ítalo, Sinvaldo, Geff)
