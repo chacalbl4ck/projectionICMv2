@@ -192,6 +192,19 @@
           var scriptureP = sec.querySelector('p');
           var warningTable = sec.querySelector('.warning-table');
           var isTelaPadrao = (idx === 0 || sec.innerHTML.indexOf('MARANATA') > -1 || sec.innerHTML.indexOf('Santa Ceia') > -1);
+          var isYouTube = (sec.getAttribute('data-youtube-id') || state.indexOf('youtube-slide') > -1);
+
+          // Slides de YouTube ou mídia sem texto não devem projetar lower thirds
+          if (isYouTube) {
+            parsedSlides.push({
+              index: idx,
+              type: 'default',
+              title: '',
+              content: '',
+              isDefault: true
+            });
+            return;
+          }
 
           // Verifica se é slide de título do louvor
           if (state.indexOf('showtitle') > -1) {

@@ -173,9 +173,23 @@ if (projectionBroadcast) {
             broadcastCommand('CHANGE_SLIDE', projecaoAtiva);
             if (isBlackout) broadcastCommand('BLACKOUT', true);
             if (isFrozen) broadcastCommand('FREEZE', true);
+        } else if (msg.action === 'YOUTUBE_STATUS' && msg.payload) {
+            atualizarStatusYoutube(msg.payload);
         }
     };
 }
+
+// Receptor de mensagens do iframe local ou janela externa
+window.addEventListener('message', function(event) {
+    try {
+        var data = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+        if (data && data.host === 'projection-html5-painel') {
+            if (data.function === 'YOUTUBE_STATUS' && data.data) {
+                atualizarStatusYoutube(data.data);
+            }
+        }
+    } catch(e) {}
+});
 
 // Supervisor de conexão do Telão Externo (executado a cada 1 segundo)
 setInterval(function() {
@@ -411,23 +425,31 @@ function criarNoPasta(titulo, itens, tipo, iconePasta, iconeItem, category, fold
         const li = document.createElement('li');
         const nomeItem = item.title || item.name; 
         
-        var iconeReal = iconeItem;
+        var iconHtml = `<i class="fas ${iconeItem}"></i>`;
+        var isYt = (item.type === 'youtube' || item.ytId);
+        var isVid = (item.type === 'video' || isVideoFile(item.image || item.src));
+
         if (tipo === 'image') {
-            var isVid = (item.type === 'video' || isVideoFile(item.image || item.src));
-            iconeReal = isVid ? 'fa-file-video text-info' : 'fa-file-image text-warning';
+            if (isYt) {
+                iconHtml = `<i class="fab fa-youtube-square text-danger"></i>`;
+            } else if (isVid) {
+                iconHtml = `<i class="fas fa-file-video text-info"></i>`;
+            } else {
+                iconHtml = `<i class="fas fa-file-image text-warning"></i>`;
+            }
         }
 
-        li.innerHTML = `<i class="fas ${iconeReal}"></i> ${nomeItem}`;
-        li.dataset.tipo = tipo;
+        li.innerHTML = `${iconHtml} ${nomeItem}`;
+        li.dataset.tipo = isYt ? 'youtube' : tipo;
         li.dataset.id = index;
         
-        const itemIdFormatado = `${tipo === 'song' ? details.dataset.folderId : tipo}_${index}`;
+        const itemIdFormatado = `${tipo === 'song' ? details.dataset.folderId : (isYt ? 'youtube' : tipo)}_${index}`;
         if (ref_selected === itemIdFormatado) {
             li.classList.add('selected');
         }
         
-        li.addEventListener('dblclick', (e) => adicionarAProjecao(e, li, item, tipo, index));
-        li.addEventListener('click', (e) => selecionarItemDaLista(e, li, item, tipo, index));
+        li.addEventListener('dblclick', (e) => adicionarAProjecao(e, li, item, isYt ? 'youtube' : tipo, index));
+        li.addEventListener('click', (e) => selecionarItemDaLista(e, li, item, isYt ? 'youtube' : tipo, index));
         
         ul.appendChild(li);
     });
@@ -472,17 +494,25 @@ function criarNoPastaComMidias(titulo, songs, media, warnings, folderId) {
         });
     }
 
-    // 2. Mídias (imagens / vídeos) colocadas pelo usuário nesta pasta
+    // 2. Mídias (imagens / vídeos / youtube) colocadas pelo usuário nesta pasta
     if (media && media.length > 0) {
         media.forEach((item, index) => {
             const li = document.createElement('li');
+            const isYt = (item.type === 'youtube' || item.ytId);
             const isVid = (item.type === 'video' || isVideoFile(item.src || item.image));
-            const icon = isVid ? 'fa-file-video text-info' : 'fa-file-image text-warning';
-            li.innerHTML = `<i class="fas ${icon}"></i> ${item.name || "Mídia"}`;
-            li.dataset.tipo = "media";
+            let iconHtml = '';
+            if (isYt) {
+                iconHtml = '<i class="fab fa-youtube-square text-danger"></i>';
+            } else if (isVid) {
+                iconHtml = '<i class="fas fa-file-video text-info"></i>';
+            } else {
+                iconHtml = '<i class="fas fa-file-image text-warning"></i>';
+            }
+            li.innerHTML = `${iconHtml} ${item.name || (isYt ? "Vídeo do YouTube" : "Mídia")}`;
+            li.dataset.tipo = isYt ? "youtube" : "media";
             li.dataset.id = index;
             li.dataset.folderId = folderId;
-            li.addEventListener('dblclick', (e) => adicionarAProjecao(e, li, item, 'media', index));
+            li.addEventListener('dblclick', (e) => adicionarAProjecao(e, li, item, isYt ? 'youtube' : 'media', index));
             li.addEventListener('click', (e) => {
                 document.querySelectorAll('#songList .selected').forEach(el => el.classList.remove('selected'));
                 li.classList.add('selected');
@@ -528,9 +558,10 @@ function renderizarArvoreNativa(dadosLouvores, listaAvisos, listaImagens) {
 
     $('#listaDePastas').html("");
     
-    // Atualiza opções de pastas nos modais de nova imagem/vídeo e aviso
+    // Atualiza opções de pastas nos modais de nova imagem/vídeo, aviso e youtube
     $('#selectMediaFolder').html('<option value="-1">📁 Mídias Gerais</option>');
     $('#selectWarningFolder').html('<option value="-1">📋 Pasta Geral de Avisos</option>');
+    $('#selectYoutubeFolder').html('<option value="-1">📁 Mídias Gerais</option>');
 
     dadosLouvores.forEach((pasta, indexPasta) => {
         if (pasta.type === "s") {
@@ -540,6 +571,7 @@ function renderizarArvoreNativa(dadosLouvores, listaAvisos, listaImagens) {
         $('#listaDePastas').append('<a class="dropdown-item" data-id="'+indexPasta+'">'+pasta.name+'</a>');
         $('#selectMediaFolder').append('<option value="'+indexPasta+'">📂 '+pasta.name+'</option>');
         $('#selectWarningFolder').append('<option value="'+indexPasta+'">📂 '+pasta.name+'</option>');
+        $('#selectYoutubeFolder').append('<option value="'+indexPasta+'">📂 '+pasta.name+'</option>');
     });
 
     $('#listaDePastas > a').off('click').on('click', function(){
@@ -561,6 +593,24 @@ function adicionarAProjecao(e, elementoLi, item, tipo, itemId) {
     if (tipo === 'song') {
         const folderId = elementoLi ? elementoLi.closest('details').dataset.folderId : pastaAtiva;
         projecao.push({ id: itemId, folderId: parseInt(folderId), type: "s" });
+    } else if (tipo === 'youtube' || (item && (item.type === 'youtube' || item.ytId))) {
+        let folderId = -1;
+        if (elementoLi) {
+            const detailsEl = elementoLi.closest('details');
+            folderId = detailsEl && detailsEl.dataset.folderId !== undefined ? parseInt(detailsEl.dataset.folderId) : -1;
+        } else if (item && item.folderId !== undefined) {
+            folderId = parseInt(item.folderId);
+        }
+        var ytId = (item && item.ytId) ? item.ytId : extrairYouTubeId(item.src || item.url || "");
+        projecao.push({ 
+            id: itemId, 
+            folderId: folderId, 
+            type: "y", 
+            ytId: ytId,
+            name: (item && item.name) ? item.name : "Vídeo do YouTube",
+            url: (item && item.url) ? item.url : ("https://www.youtube.com/watch?v=" + ytId),
+            mediaItem: item 
+        });
     } else if (tipo === 'image' || tipo === 'media') {
         let folderId = -1;
         if (elementoLi) {
@@ -658,6 +708,10 @@ function reloadProjectionList(){
             var isVid = item.mediaItem ? (item.mediaItem.type === 'video' || isVideoFile(item.mediaItem.src || item.mediaItem.image)) : (imagens[item.id] && (imagens[item.id].type === 'video' || isVideoFile(imagens[item.id].image || imagens[item.id].src)));
             var icon = isVid ? 'fa-video text-info' : 'fa-image text-warning';
             $('#projections tbody').append('<tr data-id="'+i+'"><td><i class="fas '+icon+'"></i>&nbsp;'+mediaName+'</td><td class="btn-mini"><button class="btn btn-danger btn-x">-</button></td></tr>'); 
+        }
+        if(item.type == "y") {
+            var ytName = item.name || (item.mediaItem ? item.mediaItem.name : "Vídeo do YouTube");
+            $('#projections tbody').append('<tr data-id="'+i+'"><td><i class="fab fa-youtube-square text-danger"></i>&nbsp;'+ytName+'</td><td class="btn-mini"><button class="btn btn-danger btn-x">-</button></td></tr>'); 
         }
         if(item.type == "w") {
             var aviso = item.warningItem || (item.folderId >= 0 && dados[item.folderId] && dados[item.folderId].warnings ? dados[item.folderId].warnings[item.id] : avisos[item.id]);
@@ -803,10 +857,13 @@ $("#confirmDeleteFromTree").click(function(){
         if(tipo === "song"){
             const folderId = parseInt(selecionado.closest('details').dataset.folderId);
             dados[folderId].songs.splice(itemId, 1);
-        } else if(tipo === "media"){
-            const folderId = parseInt(selecionado.dataset.folderId !== undefined ? selecionado.dataset.folderId : selecionado.closest('details').dataset.folderId);
-            if (dados[folderId] && dados[folderId].media) {
+        } else if(tipo === "media" || tipo === "youtube"){
+            const detailsEl = selecionado.closest('details');
+            const folderId = parseInt(selecionado.dataset.folderId !== undefined ? selecionado.dataset.folderId : (detailsEl ? detailsEl.dataset.folderId : -1));
+            if (folderId >= 0 && dados[folderId] && dados[folderId].media) {
                 dados[folderId].media.splice(itemId, 1);
+            } else if (imagens && imagens[itemId]) {
+                imagens.splice(itemId, 1);
             }
         } else if(tipo === "image"){
             imagens.splice(itemId, 1);
@@ -1154,11 +1211,13 @@ $("#confirmCreateImage").click(function(){
 });
 
 // ==========================================
-// VISUALIZADOR DE MÍDIAS (IMAGENS E VÍDEOS)
+// VISUALIZADOR DE MÍDIAS (IMAGENS, VÍDEOS E YOUTUBE)
 // ==========================================
 async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
     if (!mediaItem) return;
 
+    var ytId = mediaItem.ytId || extrairYouTubeId(mediaItem.src || mediaItem.url || "");
+    var isYt = (mediaItem.type === "youtube" || !!ytId);
     var src = mediaItem.src || mediaItem.image || "";
     if (!src && mediaItem.id) {
         src = await MediaDB.get(mediaItem.id) || "";
@@ -1167,7 +1226,19 @@ async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
     var isVid = (mediaItem.type === "video" || isVideoFile(src) || isVideoFile(mediaItem.name));
     var videoEl = document.getElementById('mediaViewerVideo');
 
-    if (isVid) {
+    if (isYt) {
+        $('#mediaViewerImg').hide().attr('src', '');
+        if (videoEl) {
+            videoEl.pause();
+            videoEl.src = '';
+            $(videoEl).hide();
+        }
+        $('#mediaViewerYoutube').show();
+        $('#mediaViewerYtFrame').attr('src', 'https://www.youtube.com/embed/' + ytId + '?autoplay=1&enablejsapi=1');
+        $('#mediaViewerInfo').text("YouTube • " + (mediaItem.name || "Vídeo do YouTube"));
+    } else if (isVid) {
+        $('#mediaViewerYoutube').hide();
+        $('#mediaViewerYtFrame').attr('src', '');
         $('#mediaViewerImg').hide().attr('src', '');
         if (videoEl) {
             videoEl.src = src;
@@ -1176,6 +1247,8 @@ async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
         }
         $('#mediaViewerInfo').text("Vídeo • " + (mediaItem.name || "Vídeo"));
     } else {
+        $('#mediaViewerYoutube').hide();
+        $('#mediaViewerYtFrame').attr('src', '');
         if (videoEl) {
             videoEl.pause();
             videoEl.src = '';
@@ -1185,10 +1258,10 @@ async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
         $('#mediaViewerInfo').text("Imagem • " + (mediaItem.name || "Imagem"));
     }
 
-    $('#mediaViewerTitle').text(mediaItem.name || "Visualizador de Mídia");
+    $('#mediaViewerTitle').text(mediaItem.name || (isYt ? "Vídeo do YouTube" : "Visualizador de Mídia"));
 
     $('#btnAddToProjFromViewer').off('click').on('click', function() {
-        adicionarAProjecao(null, null, mediaItem, tipo, itemId);
+        adicionarAProjecao(null, null, mediaItem, isYt ? 'youtube' : tipo, itemId);
         $('#mediaViewerModal').modal('hide');
     });
 
@@ -1202,18 +1275,20 @@ $('#mediaViewerModal').on('hidden.bs.modal', function() {
         videoEl.src = '';
     }
     $('#mediaViewerImg').attr('src', '');
+    $('#mediaViewerYtFrame').attr('src', '');
+    $('#mediaViewerYoutube').hide();
 });
 
 $("#btnPreviewMedia").click(async function(){
     const selecionado = document.querySelector('#songList .selected');
     if (!selecionado) {
-        alert("Por favor, selecione uma imagem ou vídeo na lista para visualizar.");
+        alert("Por favor, selecione uma mídia na lista para visualizar.");
         return;
     }
 
     const tipo = selecionado.dataset.tipo;
-    if (tipo !== 'media' && tipo !== 'image') {
-        alert("O item selecionado não é uma mídia. Selecione uma imagem ou vídeo para visualizar.");
+    if (tipo !== 'media' && tipo !== 'image' && tipo !== 'youtube') {
+        alert("O item selecionado não é uma mídia. Selecione uma imagem, vídeo ou YouTube para visualizar.");
         return;
     }
 
@@ -1221,10 +1296,13 @@ $("#btnPreviewMedia").click(async function(){
     let mediaItem = null;
     let folderId = undefined;
 
-    if (tipo === 'media') {
-        folderId = parseInt(selecionado.dataset.folderId !== undefined ? selecionado.dataset.folderId : selecionado.closest('details').dataset.folderId);
-        if (dados[folderId] && dados[folderId].media && dados[folderId].media[itemId]) {
+    if (tipo === 'media' || tipo === 'youtube') {
+        var detailsEl = selecionado.closest('details');
+        folderId = parseInt(selecionado.dataset.folderId !== undefined ? selecionado.dataset.folderId : (detailsEl ? detailsEl.dataset.folderId : -1));
+        if (folderId >= 0 && dados[folderId] && dados[folderId].media && dados[folderId].media[itemId]) {
             mediaItem = dados[folderId].media[itemId];
+        } else if (imagens && imagens[itemId]) {
+            mediaItem = imagens[itemId];
         }
     } else if (tipo === 'image') {
         if (imagens && imagens[itemId]) {
@@ -1238,6 +1316,184 @@ $("#btnPreviewMedia").click(async function(){
     }
 
     await exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId);
+});
+
+// ==========================================
+// VÍDEOS DO YOUTUBE (CADASTRO, AO VIVO E CONTROLES)
+// ==========================================
+var lastYtStatus = null;
+var isDraggingYtSeek = false;
+
+function extrairYouTubeId(url) {
+    if (!url || typeof url !== 'string') return null;
+    url = url.trim();
+    if (url.includes('/') || url.includes('.')) {
+        var match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([a-zA-Z0-9_-]{11})/i);
+        return match ? match[1] : null;
+    }
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+        return url;
+    }
+    return null;
+}
+
+function formatarTempoSegundos(s) {
+    if (isNaN(s) || s < 0) s = 0;
+    var hrs = Math.floor(s / 3600);
+    var mins = Math.floor((s % 3600) / 60);
+    var secs = Math.floor(s % 60);
+    var strSecs = (secs < 10 ? "0" : "") + secs;
+    if (hrs > 0) {
+        var strMins = (mins < 10 ? "0" : "") + mins;
+        return hrs + ":" + strMins + ":" + strSecs;
+    }
+    return (mins < 10 ? "0" : "") + mins + ":" + strSecs;
+}
+
+function sendYoutubeCmd(cmd, extra) {
+    var payload = Object.assign({ cmd: cmd }, extra || {});
+    broadcastCommand('YOUTUBE_CMD', payload);
+}
+
+function atualizarStatusYoutube(payload) {
+    if (!payload) return;
+    lastYtStatus = payload;
+
+    var cur = payload.currentTime || 0;
+    var dur = payload.duration || 0;
+    $('#ytTimeDisplay').text(formatarTempoSegundos(cur) + " / " + formatarTempoSegundos(dur));
+
+    if (!isDraggingYtSeek && dur > 0) {
+        var pct = (cur / dur) * 100;
+        $('#ytProgressBar').val(pct);
+    }
+
+    // playerState: 1 = PLAYING, 2 = PAUSED
+    if (payload.playerState === 1) {
+        $('#btnYtPlayPause').html('<i class="fas fa-pause fa-fw"></i> Pausar').removeClass('btn-danger').addClass('btn-warning');
+    } else {
+        $('#btnYtPlayPause').html('<i class="fas fa-play fa-fw"></i> Play').removeClass('btn-warning').addClass('btn-danger');
+    }
+
+    if (payload.isMuted) {
+        $('#btnYtMute').html('<i class="fas fa-volume-off fa-fw text-warning"></i>');
+    } else {
+        $('#btnYtMute').html('<i class="fas fa-volume-up fa-fw"></i>');
+    }
+
+    if (payload.volume !== undefined && !$('#ytVolumeBar').is(':focus')) {
+        $('#ytVolumeBar').val(payload.volume);
+        $('#ytVolumeVal').text(payload.volume + '%');
+    }
+}
+
+// Botão da Toolbar para abrir modal de YouTube
+$('#newYoutube').click(function() {
+    $('#ytVideoUrl').val('');
+    $('#ytVideoName').val('');
+    $('#ytPreviewBox').hide();
+    $('#newYoutubeModal').modal('show');
+});
+
+// Detecção em tempo real de link/ID do YouTube com preview de miniatura e busca de título
+$('#ytVideoUrl').on('input keyup change paste', function() {
+    var rawUrl = $(this).val();
+    var ytId = extrairYouTubeId(rawUrl);
+    if (ytId) {
+        $('#ytPreviewThumb').attr('src', 'https://img.youtube.com/vi/' + ytId + '/hqdefault.jpg');
+        $('#ytPreviewIdText').text('ID do YouTube: ' + ytId);
+        $('#ytPreviewBox').slideDown(150);
+
+        if (!$('#ytVideoName').val().trim()) {
+            fetch('https://noembed.com/embed?url=https://www.youtube.com/watch?v=' + ytId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.title && !$('#ytVideoName').val().trim()) {
+                        $('#ytVideoName').val(data.title);
+                    }
+                })
+                .catch(() => {});
+        }
+    } else {
+        $('#ytPreviewBox').slideUp(150);
+    }
+});
+
+// Confirmação de inclusão do vídeo do YouTube
+$('#confirmCreateYoutube').click(function() {
+    var rawUrl = $('#ytVideoUrl').val();
+    var ytId = extrairYouTubeId(rawUrl);
+    if (!ytId) {
+        alert("Por favor, cole um link ou código de vídeo válido do YouTube.");
+        return;
+    }
+
+    var ytTitle = $('#ytVideoName').val().trim() || ("Vídeo YouTube " + ytId);
+    var pastaDestino = parseInt($('#selectYoutubeFolder').val());
+
+    var novoItem = {
+        name: ytTitle,
+        type: 'youtube',
+        ytId: ytId,
+        url: 'https://www.youtube.com/watch?v=' + ytId,
+        src: 'https://www.youtube.com/watch?v=' + ytId,
+        thumb: 'https://img.youtube.com/vi/' + ytId + '/hqdefault.jpg'
+    };
+
+    if (pastaDestino >= 0 && dados[pastaDestino]) {
+        if (!dados[pastaDestino].media) dados[pastaDestino].media = [];
+        novoItem.folderId = pastaDestino;
+        dados[pastaDestino].media.push(novoItem);
+        salvarDiretoNoDisco();
+        try { localStorage.setItem('data', JSON.stringify(dados)); } catch(e){}
+    } else {
+        novoItem.folderId = -1;
+        imagens.push(novoItem);
+        try { localStorage.setItem('images', JSON.stringify(imagens)); } catch(e){}
+    }
+
+    atualizaListasFromJSON(dados);
+    $('#newYoutubeModal').modal('hide');
+});
+
+// Ações dos controles da barra interativa do YouTube no telão
+$('#btnYtPlayPause').click(function() {
+    sendYoutubeCmd('togglePlay');
+});
+
+$('#btnYtStop').click(function() {
+    sendYoutubeCmd('stop');
+});
+
+$('#btnYtRewind').click(function() {
+    sendYoutubeCmd('rewind', { seconds: 10 });
+});
+
+$('#btnYtForward').click(function() {
+    sendYoutubeCmd('forward', { seconds: 10 });
+});
+
+$('#btnYtMute').click(function() {
+    sendYoutubeCmd('toggleMute');
+});
+
+$('#ytVolumeBar').on('input change', function() {
+    var vol = parseInt($(this).val());
+    $('#ytVolumeVal').text(vol + '%');
+    sendYoutubeCmd('setVolume', { volume: vol });
+});
+
+$('#ytProgressBar').on('mousedown touchstart', function() {
+    isDraggingYtSeek = true;
+});
+
+$('#ytProgressBar').on('change', function() {
+    var pct = parseFloat($(this).val());
+    if (lastYtStatus && lastYtStatus.duration > 0) {
+        var targetSec = (pct / 100) * lastYtStatus.duration;
+        sendYoutubeCmd('seek', { seconds: targetSec });
+    }
+    isDraggingYtSeek = false;
 });
 
 // ==========================================
@@ -1338,6 +1594,21 @@ function generateLiveList(){
             viewSlides+="<section"+getBackgroundForSection(1)+telaPadrao; 
         }
         
+        if(item.type == "y"){
+            var yt = item.mediaItem || item;
+            var ytId = item.ytId || yt.ytId || extrairYouTubeId(yt.url || yt.src || "");
+            var ytTitle = item.name || yt.name || "Vídeo do YouTube";
+            var thumbUrl = "https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg";
+
+            $("#projections tbody tr[data-id='"+i+"'] td:first-child").attr("data-goto", f);
+            $('#livesongs tbody').append('<tr data-id="'+f+'" data-yt-id="'+ytId+'" data-yt-title="'+ytTitle.replace(/"/g, '&quot;')+'"><td><i class="fab fa-youtube-square text-danger"></i>&nbsp;'+ytTitle+'</td><td><img style="max-height: 80px; max-width: 130px; object-fit: cover; border-radius: 4px;" src="'+thumbUrl+'"></td></tr>');
+            viewSlides+="<section data-background=\"#000000\" data-state=\"youtube-slide\" data-youtube-id=\""+ytId+"\" data-youtube-title=\""+ytTitle.replace(/"/g, '&quot;')+"\">\n<div style=\"width:100vw;height:100vh;\"></div>\n</section>\n";
+            f++;
+            $('#livesongs tbody').append('<tr data-id="'+f+'">'+telaPadraoPainel+'</tr>');
+            f++;
+            viewSlides+="<section"+getBackgroundForSection(1)+telaPadrao; 
+        }
+
         if(item.type == "w"){
             var aviso = item.warningItem || (item.folderId >= 0 && dados[item.folderId] && dados[item.folderId].warnings ? dados[item.folderId].warnings[item.id] : avisos[item.id]);
             var avisoName = aviso ? (aviso.name || "Aviso") : "Aviso";
@@ -1355,10 +1626,8 @@ function generateLiveList(){
     });
 
     $('#livesongs > tbody > tr').click(function() { 
-        $( this ).parent().find( 'tr.active' ).removeClass( 'active' );
-        $( this ).addClass( 'active' );
         projecaoAtiva = parseInt($(this).attr("data-id"));
-        mudaSlide();
+        mudaProjecaoAtiva();
     });
 
     projecaoAtiva = 0;
@@ -1372,10 +1641,23 @@ function updateViewSlides(){
 
 function mudaProjecaoAtiva(){
     $('#livesongs > tbody > tr.active').removeClass( 'active' );
-    $('#livesongs > tbody > tr[data-id="'+projecaoAtiva+'"]').addClass( 'active' );
-    $('#scrollblock').scrollTop(
-        $('#livesongs > tbody > tr[data-id="'+projecaoAtiva+'"]').offset().top - $('#scrollblock').offset().top + $('#scrollblock').scrollTop()
-    ); 
+    var activeRow = $('#livesongs > tbody > tr[data-id="'+projecaoAtiva+'"]');
+    activeRow.addClass( 'active' );
+    if (activeRow.length && $('#scrollblock').length && activeRow.offset() && $('#scrollblock').offset()) {
+        $('#scrollblock').scrollTop(
+            activeRow.offset().top - $('#scrollblock').offset().top + $('#scrollblock').scrollTop()
+        ); 
+    }
+
+    var ytId = activeRow.attr('data-yt-id');
+    var ytTitle = activeRow.attr('data-yt-title');
+    if (ytId) {
+        $('#youtubeControlBar').slideDown(150);
+        $('#ytPlayingTitle').text(ytTitle || 'Vídeo do YouTube');
+    } else {
+        $('#youtubeControlBar').slideUp(150);
+    }
+
     mudaSlide();
 }
 
@@ -1575,21 +1857,21 @@ $("#btnAbout").click(function(){
         <p class="mb-3 text-light">Sistema avançado de projeção e transmissão de louvores, textos bíblicos e avisos para cultos.</p>
         
         <div class="card bg-secondary text-light p-3 mb-3 border-0">
-          <p class="mb-1 font-weight-bold"><i class="fas fa-users-cog mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.0.0):</p>
-          <p class="mb-2 text-warning small font-weight-bold"><i class="fas fa-church mr-1"></i> ICM - Leopoldina / MG</p>
+          <p class="mb-1 font-weight-bold"><i class="fas fa-code-branch mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.0.0):</p>
+          <p class="mb-2 text-warning small font-weight-bold"><i class="fas fa-map-marker-alt mr-1"></i> ICM - Leopoldina / MG</p>
           
           <div class="border-top border-dark pt-2 mb-2">
-            <p class="mb-1 font-weight-bold"><i class="fas fa-user mr-1 text-info"></i> Caio Monteiro</p>
+            <p class="mb-1 font-weight-bold"><i class="fas fa-user-circle mr-1 text-info"></i> Caio Monteiro</p>
             <div class="pl-3 small">
-              <p class="mb-1"><i class="fas fa-envelope text-warning fa-fw"></i> <a href="mailto:caiormleo@outlook.com.br" class="text-info font-weight-bold">caiormleo@outlook.com.br</a></p>
-              <p class="mb-0"><i class="fab fa-github text-warning fa-fw"></i> <a href="https://github.com/chacalbl4ck" target="_blank" rel="noopener noreferrer" class="text-info font-weight-bold">chacalbl4ck</a></p>
+              <p class="mb-1"><i class="fas fa-envelope-square text-warning fa-fw"></i> <a href="mailto:caiormleo@outlook.com.br" class="text-info font-weight-bold">caiormleo@outlook.com.br</a></p>
+              <p class="mb-0"><i class="fab fa-github-square text-warning fa-fw"></i> <a href="https://github.com/chacalbl4ck" target="_blank" rel="noopener noreferrer" class="text-info font-weight-bold">chacalbl4ck</a></p>
             </div>
           </div>
 
           <div class="border-top border-dark pt-2">
-            <p class="mb-1 font-weight-bold"><i class="fas fa-user mr-1 text-info"></i> André Castilho</p>
+            <p class="mb-1 font-weight-bold"><i class="fas fa-user-circle mr-1 text-info"></i> André Castilho</p>
             <div class="pl-3 small">
-              <p class="mb-0"><i class="fas fa-envelope text-warning fa-fw"></i> <a href="mailto:atendimento@amcast.com.br" class="text-info font-weight-bold">atendimento@amcast.com.br</a></p>
+              <p class="mb-0"><i class="fas fa-envelope-square text-warning fa-fw"></i> <a href="mailto:atendimento@amcast.com.br" class="text-info font-weight-bold">atendimento@amcast.com.br</a></p>
             </div>
           </div>
         </div>

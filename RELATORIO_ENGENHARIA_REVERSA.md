@@ -444,6 +444,29 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
+### Melhoria 10: Reprodução de Vídeos do YouTube por Links e Controles Interativos no Telão
+* **Ação Executada:**
+  - **Adição de Vídeos do YouTube por Link:**
+    - Botão dedicado `#newYoutube` na barra de ferramentas da árvore.
+    - Modal interativo `#newYoutubeModal` com campo para colar links de vídeo (`watch?v=`, `youtu.be`, `shorts`, `embed` ou ID de 11 caracteres).
+    - Pré-visualização automática com miniatura oficial em alta resolução e preenchimento assíncrono do título via oEmbed.
+    - Suporte a organização dos vídeos em pastas personalizadas ou em Mídias Gerais.
+  - **Barra de Controle Interativa para o Operador (`#youtubeControlBar`):**
+    - Exibida dinamicamente na aba "Ao Vivo" apenas quando a projeção ativa for um vídeo do YouTube.
+    - Controles de **Play / Pause**, **Parar (Stop)**, **-10 segundos** e **+10 segundos**.
+    - **Barra de Progresso (Seek Bar)** interativa para avanço ou retrocesso preciso.
+    - **Indicador Digital de Tempo:** Exibe tempo decorrido e duração total (`00:00 / 00:00`).
+    - **Controle de Volume e Mudo:** Slider de volume (0 a 100%) e botão de silenciamento.
+  - **Reprodução no Telão (`view.html`):**
+    - Carregamento da YouTube IFrame Player API.
+    - Renderização em tela cheia com overlay dedicado `#ytPlayerWrapper` evitando distorções do Reveal.js.
+    - **Prevenção de Áudio Duplicado:** O iframe de miniatura do operador permanece automaticamente mudo, enquanto o telão externo reproduz o áudio na intensidade escolhida.
+    - Sincronização bidirecional via `BroadcastChannel` (`YOUTUBE_CMD` e `YOUTUBE_STATUS`).
+  - **Transmissão OBS Studio (`obs.html`):**
+    - Supressão de Lower Third durante a exibição de vídeos do YouTube para transmissão limpa.
+  - **Correção Geral de Ícones:**
+    - Auditoria de todos os 50 ícones FontAwesome do sistema, eliminando símbolos `[! ?]` na tela Sobre e no modal de enquadramento.
+
 ## 6. Ordem de Execução Recomendada
 
 Para a continuidade dos trabalhos de desenvolvimento, recomenda-se a seguinte ordem de sprints:
@@ -459,13 +482,3 @@ Para a continuidade dos trabalhos de desenvolvimento, recomenda-se a seguinte or
    - Criação da view `obs.html` para transmissão em Lower Third (Melhoria 6).
    - Lazy-loading das bases bíblicas (Melhoria 7).
    - Migração para `IndexedDB` (Melhoria 3).
-
----
-
-## 7. Manutenção do Projeto (v2.0.0)
-
-* **Origem:** ICM — Leopoldina / MG
-* **Manutenedores:**
-  * **Caio Monteiro:** `caiormleo@outlook.com.br` | GitHub: `@chacalbl4ck`
-  * **André Castilho:** `atendimento@amcast.com.br`
-* **Criadores Originais:** Ítalo Carvalho Zaina (Revisores originais: Ítalo, Sinvaldo, Geff)

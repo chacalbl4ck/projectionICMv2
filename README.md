@@ -45,11 +45,25 @@ Painel do Operador | Janela de Projeção (Telão)
 * **Economia de mais de 8.6 MB de processamento bloqueante no startup**, garantindo inicialização quase instantânea do painel.
 * As bases bíblicas (ACF e NVI) são carregadas em segundo plano sob demanda com indicador visual assim que o operador clica pela primeira vez na aba "Bíblia".
 
-### 7. Gerenciamento Completo de Pastas, Mídias e Avisos
+### 7. Reprodução de Vídeos do YouTube por Link ao Telão
+* **Adição Rápida via Link:** Adicione vídeos do YouTube diretamente à árvore de mídias através do botão com o ícone do YouTube na barra de ferramentas.
+* **Compatibilidade Completa:** Reconhece links normais (`youtube.com/watch?v=...`), links de compartilhamento encurtados (`youtu.be/...`), YouTube Shorts (`youtube.com/shorts/...`), tags de incorporação (`embed`) ou apenas o código ID de 11 caracteres.
+* **Pré-visualização Inteligente:** Exibe a miniatura oficial em alta resolução e preenche automaticamente o título do vídeo via serviço oEmbed.
+* **Barra de Controle Completa e Interativa no Painel:**
+  * **Play / Pause** com alternância visual do botão.
+  * **Barra de Progresso (Seek Bar):** Permite navegar interativamente para qualquer ponto do vídeo arrastando a barra.
+  * **Tempo e Duração:** Marcador digital com tempo decorrido e tempo total (`00:00 / 00:00`).
+  * **Retrocesso e Avanço Rápido:** Botões dedicados de **-10 segundos** e **+10 segundos**.
+  * **Controle de Volume e Mudo:** Slider de volume (0 a 100%) e botão de alternância rápida de Mudo.
+* **Prevenção de Áudio Duplicado:** O iframe de miniatura do operador permanece automaticamente mudo, enquanto o telão externo reproduz o áudio na intensidade regulada pelo operador.
+* **Integração com OBS Studio:** Durante a exibição do vídeo, os Lower Thirds são recolhidos automaticamente para manter a transmissão de vídeo limpa.
+
+### 8. Gerenciamento Completo de Pastas, Mídias e Avisos
 * **Renomear Pastas:** Permite renomear qualquer pasta personalizada criada pelo operador através do botão <i class="fas fa-edit"></i> na barra de ferramentas.
-* **Visualizador de Mídias:** Permite inspecionar imagens em alta resolução e reproduzir vídeos com player completo antes de enviá-los à transmissão.
+* **Visualizador de Mídias e YouTube:** Permite inspecionar imagens em alta resolução, reproduzir vídeos locais e pré-visualizar vídeos do YouTube com player embutido antes de projetar.
 * **Edição de Avisos com Seleção de Pastas:** Permite editar avisos já criados (nome, título e texto) e organizá-los na Pasta Geral ou em qualquer pasta personalizada.
 * **Banco Local IndexedDB (`MediaDB`):** Armazenamento de alta capacidade para evitar estouro da cota do `localStorage`.
+* **Interface Polida com Ícones Verificados:** Todos os ícones do sistema foram padronizados para o FontAwesome 5 oficial sem erros de renderização (`[! ?]`).
 
 ---
 

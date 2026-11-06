@@ -12,6 +12,11 @@
   <!-- Camada de Blackout Instantâneo -->
   <div id="blackoutOverlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 999999; opacity: 0; pointer-events: none; transition: opacity 0.25s ease-in-out;"></div>
 
+  <!-- Container de Vídeo do YouTube em Tela Cheia -->
+  <div id="ytPlayerWrapper" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 50; display: none; align-items: center; justify-content: center; overflow: hidden;">
+    <div id="ytPlayerTarget" style="width: 100vw; height: 100vh;"></div>
+  </div>
+
   <!-- 2. Create hidden header/footer <div> -->
   <div class="reveal">
     <!-- Headers Padrão ICM -->
@@ -52,6 +57,206 @@
     // Distingue se esta janela é o TELÃO EXTERNO real (janela separada) ou apenas o IFRAME de miniatura no painel
     const isExternalTelao = (window.self === window.top);
 
+    // ==========================================
+    // REPRODUÇÃO E CONTROLE DE VÍDEOS DO YOUTUBE
+    // ==========================================
+    var ytPlayer = null;
+    var isYtApiReady = false;
+    var currentLoadedYtId = null;
+    var currentVolume = 100;
+    var ytProgressInterval = null;
+
+    window.onYouTubeIframeAPIReady = function() {
+      isYtApiReady = true;
+      checkYouTubeSlide();
+    };
+
+    function startYtProgressLoop() {
+      if (ytProgressInterval) clearInterval(ytProgressInterval);
+      ytProgressInterval = setInterval(function() {
+        emitYtStatus();
+      }, 350);
+    }
+
+    function stopYtProgressLoop() {
+      if (ytProgressInterval) {
+        clearInterval(ytProgressInterval);
+        ytProgressInterval = null;
+      }
+    }
+
+    function emitYtStatus() {
+      if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+      try {
+        var currentTime = ytPlayer.getCurrentTime() || 0;
+        var duration = ytPlayer.getDuration() || 0;
+        var state = (typeof ytPlayer.getPlayerState === 'function') ? ytPlayer.getPlayerState() : -1;
+        var isMuted = (typeof ytPlayer.isMuted === 'function') ? ytPlayer.isMuted() : false;
+        var vol = (typeof ytPlayer.getVolume === 'function') ? ytPlayer.getVolume() : currentVolume;
+
+        var statusPayload = {
+          currentTime: currentTime,
+          duration: duration,
+          playerState: state,
+          isMuted: isMuted,
+          volume: vol,
+          ytId: currentLoadedYtId,
+          isExternal: isExternalTelao
+        };
+
+        if (isExternalTelao && projectionChannel) {
+          projectionChannel.postMessage({ action: 'YOUTUBE_STATUS', payload: statusPayload });
+        } else if (!isExternalTelao && window.parent && window.parent !== window) {
+          window.parent.postMessage(JSON.stringify({
+            host: 'projection-html5-painel',
+            function: 'YOUTUBE_STATUS',
+            data: statusPayload
+          }), "*");
+        }
+      } catch (e) {}
+    }
+
+    function initOrLoadYtVideo(ytId) {
+      var wrapper = document.getElementById('ytPlayerWrapper');
+      if (wrapper) wrapper.style.display = 'flex';
+
+      if (!ytPlayer) {
+        if (!isYtApiReady || !window.YT || !window.YT.Player) {
+          setTimeout(function() { initOrLoadYtVideo(ytId); }, 250);
+          return;
+        }
+
+        currentLoadedYtId = ytId;
+        ytPlayer = new YT.Player('ytPlayerTarget', {
+          videoId: ytId,
+          width: '100%',
+          height: '100%',
+          playerVars: {
+            autoplay: 1,
+            controls: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            disablekb: 1,
+            fs: 0,
+            iv_load_policy: 3
+          },
+          events: {
+            onReady: function(event) {
+              if (!isExternalTelao) {
+                event.target.mute(); // Silencia iframe miniatura do operador para não duplicar som
+              } else {
+                event.target.unMute();
+                event.target.setVolume(currentVolume);
+              }
+              event.target.playVideo();
+              startYtProgressLoop();
+              emitYtStatus();
+            },
+            onStateChange: function(event) {
+              emitYtStatus();
+            }
+          }
+        });
+      } else {
+        if (currentLoadedYtId !== ytId) {
+          currentLoadedYtId = ytId;
+          if (typeof ytPlayer.loadVideoById === 'function') {
+            ytPlayer.loadVideoById(ytId);
+          }
+        } else {
+          if (typeof ytPlayer.playVideo === 'function') {
+            ytPlayer.playVideo();
+          }
+        }
+        startYtProgressLoop();
+        emitYtStatus();
+      }
+    }
+
+    function checkYouTubeSlide() {
+      var currentSlide = Reveal.getCurrentSlide();
+      if (!currentSlide) {
+        var indices = (typeof Reveal.getIndices === 'function') ? Reveal.getIndices() : { h: 0 };
+        var allSlides = document.querySelectorAll('.reveal .slides section');
+        if (allSlides && allSlides[indices.h]) {
+          currentSlide = allSlides[indices.h];
+        }
+      }
+
+      var ytId = currentSlide ? currentSlide.getAttribute('data-youtube-id') : null;
+      var wrapper = document.getElementById('ytPlayerWrapper');
+
+      if (ytId) {
+        initOrLoadYtVideo(ytId);
+      } else {
+        if (wrapper) wrapper.style.display = 'none';
+        if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+          try {
+            ytPlayer.pauseVideo();
+          } catch(e) {}
+        }
+        stopYtProgressLoop();
+      }
+    }
+
+    function handleYoutubeCommand(payload) {
+      if (!payload || !ytPlayer) return;
+      var cmd = payload.cmd;
+      try {
+        if (cmd === 'play') {
+          if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
+        } else if (cmd === 'pause') {
+          if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+        } else if (cmd === 'togglePlay') {
+          if (typeof ytPlayer.getPlayerState === 'function') {
+            var state = ytPlayer.getPlayerState();
+            if (state === 1) { // 1 = PLAYING
+              ytPlayer.pauseVideo();
+            } else {
+              ytPlayer.playVideo();
+            }
+          }
+        } else if (cmd === 'stop') {
+          if (typeof ytPlayer.pauseVideo === 'function') {
+            ytPlayer.pauseVideo();
+            if (typeof ytPlayer.seekTo === 'function') ytPlayer.seekTo(0, true);
+          }
+        } else if (cmd === 'seek') {
+          if (payload.seconds !== undefined && typeof ytPlayer.seekTo === 'function') {
+            ytPlayer.seekTo(payload.seconds, true);
+          }
+        } else if (cmd === 'rewind') {
+          if (typeof ytPlayer.getCurrentTime === 'function' && typeof ytPlayer.seekTo === 'function') {
+            var cur = ytPlayer.getCurrentTime() || 0;
+            ytPlayer.seekTo(Math.max(0, cur - (payload.seconds || 10)), true);
+          }
+        } else if (cmd === 'forward') {
+          if (typeof ytPlayer.getCurrentTime === 'function' && typeof ytPlayer.seekTo === 'function') {
+            var cur = ytPlayer.getCurrentTime() || 0;
+            var dur = ytPlayer.getDuration ? ytPlayer.getDuration() : cur + 30;
+            ytPlayer.seekTo(Math.min(dur, cur + (payload.seconds || 10)), true);
+          }
+        } else if (cmd === 'setVolume') {
+          if (isExternalTelao && payload.volume !== undefined && typeof ytPlayer.setVolume === 'function') {
+            currentVolume = payload.volume;
+            ytPlayer.setVolume(currentVolume);
+          }
+        } else if (cmd === 'toggleMute') {
+          if (isExternalTelao && typeof ytPlayer.isMuted === 'function') {
+            if (ytPlayer.isMuted()) {
+              if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+            } else {
+              if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Erro ao executar comando do YouTube no telão", e);
+      }
+      emitYtStatus();
+    }
+
     function processCommand(funcName, payload) {
       if (funcName === 'reloadReveal' || funcName === 'RELOAD_SLIDES') {
         reloadReveal(payload);
@@ -65,6 +270,8 @@
         changeFontSize(payload);
       } else if (funcName === 'blackout' || funcName === 'BLACKOUT') {
         toggleBlackout(payload);
+      } else if (funcName === 'YOUTUBE_CMD') {
+        handleYoutubeCommand(payload);
       } else if (funcName === 'REQUEST_STATUS' || funcName === 'PING') {
         // Apenas a janela externa real confirma status de telão ativo
         if (isExternalTelao && projectionChannel) {
@@ -101,6 +308,7 @@
 
     function changeSlide(number) {
       Reveal.slide(number, number, number);
+      checkYouTubeSlide();
     }
 
     function clearSlide(status) {
@@ -135,8 +343,13 @@
         transition: 'fade', // default/cube/page/concave/zoom/linear/fade/none
       });  
       Reveal.sync();      
-      changeSlide(0);    
+      changeSlide(0);
+      checkYouTubeSlide();
     }
+
+    Reveal.addEventListener('slidechanged', function() {
+      checkYouTubeSlide();
+    });
 
     // Notifica o painel que o Telão externo está pronto
     function notifyPainelReady() {
@@ -170,5 +383,7 @@
     });
     })()
   </script>
+  <!-- YouTube IFrame Player API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
