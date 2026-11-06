@@ -17,14 +17,14 @@
   <div id="loading" class="overlay">
     <div class="overlay-content text-center"> 
       <div id="loader" class="mx-auto"></div>
-      <h5 style="color:white; padding-top:20px;">Carregando</h5>
+      <h5 class="text-white font-weight-normal m-0" style="letter-spacing: 1px;">Carregando...</h5>
     </div> 
   </div> 
 
   <nav class="navbar navbar-expand-md navbar-dark bg-dark justify-content-between">
-    <a class="navbar-brand" href="#" data-lang-str="navbrand">Projeção ICM</a>
+    <a class="navbar-brand font-weight-bold" href="#" data-lang-str="navbrand">Projeção ICM</a>
     
-    <ul class="navbar-nav mr-auto">
+    <ul class="navbar-nav mr-2">
       <li class="nav-item">
         <button id="btnAbrirConf" class="btn btn-dark" title="Configurações"><i class="fas fa-wrench"></i></button>
       </li>
@@ -45,19 +45,37 @@
       </li>
     </ul>
 
-    <ul class="navbar-nav">
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-lang-str="language">Idioma</a>
-        <div class="dropdown-menu" aria-labelledby="dropdown01">
-          <button class="dropdown-item" href="#" name="btn-translate" data-lang="pt-br"><img src="imagens/brazil.svg" class="flag"> Português</button>
-          <button class="dropdown-item" href="#" name="btn-translate" data-lang="en"><img src="imagens/united-states.svg" class="flag"> English</button>
-          <button class="dropdown-item" href="#" name="btn-translate" data-lang="it"><img src="imagens/italy.svg" class="flag"> Italiano</button>
-        </div>
-      </li>
+    <!-- Controles de Culto em Tempo Real (Blackout & Freeze) -->
+    <div class="d-flex align-items-center mx-auto">
+      <div class="btn-group mr-2" role="group" aria-label="Controles de Culto">
+        <button id="btnBlackout" type="button" class="btn btn-outline-danger btn-sm font-weight-bold" title="Blackout - Apaga o telão instantaneamente sem mudar o slide (Atalho: Tecla B)">
+          <i class="fas fa-eye-slash"></i> Blackout <kbd class="bg-dark text-light border-0">B</kbd>
+        </button>
+        <button id="btnFreeze" type="button" class="btn btn-outline-info btn-sm font-weight-bold" title="Congelar - Trava o telão no slide atual enquanto prepara o próximo na lista (Atalho: Tecla F)">
+          <i class="fas fa-snowflake"></i> Congelar <kbd class="bg-dark text-light border-0">F</kbd>
+        </button>
+      </div>
+
+      <span id="alertBlackoutActive" class="badge badge-danger p-2 mr-2 animate-pulse" style="display: none;">
+        <i class="fas fa-eye-slash"></i> TELÃO APAGADO
+      </span>
+      <span id="alertFreezeActive" class="badge badge-info p-2 mr-2 animate-pulse" style="display: none;">
+        <i class="fas fa-snowflake"></i> TELÃO CONGELADO
+      </span>
+      
+      <span id="telaoStatusBadge" class="badge badge-secondary py-1 px-2" title="Status da conexão com o Telão via BroadcastChannel">
+        <i class="fas fa-circle text-muted mr-1" id="telaoStatusIcon"></i><span id="telaoStatusText">Telão Desconectado</span>
+      </span>
+    </div>
+
+    <ul class="navbar-nav align-items-center">
       <li class="nav-item">
-        <button id="btnLaunchView" class="btn btn-dark" title="Abrir tela de projeção" data-lang-str="btn_start_view"><i class="fas fa-tv"></i></button>
+        <button id="btnLaunchView" class="btn btn-primary font-weight-bold" title="Abrir tela de projeção (Telão)"><i class="fas fa-tv"></i> Abrir Telão</button>
       </li>
-      <small class="navbar-text" data-lang-str="version"></small>
+      <li class="nav-item ml-1">
+        <button id="btnLaunchObs" class="btn btn-outline-info font-weight-bold" title="Abrir saída transparente para OBS Studio (Lower Thirds)"><i class="fas fa-video"></i> Saída OBS</button>
+      </li>
+      <small class="navbar-text ml-2 text-muted">v2.0.0</small>
     </ul> 
   </nav>
 
@@ -106,22 +124,32 @@
   
   <div class="modal fade" id="newImageModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
-      <div class="modal-content">
+      <div class="modal-content text-light bg-dark">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="new_image">Nova Imagem</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h5 class="modal-title"><i class="fas fa-film mr-1"></i> Adicionar Imagem ou Vídeo</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body"> 
           <div class="form-group p-2"> 
-            <input class="form-control" id="imageName" type="text" placeholder="Nome da imagem" data-lang-str="image_name">
+            <label for="imageName">Nome da Mídia:</label>
+            <input class="form-control" id="imageName" type="text" placeholder="Ex: Foto do Batismo, Vídeo Vinheta...">
           </div> 
           <div class="form-group p-2">
-            <label for="fileimage" data-lang-str="select_image">Imagem</label>
-            <input id="fileimage" class="btn" type="file" accept="image/*">
+            <label for="selectMediaFolder">Salvar na Pasta:</label>
+            <select class="form-control" id="selectMediaFolder">
+              <option value="-1">📁 Mídias Gerais</option>
+            </select>
+            <small class="form-text text-muted">Escolha a pasta geral de mídias ou uma das pastas que você criou.</small>
+          </div>
+          <div class="form-group p-2">
+            <label for="fileimage">Arquivo (Imagem ou Vídeo):</label>
+            <input id="fileimage" class="form-control-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/avi,.avi">
+            <small class="form-text text-muted">Imagens: JPG, PNG, GIF, WEBP. Vídeos: MP4, AVI (máximo 10 MB).</small>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="confirmCreateImage" type="button" class="btn btn-primary" data-lang-str="create">Criar</button> 
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button id="confirmCreateImage" type="button" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar à Lista</button> 
         </div> 
       </div>
     </div>
@@ -129,26 +157,36 @@
   
   <div class="modal fade" id="newWarningModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
-      <div class="modal-content">
+      <div class="modal-content text-light bg-dark">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="new_warning">Novo Aviso</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h5 class="modal-title" id="warningModalTitle"><i class="fas fa-exclamation-triangle mr-1"></i> Novo Aviso</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body"> 
-          <div class="form-group p-2"> 
-            <input class="form-control" id="warningName" type="text" placeholder="Nome do aviso" data-lang-str="warning_name">
+          <input type="hidden" id="editingWarningIndex" value="-1">
+          <input type="hidden" id="editingWarningFolderId" value="-1">
+          <div class="form-group p-2 mb-1"> 
+            <label for="warningName">Nome de Identificação do Aviso:</label>
+            <input class="form-control" id="warningName" type="text" placeholder="Ex: Reunião de Jovens, Vigília...">
           </div> 
+          <div class="form-group p-2 mb-2">
+            <label for="selectWarningFolder">Pasta do Aviso:</label>
+            <select class="form-control" id="selectWarningFolder">
+              <option value="-1">📋 Pasta Geral de Avisos</option>
+            </select>
+            <small class="form-text text-muted">Você pode salvar na pasta geral ou em qualquer pasta personalizada.</small>
+          </div>
           <div class="warning-container"> 
             <div class="warning-bg">
               <table class="reveal warning-table">
                 <tr>
-                  <td class="warning-title" width="80%" data-lang-str="warning" contenteditable="true">Aviso</td>
-                  <td width="20%"><div id="fancypart" class="warning-logo">[LOGO]</div></td>
+                  <td class="warning-title" width="80%" contenteditable="true">Aviso</td>
+                  <td width="20%"><div id="fancypart" class="warning-logo"><i class="icon-logo_bold"></i></div></td>
                 </tr>
                 <tr>
                   <td colspan="2">
                     <div style="display: table;">
-                      <div class="warning-body" contenteditable="true">1<br>2<br>3</div>
+                      <div class="warning-body" contenteditable="true">Digite o conteúdo do aviso aqui...</div>
                     </div>
                   </td>
                 </tr>
@@ -157,7 +195,8 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button id="confirmCreateWarning" type="button" class="btn btn-primary" data-lang-str="create">Criar</button> 
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button id="confirmCreateWarning" type="button" class="btn btn-primary"><i class="fas fa-save mr-1"></i> Salvar Aviso</button> 
         </div> 
       </div>
     </div>
@@ -291,18 +330,70 @@
   
   <div class="modal fade" id="selectImageModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
+      <div class="modal-content text-light bg-dark">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="select_image">Selecionar Imagem</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h5 class="modal-title"><i class="fas fa-images mr-1"></i> Selecionar Imagem ou Vídeo de Fundo</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body">
           <div id="images" data-type="0"></div>
         </div>
-        <div class="modal-footer">
-          <input type="file" id="imagesToAdd">
-          <button id="addNewImage" type="button" class="btn btn-primary"><i class="fas fa-plus fa-fw"></i></button>
+        <div class="modal-footer d-flex justify-content-between align-items-center">
+          <div class="flex-grow-1 mr-2 text-left">
+            <input type="file" id="imagesToAdd" class="form-control-file text-light" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/avi,.avi">
+            <small class="form-text text-muted">Imagens (JPG, PNG, GIF, WEBP) com ajuste 16:9 ou Vídeos (MP4, AVI até 30s e máx. 10 MB).</small>
+          </div>
+          <button id="addNewImage" type="button" class="btn btn-primary"><i class="fas fa-plus fa-fw"></i> Adicionar</button>
         </div> 
+      </div>
+    </div>
+  </div> 
+
+  <!-- Modal de Ajuste de Recorte e Zoom 16:9 -->
+  <div class="modal fade" id="cropAdjustModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content text-light bg-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-crop-alt mr-1"></i> Ajustar Enquadramento de Fundo (16:9)</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div id="cropWarningAlert" class="alert alert-warning py-2 mb-3">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <span id="cropWarningText">A imagem selecionada não possui proporção 16:9. Ajuste o enquadramento abaixo para evitar distorções no telão.</span>
+          </div>
+
+          <div class="text-center mb-3">
+            <small class="text-muted d-block mb-1">Pré-visualização 16:9 (Como será exibido no telão):</small>
+            <div style="display: inline-block; width: 480px; max-width: 100%; aspect-ratio: 16/9; background: #000; border: 2px dashed #17a2b8; border-radius: 4px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+              <canvas id="cropPreviewCanvas" width="480" height="270" style="width: 100%; height: 100%; display: block;"></canvas>
+            </div>
+          </div>
+
+          <div class="container px-0">
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label for="cropZoom"><i class="fas fa-search-plus"></i> Zoom (<span id="cropZoomVal">100</span>%):</label>
+                <input type="range" class="form-control-range" id="cropZoom" min="100" max="250" value="100" step="5">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label for="cropPanX"><i class="fas fa-arrows-alt-h"></i> Posição X (<span id="cropPanXVal">0</span>%):</label>
+                <input type="range" class="form-control-range" id="cropPanX" min="-100" max="100" value="0" step="2">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label for="cropPanY"><i class="fas fa-arrows-alt-v"></i> Posição Y (<span id="cropPanYVal">0</span>%):</label>
+                <input type="range" class="form-control-range" id="cropPanY" min="-100" max="100" value="0" step="2">
+              </div>
+            </div>
+            <div class="text-right mt-1">
+              <button id="btnResetCrop" type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-undo"></i> Centralizar / Redefinir</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button id="btnConfirmCrop" type="button" class="btn btn-success"><i class="fas fa-check"></i> Aplicar e Salvar Fundo</button>
+        </div>
       </div>
     </div>
   </div> 
@@ -325,25 +416,62 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="create_folder">Criar pasta</h5>
+          <h5 class="modal-title">Criar pasta</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body">
           <div class="form-group p-2"> 
-            <input class="form-control" id="folderName" type="text" placeholder="Nome da pasta" data-lang-str="folder_name">
-          </div> 
-          <div class="form-group p-2">
-            <label for="selectLangFolder" data-lang-str="language">Idioma</label>
-            <select class="form-control" id="selectLangFolder">
-              <option value="pt">Português</option>
-              <option value="en">English</option>
-              <option value="it">Italiano</option>
-            </select>
+            <input class="form-control" id="folderName" type="text" placeholder="Nome da pasta">
           </div>
         </div>
         <div class="modal-footer">
-          <button id="confirmMakeFolder" type="button" class="btn btn-primary" data-lang-str="create">Criar</button> 
+          <button id="confirmMakeFolder" type="button" class="btn btn-primary">Criar</button> 
         </div> 
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Renomear Pasta -->
+  <div class="modal fade" id="renameFolderModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content text-light bg-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-edit mr-1"></i> Renomear Pasta</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group p-2"> 
+            <label for="renameFolderInput">Novo Nome da Pasta:</label>
+            <input class="form-control" id="renameFolderInput" type="text" placeholder="Digite o novo nome da pasta">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button id="confirmRenameFolder" type="button" class="btn btn-primary"><i class="fas fa-check mr-1"></i> Salvar Nome</button> 
+        </div> 
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Visualização de Mídia (Imagens e Vídeos) -->
+  <div class="modal fade" id="mediaViewerModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content text-light bg-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-eye mr-1"></i> <span id="mediaViewerTitle">Visualizador de Mídia</span></h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body text-center p-3" id="mediaViewerBody">
+          <img id="mediaViewerImg" src="" style="max-width: 100%; max-height: 65vh; object-fit: contain; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);">
+          <video id="mediaViewerVideo" controls autoplay style="max-width: 100%; max-height: 65vh; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);"></video>
+        </div>
+        <div class="modal-footer d-flex justify-content-between align-items-center">
+          <span class="text-muted small" id="mediaViewerInfo"></span>
+          <div>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button id="btnAddToProjFromViewer" type="button" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> Adicionar à Projeção</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -354,23 +482,26 @@
         <div class="card"> 
           <div class="card-header text-light bg-dark" data-lang-str="files">Arquivos</div>
           <div class="card-block">
-            <div class="btn-toolbar bg-secondary justify-content-between px-2 py-1">
-              <div class="btn-group mr-2">
-                <button id="newSong" class="btn btn-dark" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="fas fa-file-alt fa-fw"></i></button>
-                <div id="listaDePastas" class="dropdown-menu" aria-labelledby="newSong" data-toggle="tooltip" data-placement="bottom" title="Criar música" data-lang-str="btn_create_song">
+            <div class="btn-toolbar bg-secondary justify-content-between px-1 py-1">
+              <div class="btn-group mr-1">
+                <button id="newSong" class="btn btn-dark" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Criar nova música"><i class="fas fa-file-alt fa-fw"></i></button>
+                <div id="listaDePastas" class="dropdown-menu" aria-labelledby="newSong" data-toggle="tooltip" data-placement="bottom" title="Criar música">
                   <a class="dropdown-item" href="#">Louvores</a>
                 </div>
-                <button id="newFolder" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Criar pasta" data-lang-str="btn_create_folder"><i class="fas fa-folder-open fa-fw"></i></button> 
+                <button id="newFolder" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Criar pasta"><i class="fas fa-folder-open fa-fw"></i></button> 
+                <button id="btnRenameFolder" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Renomear pasta selecionada"><i class="fas fa-edit fa-fw"></i></button>
+              </div>
+              <div class="btn-group mr-1">
+                <button id="newImage" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Adicionar imagem ou vídeo à lista"><i class="fas fa-film fa-fw"></i></button>
+                <button id="btnPreviewMedia" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Visualizar mídia selecionada"><i class="fas fa-eye fa-fw"></i></button>
               </div>
               <div class="btn-group">
-                <button id="newImage" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Nova imagem" data-lang-str="btn_create_image"><i class="fas fa-image"></i></button>
-              </div>
-              <div class="btn-group">
-                <button id="deleteFromTree" class="btn btn-danger" data-toggle="tooltip" data-placement="bottom" title="Apagar pasta/arquivo" data-lang-str="btn_del_file_folder"><i class="fas fa-trash fa-fw"></i></button> 
+                <button id="btnEditWarning" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Editar aviso selecionado"><i class="fas fa-pencil-alt fa-fw"></i></button>
+                <button id="deleteFromTree" class="btn btn-danger" data-toggle="tooltip" data-placement="bottom" title="Apagar item/pasta"><i class="fas fa-trash fa-fw"></i></button> 
               </div> 
             </div> 
             <div class="form-group p-2 mb-0"> 
-              <input class="form-control" id="treesearch" type="text" placeholder="Pesquisar" data-lang-str="search">
+              <input class="form-control" id="treesearch" type="text" placeholder="Pesquisar título ou letra..." data-lang-str="search">
             </div>
             <div id="tree_list1">
               <div id="songList"></div> 
@@ -447,7 +578,12 @@
             </div>
             
             <div class="tab-pane fade" id="bible" role="tabpanel" aria-labelledby="bible-tab">
-              <div class="p-2">
+              <div id="bibleLoadingIndicator" class="text-center p-5" style="display:none;">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                <h5 class="text-light">Carregando textos bíblicos (ACF e NVI)...</h5>
+                <p class="text-muted">Apenas um instante no primeiro acesso.</p>
+              </div>
+              <div id="bibleContentArea" class="p-2">
                 <div class="row">
                   <div class="col-12">
                     <div class="btn-toolbar justify-content-between">
@@ -538,10 +674,7 @@
 <script src="js/popper.min.js"></script>
 <script src="js/bootstrap.min.js"></script> 
 <script src="js/perfect-scrollbar.js"></script>
-<script src="bible/nvi.js"></script>
-<script src="bible/acf.js"></script>
 <script src="js/bible.js"></script>
-<script src="js/langs.js"></script>
 <script src="js/core.js"></script>
 </body>
 </html>

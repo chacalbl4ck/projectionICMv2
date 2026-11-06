@@ -30,42 +30,84 @@ td {
 
 /* Center the loader */
 #loader {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 1;
-  width: 120px;
-  height: 120px;
-  margin: -60px 0 0 -60px;
-  border: 16px solid #f3f3f3;
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 20px auto;
+  border: 10px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
-  border-top: 16px solid #3498db;
-  -webkit-animation: spin 2s linear infinite;
-  animation: spin 2s linear infinite;
+  border-top: 10px solid #3498db;
+  -webkit-animation: spin 1.5s linear infinite;
+  animation: spin 1.5s linear infinite;
 }
 
 /* The Overlay (background) */
 .overlay {
-    /* Height & width depends on how you want to reveal the overlay (see JS below) */   
-    height: 100%;
-    width: 100%;
-    position: fixed; /* Stay in place */    
-    z-index: 1; /* Sit on top */
-    left: 0;
-    top: 0;
-    background-color: rgb(0,0,0); /* Black fallback color */
-    background-color: rgba(0,0,0, 0.9); /* Black w/opacity */
-    overflow: hidden; /* Disable horizontal scroll */
-    display: table;
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  z-index: 99999;
+  left: 0;
+  top: 0;
+  background-color: rgba(0, 0, 0, 0.92);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay.d-none, .overlay.hidden, #loading.d-none {
+  display: none !important;
 }
 
 /* Position the content inside the overlay */
 .overlay-content {
-    display: table-cell;
-    vertical-align: middle;
-    position: relative;
-    text-align: center; /* Centered text/links */
-    /* margin-top: 30px; 30px top margin to avoid conflict with the close button on smaller screens */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  text-align: center;
+  max-width: 600px;
+  width: 90%;
+  padding: 20px;
+  margin: auto;
+}
+
+/* ==========================================
+   ESTILOS DOS CONTROLES DE CULTO (BLACKOUT E FREEZE)
+   ========================================== */
+@keyframes pulseGlow {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pulse {
+  animation: pulseGlow 1.2s infinite ease-in-out;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.btn-blackout-active {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(220, 53, 69, 0.85);
+}
+
+.btn-freeze-active {
+  background-color: #17a2b8 !important;
+  border-color: #17a2b8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(23, 162, 184, 0.85);
+}
+
+kbd {
+  font-size: 80%;
+  padding: 1px 5px;
+  border-radius: 3px;
+  vertical-align: middle;
 }
 
 @-webkit-keyframes spin {
@@ -426,22 +468,63 @@ input:checked + .slider:before {
 }
 
 #images {
-  /* outline: 1px dashed pink; */
   width: 100%;
   height: 100%;
   text-align: center;
+  max-height: 55vh;
+  overflow-y: auto;
 }
 
-#images div {
+#images div.bg-item {
+  position: relative;
   display: inline-block;   
   width: 200px;
   height: 113px;
-  border: 2px solid gray;
-   background-repeat: no-repeat !important;
-  -webkit-background-size: cover !important;
-  -moz-background-size:  cover !important;
-  -o-background-size: cover !important;
+  margin: 6px;
+  border: 2px solid #555;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
   background-size: cover !important;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+#images div.bg-item:hover {
+  border-color: #007bff;
+  transform: scale(1.03);
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+}
+
+#images div.bg-item .bg-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  z-index: 2;
+}
+
+#images div.bg-item .bg-del-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(220, 53, 69, 0.85);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+#images div.bg-item .bg-del-btn:hover {
+  background: #dc3545;
 }
 /* ============================================================== */
 /* Estilos para a Árvore de Arquivos Nativa (Substituindo jsTree) */

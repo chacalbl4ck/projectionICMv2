@@ -1,3 +1,236 @@
+# Guia de Internacionalização e Multi-idiomas (i18n)
+
+> Este documento registra o funcionamento da funcionalidade original de múltiplos idiomas do sistema Projeção ICM, como reativá-la e como adicionar novos idiomas/traduções.
+
+---
+
+## 1. Visão Geral da Arquitetura de Idiomas
+
+Originalmente, o sistema contava com suporte a três idiomas:
+- **Português (`pt-br`)**: Padrão do sistema.
+- **Inglês (`en`)**: Para igrejas no exterior de língua inglesa.
+- **Italiano (`it`)**: Para a Missão Cristã Maranata na Itália (MEMDI).
+
+### Como funcionava a tradução dinâmica:
+1. **Atributo `data-lang-str`**: No arquivo `index.html`, os elementos da interface recebiam o atributo `data-lang-str="chave_de_traducao"`.
+2. **Dicionário em `js/langs.js`**: O arquivo definia um objeto `TRANSLATIONS` indexado pelo código do idioma (`pt-br`, `en`, `it`) e pelas chaves de tradução.
+3. **Persistência**: O idioma escolhido ficava salvo no `localStorage` sob a chave `config` (`{ lang: "pt-br" }`).
+4. **Função `translate(lang)`**: Varria todos os elementos com `[data-lang-str]` no DOM e substituía o texto (`innerText`), o HTML (`innerHTML`), o `placeholder` ou o `title` conforme definido no dicionário.
+5. **Seletor no Navbar**: Um dropdown com as bandeiras dos países permitia ao operador alternar o idioma instantaneamente em tempo de execução via evento `click` nos botões com `name="btn-translate"`.
+6. **Múltiplos Logos no Telão (`view.html`)**: O telão continha headers específicos para cada idioma (`winetitle-en`, `winetitle-it`, `whitelogo-en`, etc.), permitindo exibir o logotipo com a denominação local (ex: logotipo da ICM internacional).
+
+---
+
+## 2. Passo a Passo para Reativar a Função de Idiomas
+
+Caso queira reativar a funcionalidade no futuro, siga os passos abaixo:
+
+### Passo 1: Recriar o arquivo `js/langs.js`
+Crie novamente o arquivo `js/langs.js` com a estrutura completa fornecida na **Seção 4** deste guia.
+
+### Passo 2: Importar o script no `index.html`
+No final de `index.html`, antes de `js/core.js`, adicione a tag `<script>`:
+```html
+<script src="bible/acf.js"></script>
+<script src="js/bible.js"></script>
+<script src="js/langs.js"></script> <!-- ADICIONE ESTA LINHA -->
+<script src="js/core.js"></script>
+```
+
+### Passo 3: Restaurar o seletor de idiomas no Navbar do `index.html`
+No arquivo `index.html`, dentro de `<ul class="navbar-nav align-items-center">` (por volta da linha 70), adicione novamente o menu suspenso:
+```html
+<li class="nav-item dropdown mr-1">
+  <a class="nav-link dropdown-toggle" href="#" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-lang-str="language">Idioma</a>
+  <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdown01">
+    <button class="dropdown-item" href="#" name="btn-translate" data-lang="pt-br"><img src="imagens/brazil.svg" class="flag"> Português</button>
+    <button class="dropdown-item" href="#" name="btn-translate" data-lang="en"><img src="imagens/united-states.svg" class="flag"> English</button>
+    <button class="dropdown-item" href="#" name="btn-translate" data-lang="it"><img src="imagens/italy.svg" class="flag"> Italiano</button>
+  </div>
+</li>
+```
+
+*(Opcional: coloque as imagens SVG das bandeiras `brazil.svg`, `united-states.svg` e `italy.svg` na pasta `imagens/`)*.
+
+### Passo 4: Reconectar o `js/core.js` ao dicionário `TRANSLATIONS`
+Em `js/core.js`, volte a utilizar `TRANSLATIONS[config.lang]` nas mensagens dinâmicas:
+
+1. **Exclusão de músicas e pastas (`#deleteFromTree`):**
+```javascript
+if(tipo === "song"){
+    $('#excluirModal').find('.modal-body p').html(TRANSLATIONS[config.lang]['delSong_msg_start']+"<strong>"+selecionado.textContent+"</strong> ?");
+} else if(tipo === "folder") {
+    $('#excluirModal').find('.modal-body p').html(TRANSLATIONS[config.lang]['delFolder_msg_start']+"<strong>"+selecionado.textContent+"</strong>" + TRANSLATIONS[config.lang]['delFolder_msg_end']);
+}
+```
+
+2. **Tela Padrão no painel (`generateLiveList`):**
+```javascript
+var telaPadraoPainel = '<td>'+TRANSLATIONS[config.lang]['default_screen']+'</td><td></td>';
+```
+
+3. **Tela Padrão e Santa Ceia (`setTelaPadraoHtml`):**
+```javascript
+function setTelaPadraoHtml(tipo) {
+    if (tipo === 1) {
+        telaPadrao = ">\n<h1>"+TRANSLATIONS[config.lang]['maranata_title']+"</h1>\n<h3>"+TRANSLATIONS[config.lang]['maranata_slogan']+"</h3>\n</section>\n";
+    } else if (tipo === 2) {
+        telaPadrao = " data-state=\"show_backlay1\">\n<style>\n.show_backlay1 header.backlay1-"+config.lang+" .backlay_1-"+config.lang+"{display: block}\n</style>\n<h1>Santa Ceia</h1><br>\n</section>\n";
+    } else {
+        telaPadrao = ">\n</section>\n";
+    }
+}
+```
+
+4. **Sobre (`#btnAbout`):**
+```javascript
+var title = '<i class="fas fa-info-circle"></i>&nbsp;'+TRANSLATIONS[config.lang]['btn_about']['title'];
+```
+
+5. **Avisos no Telão:**
+```javascript
+viewSlides+="<section data-background=\"imagens/madeira_bg.jpg\">\n<table class=\"reveal warning-table\">\n<tr height=\"10vh\">\n<td class=\"warning-title\" width=\"80%\">"+aviso.warning.content.title+"</td>\n<td width=\"20%\"><div id=\"fancypart\" class=\"warning-logo\"><i class=\""+TRANSLATIONS[config.lang]['logo_icon']+"\"></i></div></td>\n</tr>\n...
+```
+
+---
+
+## 3. Como Adicionar um Novo Idioma (ex: Espanhol `es`)
+
+Para traduzir o sistema para um novo idioma (como Espanhol, Francês ou Alemão), siga estes 3 passos:
+
+### 1. Adicionar o bloco de tradução em `js/langs.js`
+Dentro do objeto `TRANSLATIONS`, adicione uma nova chave com a sigla do idioma (ex: `'es'`):
+
+```javascript
+let TRANSLATIONS = {
+  // ... 'en', 'pt-br', 'it' ...
+  'es': {
+    'navbrand': 'Proyección ICM',
+    'version': 'Versión ' + VERSION,
+    'btn_change_bgimage': {
+      'title': 'Cambiar imagen de fondo'
+    },
+    'btn_create_warning': {
+      'title': 'Crear aviso'
+    },
+    'language': 'Idioma',
+    'files': 'Archivos',
+    'search': {
+      'placeholder': 'Buscar louvor ou letra...'
+    },
+    'btn_create_song': {
+      'title': 'Crear música'
+    },
+    'btn_create_folder': {
+      'title': 'Crear carpeta'
+    },
+    'btn_del_file_folder': {
+      'title': 'Eliminar carpeta/archivo'
+    },
+    'load_data': 'Cargar datos',
+    'load_body': {
+      'html': 'Cargue manualmente su archivo <strong>(data.json)</strong> de su carpeta <strong>("/data")</strong>.<input type="file" name="filedata" id="filedata">'
+    },
+    'cancel': 'Cancelar',
+    'delete': 'Eliminar',
+    'create_folder': 'Crear carpeta',
+    'create': 'Crear',
+    'folder_name': {
+      'placeholder': 'Nombre de la carpeta'
+    },
+    'tab_live': 'En Vivo',
+    'tab_edition': 'Edición',
+    'tab_bible': 'Biblia',
+    'default_screen': 'Pantalla Estándar',
+    'maranata_title': 'MARANATA',
+    'maranata_slogan': '¡El Señor Jesús viene!',
+    'title': 'Título:',
+    'content': 'Contenido:',
+    'btn_save': {
+      'html': '<i class="fas fa-save"></i> Guardar'
+    },
+    'btn_export': {
+      'html': '<i class="fas fa-download"></i> Exportar'
+    },
+    'bible_version': 'Versión:',
+    'bible_old_testament': 'Antiguo Testamento',
+    'bible_new_testament': 'Nuevo Testamento',
+    'bible_chapter': 'Capítulo',
+    'bible_from': 'De',
+    'bible_to': 'Hasta',
+    'bible_preview': 'Vista Previa',
+    'btn_bible_add': {
+      'html': '<i class="fas fa-plus fa-fw"></i> Añadir',
+      'title': 'Añadir a la lista de proyección'
+    },
+    'delSong_msg_start': '¿Realmente desea eliminar la música ',
+    'delFolder_msg_start': '¿Realmente desea eliminar la carpeta ',
+    'delFolder_msg_end': ' y todo su contenido?',
+    'list_projection': 'Lista para proyección',
+    'empty_projection_list_msg': 'Lista vacía. Haga doble clic en el himno para añadir',
+    'need_export_msg': {
+      'html': '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>Uno o más louvores han sido editados, no olvide <strong>Exportar</strong> y reemplazar <strong>data.json</strong> en <strong>/data</strong>'
+    },
+    'projection': 'Proyección',
+    'select_image': 'Seleccionar Imagen',
+    'import_export': 'Importar/Exportar',
+    'btn_menu_import': {
+      'html': '<i class="fas fa-upload"></i> Importar...',
+    },
+    'btn_menu_export': {
+      'html': '<i class="fas fa-download"></i> Exportar...',
+    },
+    'btn_start_view': {
+      'title': 'Abrir pantalla de proyección'
+    },
+    'btn_create_image': {
+      'title': 'Nueva imagen'
+    },
+    'not_implemented': 'Función no implementada.',
+    'new_image': 'Nueva Imagen',
+    'image_name': {
+      'placeholder': 'Nombre de la imagen'
+    },
+    'btn_about': {
+      'title': 'Acerca de'
+    },
+    'images': 'Imágenes',
+    'warnings': 'Avisos',
+    'new_warning': 'Nuevo aviso',
+    'warning_name': {
+      'placeholder': 'Nombre del aviso'
+    },
+    'warning': 'Aviso',
+    'logo_icon': 'icon-logo_bold'
+  }
+};
+```
+
+### 2. Adicionar a opção no Dropdown do `index.html`
+No menu suspenso `#dropdown01`:
+```html
+<button class="dropdown-item" href="#" name="btn-translate" data-lang="es">
+  <img src="imagens/spain.svg" class="flag"> Español
+</button>
+```
+
+### 3. (Opcional) Cabeçalhos de Telão para o novo idioma em `view.html`
+Se o novo idioma exigir logotipo próprio ou posicionamento diferente de títulos:
+```html
+<!-- es Headers -->
+<header class="winetitle-es"><div id="titulo"></div><div id="logo" style="background-color:white"><i class="icon-logo_bold"></i></div></header>
+<header class="winetitle2-es"><div id="titulo"><br></div><div id="logo" style="background-color:white"><i class="icon-logo_bold"></i></div></header>    
+<header class="whitelogo-es"><div id="logo" style="float:right"><i class="icon-logo_bold_white"></i></div></header>
+<header class="backlay1-es"><div class="backlay_1-es"><i class="logo_tela_padrao icon-logo_bold_white"></i></div></header>
+```
+
+---
+
+## 4. Código-Fonte Original de Referência (`js/langs.js`)
+
+Abaixo está o código-fonte integral original do `js/langs.js` para restauração imediata:
+
+```javascript
 var config = { lang: "pt-br" };
 if(localStorage.getItem("config") === null){  
   localStorage.setItem('config', JSON.stringify(config));
@@ -288,7 +521,7 @@ let TRANSLATIONS = {
     'btn_create_image': {
       'title': 'Nuova immagine'
     },
-    'not_implemented':'Funzione non implementata.',
+    'not_implemented':'Funzione não implementata.',
     'new_image': 'Nuova immagine',
     'image_name': {
       'placeholder': 'Nome dell\'immagine'
@@ -307,16 +540,12 @@ let TRANSLATIONS = {
   }
 };
 
-
 const translate = (lang = null) => {
   if (lang === null) {
     lang = DEFAULT_LANG;
   }
   let DEFAULT_LANG_LENGTH = Object.keys(TRANSLATIONS[DEFAULT_LANG]).length;
-  // Verifica se o idioma selecionado existe.
   if (TRANSLATIONS[lang]) {
-    // Existe... Agora verifica se a tradução selecionada está completa
-    // Se não estiver exibe a mensagem.
     let LANG_LENGTH = Object.keys(TRANSLATIONS[lang]).length;
     if (LANG_LENGTH < DEFAULT_LANG_LENGTH) {
       console.log("Tradução incompleta");
@@ -340,7 +569,6 @@ const translate = (lang = null) => {
       }
     });
   } else {
-    // Não existe, então exibe a mensagem
     console.log("Não há tradução");
   }
 }
@@ -355,3 +583,4 @@ BTNS_TRANSLATE.forEach((btn) => {
 });
 
 translate();
+```

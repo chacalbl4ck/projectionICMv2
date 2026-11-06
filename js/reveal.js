@@ -1039,7 +1039,7 @@
 
 		if( data.background ) {
 			// Auto-wrap image urls in url(...)
-			if( /^(http|file|\/\/)/gi.test( data.background ) || /\.(svg|png|jpg|jpeg|gif|bmp)([?#\s]|$)/gi.test( data.background ) ) {
+			if( /^(http|file|data:|blob:|\/\/)/gi.test( data.background ) || /\.(svg|png|jpg|jpeg|gif|bmp|webp)([?#\s]|$)/gi.test( data.background ) ) {
 				slide.setAttribute( 'data-background-image', data.background );
 			}
 			else {
@@ -3478,7 +3478,8 @@
 
 				// Images
 				if( backgroundImage ) {
-					backgroundContent.style.backgroundImage = 'url('+ encodeURI( backgroundImage ) +')';
+					var bgUrl = (backgroundImage.startsWith('data:') || backgroundImage.startsWith('blob:')) ? backgroundImage : encodeURI( backgroundImage );
+					backgroundContent.style.backgroundImage = 'url("'+ bgUrl +'")';
 				}
 				// Videos
 				else if ( backgroundVideo && !isSpeakerNotes() ) {
@@ -3501,8 +3502,9 @@
 						video.setAttribute( 'playsinline', '' );
 					}
 
-					// Support comma separated lists of video sources
-					backgroundVideo.split( ',' ).forEach( function( source ) {
+					// Support comma separated lists of video sources (preserves data: video URLs)
+					var videoSources = (backgroundVideo.indexOf('data:') === 0) ? [ backgroundVideo ] : backgroundVideo.split( ',' );
+					videoSources.forEach( function( source ) {
 						video.innerHTML += '<source src="'+ source +'">';
 					} );
 

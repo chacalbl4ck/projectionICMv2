@@ -258,7 +258,7 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
-### Melhoria 1: Migração para a API Nativa `BroadcastChannel`
+### Melhoria 1: Migração para a API Nativa `BroadcastChannel` ✅ [IMPLEMENTADA]
 * **Objetivo:** Desacoplar a dependência frágil de `window.opener` e `windowView.postMessage`, permitindo que múltiplos clientes (janela do telão, tela do púlpito, miniatura do painel e OBS Studio) se sincronizem instantaneamente de forma bidirecional.
 * **Especificação do Canal:** Criar o canal global `'projecao_icm_channel'`.
 * **Formato dos Pacotes:**
@@ -313,7 +313,7 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
-### Melhoria 2: Remoção do Pop-up Automático e Launcher Seguro
+### Melhoria 2: Remoção do Pop-up Automático e Launcher Seguro ✅ [IMPLEMENTADA]
 * **Objetivo:** Evitar o bloqueio pelo navegador e garantir 100% de confiabilidade na abertura do telão.
 * **Ações:**
   1. Remover o bloco `setTimeout` em `window.onload` (`core.js:1038–1049`).
@@ -333,7 +333,7 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
-### Melhoria 4: Sistema de Busca Avançada Full-Text (Título + Conteúdo)
+### Melhoria 4: Sistema de Busca Avançada Full-Text (Título + Conteúdo) ✅ [IMPLEMENTADA]
 * **Objetivo:** Permitir ao operador encontrar louvores digitando qualquer frase da letra ou do refrão.
 * **Implementação:**
   1. No momento do carregamento da base (`atualizaListaArquivos`), indexar os termos das letras em memória:
@@ -373,7 +373,7 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
-### Melhoria 5: Controles Litúrgicos de Pânico (Blackout e Freeze)
+### Melhoria 5: Controles Litúrgicos de Pânico (Blackout e Freeze) ✅ [IMPLEMENTADA]
 * **Objetivo:** Permitir ao operador apagar o telão imediatamente durante momentos solenes (orações, pregações) ou congelar a projeção enquanto navega para selecionar o próximo louvor.
 * **Atalhos e Comportamento:**
   - **Tecla [B] ou [F12] (Blackout):** Alterna uma camada preta sobreposta (`opacity: 1` / `pointer-events: none`) no telão via comando `'BLACKOUT'`, preservando o slide atual para retomada imediata.
@@ -381,38 +381,66 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 
 ---
 
-### Melhoria 6: Saída Transparente para OBS Studio / Streaming (Lower Thirds)
-* **Objetivo:** Permitir transmitir cultos online integrando as letras diretamente no software de transmissão (OBS Studio, vMix).
-* **Novo Arquivo:** Criar `projectionICMV2/obs.html`.
+### Melhoria 6: Saída Transparente para OBS Studio / Streaming (Lower Thirds) ✅ [IMPLEMENTADA]
+* **Objetivo:** Permitir transmitir cultos online integrando as letras diretamente no software de transmissão (OBS Studio, vMix) com terço inferior transparente em tempo real.
+* **Arquivo Criado:** `obs.html`.
 * **Características:**
   - Fundo 100% transparente: `body { background-color: transparent !important; }`.
-  - Exibição em **Lower Third** (terço inferior da tela, 2 linhas grandes com sombra forte e outline para alta legibilidade sobre o vídeo da câmera).
-  - Escuta o mesmo canal `BroadcastChannel('projecao_icm_channel')`.
+  - Exibição em **Lower Third** elegante (glassmorphism translúcido com gradiente azul/ouro no padrão visual ICM).
+  - Badges dinâmicos de identificação: `LOUVOR`, `BÍBLIA` ou `AVISO`.
+  - Sincronização em tempo real via `BroadcastChannel('projecao_icm_channel')`.
+  - Suporte completo aos comandos de `BLACKOUT`, `FREEZE` e solicitação assíncrona de slides (`REQUEST_SLIDES`).
+  - Ocultamento automático e suave do terço inferior durante a exibição de telas padrão ou mídias de tela cheia.
+  - Botão de acesso rápido "Saída OBS" na barra de navegação do painel principal.
 
 ---
 
-### Melhoria 7: Otimização Bíblica e Carregamento Sob Demanda (Lazy-Loading)
-* **Objetivo:** Eliminar os 8 MB de carga estática no carregamento inicial do painel.
-* **Ação:**
-  - Carregar `bible/acf.js` e `bible/nvi.js` dinamicamente apenas quando o operador clicar pela primeira vez na aba "Bíblia" (`#bible-tab`).
-  ```javascript
-  $('#bible-tab').one('click', async function() {
-    if (typeof bibleacf === 'undefined') {
-      await carregarScriptAssincrono('bible/acf.js');
-      await carregarScriptAssincrono('bible/nvi.js');
-      loadBible();
-      ajustarListasDaBiblia();
-    }
-  });
-  ```
+### Melhoria 7: Otimização Bíblica e Carregamento Sob Demanda (Lazy-Loading) ✅ [IMPLEMENTADA]
+* **Objetivo:** Eliminar ~8.6 MB de carga estática bloqueante no carregamento inicial do painel.
+* **Ação Executada:**
+  - Removidos os scripts síncronos pesados `bible/acf.js` (~4.4 MB) e `bible/nvi.js` (~4.2 MB) do final do `index.html`.
+  - Implementado o carregamento sob demanda (`inicializarBibliaLazy`) em `js/bible.js`.
+  - As bases textuais bíblicas são baixadas assincronamente apenas quando o operador clica pela primeira vez na aba "Bíblia" (`#bible-tab`) ou quando uma projeção contendo versículos bíblicos é restaurada do cache.
+  - Indicador visual elegante de carregamento (`#bibleLoadingIndicator`) enquanto os scripts são compilados.
 
 ---
 
-### Melhoria 8: Limpeza de Dependências Órfãs
-* **Ação:**
-  - Remover do repositório os arquivos `js/jstree.js` (303 KB) e `js/jstree.min.js` (138 KB).
-  - Remover as pastas `css/themes/default/` e `css/themes/default-dark/` (imagens PNG e CSS legados).
-  - Remover do `<head>` de `index.html` a importação de `css/themes/default/style.min.css`.
+### Melhoria 10: Gerenciamento Avançado de Pastas, Mídias e Avisos ✅ [IMPLEMENTADA]
+* **Ação Executada:**
+  - **Correção de Ícone Quebrado:** O botão de adicionar mídia exibia `[! ?]` devido ao uso da classe `fa-photo-video` (incompatível com FontAwesome 5.0). Substituído pelo glifo oficial `fa-film`.
+  - **Renomeação de Pastas:** Botão e modal (`#renameFolderModal`) permitindo renomear qualquer pasta personalizada criada pelo usuário, com sincronização automática no cache e gravação em disco.
+  - **Visualizador de Mídias (Player e Preview):** Botão na barra de ferramentas (`fa-eye`) e modal interativo (`#mediaViewerModal`) que permite pré-visualizar imagens em alta resolução e reproduzir vídeos com controles, além de botão para enviar diretamente para a projeção. Ao fechar a janela modal, a reprodução de vídeo/áudio é interrompida imediatamente.
+  - **Edição e Organização de Avisos:**
+    - Botão de edição (`fa-pencil-alt`) para alterar nome, título e texto de avisos já criados.
+    - Seletor de pasta no modal de avisos (`#selectWarningFolder`), permitindo salvar ou mover avisos entre a Pasta Geral e qualquer pasta personalizada criada pelo usuário.
+    - Exclusão segura de avisos dentro de pastas customizadas ou gerais.
+    - Busca normalizada abrangendo também o título e o conteúdo dos avisos.
+
+---
+
+### Melhoria 8: Limpeza de Dependências Órfãs e Remoção do Módulo de Idiomas
+* **Ação Executada:**
+  - Removido o módulo de internacionalização (`js/langs.js` e seletor do Navbar).
+  - Removidas as imagens de bandeiras estrangeiras (`imagens/brazil.svg`, `imagens/united-states.svg`, `imagens/italy.svg`).
+  - Todas as mensagens do sistema e títulos do telão padronizados diretamente em Português (`pt-br`).
+  - Criado o documento [GUIA_INTERNACIONALIZACAO.md](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/GUIA_INTERNACIONALIZACAO.md) contendo o código-fonte integral original e as instruções detalhadas de como reativar a funcionalidade e adicionar novas traduções no futuro.
+
+---
+
+### Melhoria 9: Busca Tolerante, Fundo com Vídeo e Enquadramento 16:9, Mídias em Pastas Customizadas
+* **Ação Executada:**
+  - **Busca Normalizada Tolerante:** Implementada a função `normalizarTextoBusca` que desconsidera acentos, cedilhas (`ç`), vírgulas, pontos e parênteses. Busca em tempo real sobre títulos e estrofes das músicas simultaneamente.
+  - **Inicialização com Pastas Recolhidas:** Todas as pastas na árvore iniciam recolhidas (`open = false`). Ao pesquisar, pastas com correspondências se abrem automaticamente; ao limpar a busca, voltam a ficar recolhidas.
+  - **Correção de Fundos e Suporte a Vídeos de Fundo:**
+    - Corrigido o bug onde novas imagens de fundo ficavam em branco (o sistema usava apenas o nome do arquivo em vez dos dados reais).
+    - Adicionado suporte a vídeos de fundo (`.mp4`, `.avi`) com duração máxima de 30 segundos e tamanho até 10 MB, renderizados via Reveal.js (`data-background-video`) em loop e mudos, garantindo que todo o texto fique sempre em primeiro plano.
+    - Suporte a imagens de fundo (`jpg`, `jpeg`, `png`, `gif`, `webp`).
+    - Criado o modal de enquadramento 16:9 (`#cropAdjustModal`), com alerta quando a proporção difere de 16:9, permitindo ao operador ajustar Zoom (100% a 250%), Posição X e Posição Y em tempo real com exportação Full HD.
+  - **Mídias para Transmissão e Organização em Pastas:**
+    - Corrigido o fluxo quebrado de adição de imagens na lista de transmissão (`imagens` agora persistem no `localStorage` e `IndexedDB`).
+    - Adicionado suporte a vídeos para transmissão (até 10 MB), exibindo controles e reprodução na janela de projeção.
+    - Adicionado seletor de pasta de destino no modal de nova mídia, permitindo colocar imagens e vídeos dentro de qualquer pasta criada pelo usuário na árvore.
+    - Implementado helper `MediaDB` em `IndexedDB` para suportar mídias grandes sem estourar a quota do navegador.
 
 ---
 
