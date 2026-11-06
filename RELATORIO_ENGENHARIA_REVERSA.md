@@ -40,8 +40,7 @@ projection-html5-icm-master/
 │   ├── reveal.css                <-- Framework Reveal.js (apresentação de slides)
 │   ├── style.css                 <-- Estilos específicos do Painel (index.html)
 │   ├── view.css                  <-- Estilos dos slides, cabeçalhos e chaves (view.html)
-│   ├── theme/                    <-- Temas do Reveal.js (icm.css, ceia.css e SCSS)
-│   └── themes/                   <-- [ÓRFÃO] Temas do jsTree (default e default-dark)
+│   └── theme/                    <-- Temas do Reveal.js (icm.css, ceia.css e SCSS)
 ├── data/
 │   └── data.json                 <-- Banco de dados principal de louvores (~1.81 MB)
 ├── docs/                         <-- Manuais, assets e documentação Jekyll/Markdown
@@ -52,7 +51,7 @@ projection-html5-icm-master/
 │   ├── TrajanPro-Regular.ttf     <-- Fonte de títulos (Maranata / Santa Ceia)
 │   ├── Jester.ttf / scriptmt.ttf <-- Fontes complementares
 │   └── icm.ttf / icm.woff / .svg <-- Fonte de ícones específicos da ICM
-├── imagens/                      <-- Imagens de fundo, chaves musicais e bandeiras
+├── imagens/                      <-- Imagens de fundo e chaves musicais
 └── js/                           <-- Scripts e bibliotecas
     ├── jquery-3.3.1.min.js       <-- jQuery v3.3.1
     ├── popper.min.js             <-- Utilitário de posicionamento Bootstrap
@@ -61,10 +60,8 @@ projection-html5-icm-master/
     ├── perfect-scrollbar.js      <-- Rolagem fluida de painéis
     ├── fontawesome-all.min.js    <-- Acervo de ícones
     ├── jquery.selection.js       <-- Utilitário de inserção de tags em textarea
-    ├── langs.js                  <-- Sistema de internacionalização (pt-br, en, it)
     ├── bible.js                  <-- Controlador do leitor bíblico
-    ├── core.js                   <-- Núcleo de lógica do painel e controle de projeção
-    └── jstree.js / jstree.min.js <-- [ÓRFÃO] Antiga biblioteca de árvore de arquivos
+    └── core.js                   <-- Núcleo de lógica do painel e controle de projeção
 ```
 
 ---
@@ -421,7 +418,9 @@ Abaixo encontram-se as especificações completas e prontas para implementação
 ### Melhoria 8: Limpeza de Dependências Órfãs e Remoção do Módulo de Idiomas
 * **Ação Executada:**
   - Removido o módulo de internacionalização (`js/langs.js` e seletor do Navbar).
-  - Removidas as imagens de bandeiras estrangeiras (`imagens/brazil.svg`, `imagens/united-states.svg`, `imagens/italy.svg`).
+  - Removidas as imagens de bandeiras estrangeiras (`imagens/brazil.svg`, `imagens/united-states.svg`, `imagens/italy.svg`) e gráfico de chaveamento italiano (`imagens/chaves-bis-alla-fine.png`).
+  - Removidas as pastas órfãs de testes em outros idiomas (`Test` [en] e `Prova` [it]) de `data/data.json`, `docs/test.md`, `docs/prova.md` e higienizado o cache do navegador no `js/core.js`.
+  - Excluídas definitivamente todas as dependências órfãs legadas do jsTree (`js/jstree.js`, `js/jstree.min.js`, `css/themes/` e vínculo CSS no `index.html`).
   - Todas as mensagens do sistema e títulos do telão padronizados diretamente em Português (`pt-br`).
   - Criado o documento [GUIA_INTERNACIONALIZACAO.md](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/GUIA_INTERNACIONALIZACAO.md) contendo o código-fonte integral original e as instruções detalhadas de como reativar a funcionalidade e adicionar novas traduções no futuro.
 
@@ -458,10 +457,12 @@ Abaixo encontram-se as especificações completas e prontas para implementação
     - **Indicador Digital de Tempo:** Exibe tempo decorrido e duração total (`00:00 / 00:00`).
     - **Controle de Volume e Mudo:** Slider de volume (0 a 100%) e botão de silenciamento.
   - **Reprodução no Telão (`view.html`):**
-    - Carregamento da YouTube IFrame Player API.
-    - Renderização em tela cheia com overlay dedicado `#ytPlayerWrapper` evitando distorções do Reveal.js.
+    - Carregamento da YouTube IFrame Player API e protocolo nativo `postMessage` bidirecional.
+    - Renderização em tela cheia com overlay dedicado `#ytPlayerWrapper` e iframe com `referrerpolicy="strict-origin-when-cross-origin"`.
+    - Resolução do **Erro 153** ("Erro de configuração do player de vídeo") através do uso do domínio `youtube-nocookie.com`, injeção de permissões de `encrypted-media` / `autoplay` e eliminação de restrições de parâmetros (`controls=0`).
     - **Prevenção de Áudio Duplicado:** O iframe de miniatura do operador permanece automaticamente mudo, enquanto o telão externo reproduz o áudio na intensidade escolhida.
     - Sincronização bidirecional via `BroadcastChannel` (`YOUTUBE_CMD` e `YOUTUBE_STATUS`).
+    - Criação do inicializador local [`iniciar_sistema.bat`](iniciar_sistema.bat) para execução com servidor HTTP local automático (porta 8000).
   - **Transmissão OBS Studio (`obs.html`):**
     - Supressão de Lower Third durante a exibição de vídeos do YouTube para transmissão limpa.
   - **Correção Geral de Ícones:**

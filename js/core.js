@@ -361,7 +361,15 @@ async function carregaLouvores() {
     const localData = localStorage.getItem("data");
     if (localData) {
         try {
-            atualizaListaArquivos(localData);
+            var parsed = JSON.parse(localData);
+            if (Array.isArray(parsed)) {
+                var limpo = parsed.filter(p => !(p.name === 'Test' && p.lang === 'en') && !(p.name === 'Prova' && p.lang === 'it') && p.name !== 'Test' && p.name !== 'Prova');
+                if (limpo.length !== parsed.length) {
+                    parsed = limpo;
+                    localStorage.setItem("data", JSON.stringify(parsed));
+                }
+            }
+            atualizaListaArquivos(JSON.stringify(parsed));
             return;
         } catch (e) {
             console.warn("Dados em cache corrompidos, recarregando do arquivo...", e);
@@ -902,7 +910,7 @@ $("#newFolder").click(function(){
 
 $("#confirmMakeFolder").click(function(){ 
     var name = $('#folderName').val();
-    dados.push({name: name, type: "s", lang: "pt", songs: []});
+    dados.push({name: name, type: "s", songs: []});
     atualizaListasFromJSON(dados);
     $('#makeFolderModal').modal('toggle');
 });
@@ -1234,7 +1242,7 @@ async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
             $(videoEl).hide();
         }
         $('#mediaViewerYoutube').show();
-        $('#mediaViewerYtFrame').attr('src', 'https://www.youtube.com/embed/' + ytId + '?autoplay=1&enablejsapi=1');
+        $('#mediaViewerYtFrame').attr('src', 'https://www.youtube-nocookie.com/embed/' + ytId + '?autoplay=1&enablejsapi=1');
         $('#mediaViewerInfo').text("YouTube • " + (mediaItem.name || "Vídeo do YouTube"));
     } else if (isVid) {
         $('#mediaViewerYoutube').hide();
@@ -1355,8 +1363,14 @@ function sendYoutubeCmd(cmd, extra) {
     broadcastCommand('YOUTUBE_CMD', payload);
 }
 
+var isDraggingVolume = false;
+
 function atualizarStatusYoutube(payload) {
     if (!payload) return;
+    // Se o telão externo estiver conectado, prioriza status do telão externo
+    if (telaoConnected && !payload.isExternal) {
+        return;
+    }
     lastYtStatus = payload;
 
     var cur = payload.currentTime || 0;
@@ -1381,7 +1395,7 @@ function atualizarStatusYoutube(payload) {
         $('#btnYtMute').html('<i class="fas fa-volume-up fa-fw"></i>');
     }
 
-    if (payload.volume !== undefined && !$('#ytVolumeBar').is(':focus')) {
+    if (payload.volume !== undefined && !isDraggingVolume) {
         $('#ytVolumeBar').val(payload.volume);
         $('#ytVolumeVal').text(payload.volume + '%');
     }
@@ -1458,11 +1472,22 @@ $('#confirmCreateYoutube').click(function() {
 
 // Ações dos controles da barra interativa do YouTube no telão
 $('#btnYtPlayPause').click(function() {
-    sendYoutubeCmd('togglePlay');
+    var isPlaying = (lastYtStatus && lastYtStatus.playerState === 1) || $(this).text().indexOf('Pausar') > -1;
+    if (isPlaying) {
+        sendYoutubeCmd('pause');
+        $('#btnYtPlayPause').html('<i class="fas fa-play fa-fw"></i> Play').removeClass('btn-warning').addClass('btn-danger');
+        if (lastYtStatus) lastYtStatus.playerState = 2;
+    } else {
+        sendYoutubeCmd('play');
+        $('#btnYtPlayPause').html('<i class="fas fa-pause fa-fw"></i> Pausar').removeClass('btn-danger').addClass('btn-warning');
+        if (lastYtStatus) lastYtStatus.playerState = 1;
+    }
 });
 
 $('#btnYtStop').click(function() {
     sendYoutubeCmd('stop');
+    $('#btnYtPlayPause').html('<i class="fas fa-play fa-fw"></i> Play').removeClass('btn-warning').addClass('btn-danger');
+    if (lastYtStatus) lastYtStatus.playerState = 2;
 });
 
 $('#btnYtRewind').click(function() {
@@ -1474,10 +1499,40 @@ $('#btnYtForward').click(function() {
 });
 
 $('#btnYtMute').click(function() {
-    sendYoutubeCmd('toggleMute');
+    var isMuted = (lastYtStatus && lastYtStatus.isMuted) || $(this).find('.fa-volume-off').length > 0;
+    var newMute = !isMuted;
+    sendYoutubeCmd('setMute', { mute: newMute });
+    if (lastYtStatus) lastYtStatus.isMuted = newMute;
+    if (newMute) {
+        $('#btnYtMute').html('<i class="fas fa-volume-off fa-fw text-warning"></i>');
+    } else {
+        $('#btnYtMute').html('<i class="fas fa-volume-up fa-fw"></i>');
+    }
 });
 
-$('#ytVolumeBar').on('input change', function() {
+$('#ytVolumeBar').on('mousedown touchstart pointerdown', function() {
+    isDraggingVolume = true;
+});
+
+$('#ytVolumeBar').on('mouseup touchend pointerup', function() {
+    isDraggingVolume = false;
+});
+
+$('#ytVolumeBar').on('input', function() {
+    var vol = parseInt($(this).val());
+    $('#ytVolumeVal').text(vol + '%');
+    sendYoutubeCmd('setVolume', { volume: vol });
+    if (lastYtStatus) {
+        lastYtStatus.volume = vol;
+        if (vol > 0 && lastYtStatus.isMuted) {
+            lastYtStatus.isMuted = false;
+            $('#btnYtMute').html('<i class="fas fa-volume-up fa-fw"></i>');
+        }
+    }
+});
+
+$('#ytVolumeBar').on('change', function() {
+    isDraggingVolume = false;
     var vol = parseInt($(this).val());
     $('#ytVolumeVal').text(vol + '%');
     sendYoutubeCmd('setVolume', { volume: vol });
@@ -1496,6 +1551,11 @@ $('#ytProgressBar').on('change', function() {
     isDraggingYtSeek = false;
 });
 
+$(document).on('mouseup touchend pointerup', function() {
+    isDraggingVolume = false;
+    isDraggingYtSeek = false;
+});
+
 // ==========================================
 // 6. ENCAIXE AUTOMÁTICO DE TEXTO NA TELA
 // ==========================================
@@ -1508,7 +1568,6 @@ function generateLiveList(){
     
     $.each(projecao, function(i, item) { 
         if(item.type == "s"){
-            var lang = "";
             var parsed = dados[item.folderId].songs[item.id].content.split('\n\n');
             $.each(parsed, function(j, estrofe) { 
                 var estrofeEsp = estrofe.replace(/\n/g,"<br>");
@@ -1534,13 +1593,13 @@ function generateLiveList(){
                         var titulodividido = dados[item.folderId].songs[item.id].title.split(" ");
                         var indexDivision = Math.round(titulodividido.length/2);
                         var nome = dados[item.folderId].songs[item.id].title.replace(titulodividido[indexDivision],titulodividido[indexDivision]+"<br>");
-                        viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showtitle"+item.folderId+"_"+item.id+fimState+"\">\n<style>\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2"+lang+" #titulo:before { content: \""+nome.split("<br>")[0]+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2"+lang+" #titulo:after { content: \""+nome.split("<br>")[1]+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2"+lang+"{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2"+lang+" #titulo{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2"+lang+" #logo{ display: table; }</style>\n"+fimStyle; 
+                        viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showtitle"+item.folderId+"_"+item.id+fimState+"\">\n<style>\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2 #titulo:before { content: \""+nome.split("<br>")[0]+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2 #titulo:after { content: \""+nome.split("<br>")[1]+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2 #titulo{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle2 #logo{ display: table; }</style>\n"+fimStyle; 
                     } else {
-                        viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showtitle"+item.folderId+"_"+item.id+fimState+"\">\n<style>\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle"+lang+" #titulo:after { content: \""+dados[item.folderId].songs[item.id].title+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle"+lang+"{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle"+lang+" #logo{ display: table; }</style>\n"+fimStyle;
+                        viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showtitle"+item.folderId+"_"+item.id+fimState+"\">\n<style>\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle #titulo:after { content: \""+dados[item.folderId].songs[item.id].title+"\"; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle{ display: table; }\n.showtitle"+item.folderId+"_"+item.id+" header.winetitle #logo{ display: table; }</style>\n"+fimStyle;
                     } 
                     $("#projections tbody tr[data-id='"+i+"'] td:first-child").attr("data-goto", f);
                 } else {
-                    viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showlogo"+item.folderId+"_"+item.id+"_"+j+fimState+"\" data-background-transition=\"none\">\n<style>\n.showlogo"+item.folderId+"_"+item.id+"_"+j+" header.whitelogo"+lang+"{ display: block; }\n.showlogo"+item.folderId+"_"+item.id+"_"+j+" header.whitelogo"+lang+" #logo{ display: block; }</style>\n"+fimStyle;
+                    viewSlides+="<section"+getBackgroundForSection(2)+" data-state=\"showlogo"+item.folderId+"_"+item.id+"_"+j+fimState+"\" data-background-transition=\"none\">\n<style>\n.showlogo"+item.folderId+"_"+item.id+"_"+j+" header.whitelogo{ display: block; }\n.showlogo"+item.folderId+"_"+item.id+"_"+j+" header.whitelogo #logo{ display: block; }</style>\n"+fimStyle;
                 }
                 
                 viewSlides+=estrofeFormatada+"\n</section>\n";

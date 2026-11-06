@@ -2,13 +2,13 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Painel - Projeção ICM</title>
   <script src="js/fontawesome-all.min.js"></script>
   <!-- Styles -->
   <link rel="stylesheet" href="css/bootstrap.min.css">
   <link rel="stylesheet" href="css/bootstrap-grid.min.css">
   <link rel="stylesheet" href="css/bootstrap-reboot.min.css">
-  <link rel="stylesheet" href="css/themes/default/style.min.css">
   <link rel="stylesheet" href="css/fa-svg-with-js.css">
   <link rel="stylesheet" type="text/css" href="css/style.css"> 
   <link rel="stylesheet" href="css/perfect-scrollbar.css"> 
@@ -465,7 +465,7 @@
           <img id="mediaViewerImg" src="" style="max-width: 100%; max-height: 65vh; object-fit: contain; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);">
           <video id="mediaViewerVideo" controls autoplay style="max-width: 100%; max-height: 65vh; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);"></video>
           <div id="mediaViewerYoutube" style="display: none; width: 100%; height: 50vh; max-width: 850px; margin: 0 auto;">
-            <iframe id="mediaViewerYtFrame" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border-radius: 6px;"></iframe>
+            <iframe id="mediaViewerYtFrame" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="border-radius: 6px;"></iframe>
           </div>
         </div>
         <div class="modal-footer d-flex justify-content-between align-items-center">
@@ -733,7 +733,7 @@
             Projeção
           </div>
           <div class="card-block p-0"> 
-            <iframe id="iframeProjection" width="100%" height="100%" frameBorder="0" src="view.html"></iframe>
+            <iframe id="iframeProjection" width="100%" height="100%" frameborder="0" src="view.html" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin"></iframe>
           </div> <!-- fim card -->
         </div> 
       </div> 

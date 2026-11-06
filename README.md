@@ -93,7 +93,7 @@ O sistema funciona diretamente no navegador, sem necessidade de servidores exter
 ## 📖 Como Usar
 
 ### 1. Projeção no Templo (Painel + Telão)
-1. Abra o arquivo [`index.html`](index.html) no navegador em sua tela de controle (monitor do operador).
+1. Para a melhor experiência e liberação completa de reprodução do YouTube sem restrições de segurança do navegador, execute o arquivo [`iniciar_sistema.bat`](iniciar_sistema.bat) ou abra o arquivo [`index.html`](index.html) no navegador em sua tela de controle (monitor do operador).
 2. O sistema abrirá automaticamente a janela do telão ([`view.html`](view.html)). Arraste a janela do telão para a tela estendida (projetor/TV) e pressione **F11** para tela cheia.
 3. No painel de arquivos à esquerda, dê um **duplo clique** sobre qualquer hino, aviso ou mídia para adicionar à lista de projeção.
 4. Na aba **"Ao Vivo"**, clique na estrofe desejada ou navegue utilizando as setas do teclado.
