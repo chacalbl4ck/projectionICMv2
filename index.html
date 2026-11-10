@@ -63,8 +63,20 @@
         <i class="fas fa-snowflake"></i> TELÃO CONGELADO
       </span>
       
-      <span id="telaoStatusBadge" class="badge badge-secondary py-1 px-2" title="Status da conexão com o Telão via BroadcastChannel">
+      <span id="telaoStatusBadge" class="badge badge-secondary py-1 px-2 mr-2" title="Status da conexão com o Telão via BroadcastChannel">
         <i class="fas fa-circle text-muted mr-1" id="telaoStatusIcon"></i><span id="telaoStatusText">Telão Desconectado</span>
+      </span>
+
+      <span id="fileHandleStatus" class="badge badge-secondary py-1 px-2 mr-2" title="Status de vinculação do data.json">
+        <i class="fas fa-unlink text-muted mr-1" id="fileHandleIcon"></i><span id="fileHandleText">data.json não vinculado</span>
+      </span>
+
+      <span id="autoFoldersBadge" class="badge badge-secondary py-1 px-2 mr-2" style="cursor: pointer;" title="Status das pastas locais Vídeos e Imagens. Clique para sincronizar a pasta do software.">
+        <i class="fas fa-folder mr-1 text-muted" id="autoFoldersIcon"></i><span id="autoFoldersText">Pastas: Desconectadas</span>
+      </span>
+
+      <span id="statusSalvar" class="badge badge-success py-1 px-2" title="Status de salvamento das alterações">
+        <i class="fas fa-check-circle mr-1" id="statusSalvarIcon"></i><span id="statusSalvarText">Salvo</span>
       </span>
     </div>
 
@@ -78,6 +90,25 @@
       <small class="navbar-text ml-2 text-muted">v2.0.0</small>
     </ul> 
   </nav>
+
+  <!-- Alerta para Vinculação do data.json -->
+  <div id="bannerVincularData" class="alert alert-warning py-1 px-3 mb-0 rounded-0 justify-content-between align-items-center" style="display: none; font-size: 0.88rem; border-bottom: 2px solid #e0a800;">
+    <div>
+      <i class="fas fa-exclamation-triangle mr-2 text-warning"></i>
+      <span><strong>Atenção:</strong> O arquivo <code>data.json</code> não está vinculado. Suas alterações ficam salvas apenas no cache do navegador. Vincule o arquivo para salvar diretamente no disco.</span>
+    </div>
+    <div class="d-flex align-items-center">
+      <button id="btnVincularDataBanner" class="btn btn-sm btn-dark font-weight-bold ml-2">
+        <i class="fas fa-link text-primary mr-1"></i> Vincular data.json agora
+      </button>
+      <button id="btnVincularPastaAutoBanner" class="btn btn-sm btn-outline-dark font-weight-bold ml-2" title="Vincular a pasta do software para sincronizar data.json e as pastas Vídeos e Imagens automaticamente">
+        <i class="fas fa-folder-open text-info mr-1"></i> Vincular Pasta do Sistema
+      </button>
+      <button type="button" class="close ml-2 text-dark" id="btnDispensarBanner" title="Fechar aviso" style="font-size: 1.25rem; line-height: 1; padding: 0 4px;">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Modais Omitidos no resumo, mas presentes -->
   <div class="modal fade" id="modalNotImplemented" tabindex="-1" role="dialog" aria-hidden="true">
@@ -126,30 +157,33 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content text-light bg-dark">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-film mr-1"></i> Adicionar Imagem ou Vídeo</h5>
+          <h5 class="modal-title"><i class="fas fa-film mr-1 text-primary"></i> Adicionar Mídia (Imagem ou Vídeo)</h5>
           <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body"> 
+          <div class="alert alert-info py-2 px-3 small mb-2">
+            <i class="fas fa-info-circle mr-1"></i> <strong>Aviso:</strong> O sistema referencia a mídia diretamente no seu computador sem fazer cópias. Se o arquivo for movido de local ou renomeado, será necessário adicioná-lo novamente.
+          </div>
+          <div class="form-group p-2">
+            <label for="fileimage" class="font-weight-bold">Escolher Arquivo no Computador:</label>
+            <input id="fileimage" class="form-control-file p-2 bg-secondary text-white rounded" type="file" accept=".mp4,.avi,.jpg,.jpeg,.png,.gif,.webp,video/mp4,video/avi,video/x-msvideo,image/jpeg,image/png,image/gif,image/webp">
+            <small class="form-text text-muted">Formatos permitidos: MP4, AVI, JPG, JPEG, PNG, GIF, WEBP.</small>
+          </div>
           <div class="form-group p-2"> 
-            <label for="imageName">Nome da Mídia:</label>
-            <input class="form-control" id="imageName" type="text" placeholder="Ex: Foto do Batismo, Vídeo Vinheta...">
+            <label for="imageName" class="font-weight-bold">Nome da Mídia:</label>
+            <input class="form-control" id="imageName" type="text" placeholder="Nome do arquivo ou título personalizado">
           </div> 
           <div class="form-group p-2">
-            <label for="selectMediaFolder">Salvar na Pasta:</label>
+            <label for="selectMediaFolder" class="font-weight-bold">Salvar na Pasta:</label>
             <select class="form-control" id="selectMediaFolder">
               <option value="-1">📁 Mídias Gerais</option>
             </select>
-            <small class="form-text text-muted">Escolha a pasta geral de mídias ou uma das pastas que você criou.</small>
-          </div>
-          <div class="form-group p-2">
-            <label for="fileimage">Arquivo (Imagem ou Vídeo):</label>
-            <input id="fileimage" class="form-control-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/avi,.avi">
-            <small class="form-text text-muted">Imagens: JPG, PNG, GIF, WEBP. Vídeos: MP4, AVI (máximo 10 MB).</small>
+            <small class="form-text text-muted">Escolha a pasta geral ou uma das suas pastas personalizadas.</small>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-          <button id="confirmCreateImage" type="button" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar à Lista</button> 
+          <button id="confirmCreateImage" type="button" class="btn btn-primary font-weight-bold"><i class="fas fa-plus"></i> Adicionar à Lista</button> 
         </div> 
       </div>
     </div>
@@ -340,8 +374,8 @@
         </div>
         <div class="modal-footer d-flex justify-content-between align-items-center">
           <div class="flex-grow-1 mr-2 text-left">
-            <input type="file" id="imagesToAdd" class="form-control-file text-light" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/avi,.avi">
-            <small class="form-text text-muted">Imagens (JPG, PNG, GIF, WEBP) com ajuste 16:9 ou Vídeos (MP4, AVI até 30s e máx. 10 MB).</small>
+            <input type="file" id="imagesToAdd" class="form-control-file text-light" accept=".mp4,.avi,.jpg,.jpeg,.png,.gif,.webp,video/mp4,video/avi,video/x-msvideo,image/jpeg,image/png,image/gif,image/webp">
+            <small class="form-text text-muted">Formatos permitidos: MP4, AVI, JPG, JPEG, PNG, GIF, WEBP. Vídeos para fundos ou telas padrões: máx. 30s e até 10 MB.</small>
           </div>
           <button id="addNewImage" type="button" class="btn btn-primary"><i class="fas fa-plus fa-fw"></i> Adicionar</button>
         </div> 
@@ -453,7 +487,7 @@
     </div>
   </div>
 
-  <!-- Modal de Visualização de Mídia (Imagens, Vídeos e YouTube) -->
+  <!-- Modal de Visualização de Mídia (Imagens e Vídeos) -->
   <div class="modal fade" id="mediaViewerModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content text-light bg-dark">
@@ -464,9 +498,6 @@
         <div class="modal-body text-center p-3" id="mediaViewerBody">
           <img id="mediaViewerImg" src="" style="max-width: 100%; max-height: 65vh; object-fit: contain; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);">
           <video id="mediaViewerVideo" controls autoplay style="max-width: 100%; max-height: 65vh; margin: 0 auto; display: none; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);"></video>
-          <div id="mediaViewerYoutube" style="display: none; width: 100%; height: 50vh; max-width: 850px; margin: 0 auto;">
-            <iframe id="mediaViewerYtFrame" width="100%" height="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="border-radius: 6px;"></iframe>
-          </div>
         </div>
         <div class="modal-footer d-flex justify-content-between align-items-center">
           <span class="text-muted small" id="mediaViewerInfo"></span>
@@ -474,46 +505,6 @@
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
             <button id="btnAddToProjFromViewer" type="button" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> Adicionar à Projeção</button>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Adicionar Vídeo do YouTube -->
-  <div class="modal fade" id="newYoutubeModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content text-light bg-dark">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fab fa-youtube-square text-danger mr-1"></i> Adicionar Vídeo do YouTube</h5>
-          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group mb-2">
-            <label for="ytVideoUrl">Link ou ID do Vídeo do YouTube:</label>
-            <input type="text" class="form-control" id="ytVideoUrl" placeholder="Cole o link (ex: https://www.youtube.com/watch?v=...)">
-            <small class="form-text text-muted">Suporta links normais, compartilhamento (youtu.be), YouTube Shorts ou o código ID de 11 caracteres.</small>
-          </div>
-
-          <div id="ytPreviewBox" class="p-2 mb-2 bg-secondary rounded text-center" style="display: none;">
-            <img id="ytPreviewThumb" src="" style="max-height: 120px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
-            <div class="small mt-1 text-warning font-weight-bold" id="ytPreviewIdText"></div>
-          </div>
-
-          <div class="form-group mb-2">
-            <label for="ytVideoName">Nome de Identificação:</label>
-            <input type="text" class="form-control" id="ytVideoName" placeholder="Ex: Louvor Especial, Mensagem, Anúncio...">
-          </div>
-
-          <div class="form-group mb-2">
-            <label for="selectYoutubeFolder">Salvar na Pasta:</label>
-            <select class="form-control" id="selectYoutubeFolder">
-              <option value="-1">📁 Mídias Gerais</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-          <button id="confirmCreateYoutube" type="button" class="btn btn-danger font-weight-bold"><i class="fas fa-plus mr-1"></i> Adicionar Vídeo</button>
         </div>
       </div>
     </div>
@@ -536,7 +527,6 @@
               </div>
               <div class="btn-group mr-1">
                 <button id="newImage" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Adicionar imagem ou vídeo à lista"><i class="fas fa-film fa-fw"></i></button>
-                <button id="newYoutube" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Adicionar vídeo do YouTube por link"><i class="fab fa-youtube-square fa-fw text-danger"></i></button>
                 <button id="btnPreviewMedia" class="btn btn-dark" data-toggle="tooltip" data-placement="bottom" title="Visualizar mídia selecionada"><i class="fas fa-eye fa-fw"></i></button>
               </div>
               <div class="btn-group">
@@ -571,34 +561,6 @@
 
           <div class="card-block tab-content center-block-tabs" id="myTabContent">
             <div class="tab-pane fade show active" id="live" role="tabpanel" aria-labelledby="live-tab">
-              <!-- Barra de Controle do YouTube (Exibida dinamicamente quando a projeção ativa for vídeo do YouTube) -->
-              <div id="youtubeControlBar" class="card bg-dark text-white mb-2 p-2" style="display: none; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <div class="text-truncate mr-2" style="font-size: 0.9rem; font-weight: 600;">
-                    <i class="fab fa-youtube text-danger mr-1"></i> <span id="ytPlayingTitle">Nenhum vídeo em reprodução</span>
-                  </div>
-                  <div id="ytTimeDisplay" class="badge badge-secondary px-2 py-1" style="font-family: monospace; font-size: 0.85rem;">00:00 / 00:00</div>
-                </div>
-                <!-- Barra de Progresso / Seek -->
-                <div class="d-flex align-items-center mb-2">
-                  <input type="range" class="form-control-range custom-range" id="ytProgressBar" min="0" max="100" value="0" step="0.1" style="cursor: pointer;">
-                </div>
-                <!-- Botões de Controle e Volume -->
-                <div class="d-flex justify-content-between align-items-center">
-                  <div class="btn-group btn-group-sm">
-                    <button type="button" id="btnYtRewind" class="btn btn-outline-light" title="Voltar 10 segundos"><i class="fas fa-undo fa-fw"></i> 10s</button>
-                    <button type="button" id="btnYtPlayPause" class="btn btn-danger px-3 font-weight-bold" title="Reproduzir / Pausar"><i class="fas fa-play fa-fw"></i> Play</button>
-                    <button type="button" id="btnYtStop" class="btn btn-outline-light" title="Parar vídeo"><i class="fas fa-stop fa-fw"></i></button>
-                    <button type="button" id="btnYtForward" class="btn btn-outline-light" title="Avançar 10 segundos">10s <i class="fas fa-redo fa-fw"></i></button>
-                  </div>
-                  <div class="d-flex align-items-center ml-2" style="min-width: 150px; max-width: 220px;">
-                    <button type="button" id="btnYtMute" class="btn btn-sm btn-outline-light mr-2" title="Mudo / Ativar Som"><i class="fas fa-volume-up fa-fw"></i></button>
-                    <input type="range" class="form-control-range custom-range" id="ytVolumeBar" min="0" max="100" value="100" step="1" style="cursor: pointer;">
-                    <span id="ytVolumeVal" class="ml-2 small text-muted" style="font-family: monospace; width: 36px; text-align: right;">100%</span>
-                  </div>
-                </div>
-              </div>
-
               <div id="scrollblock">
                 <table id="livesongs" class="table table-striped table-bordered mt-2">
                   <tbody></tbody>
@@ -640,12 +602,13 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="content" style="align:center" data-lang-str="content">Conteúdo (Separe os slides pulando duas linhas)</label><br>
+                  <label for="content" style="text-align: center; display: block;" data-lang-str="content">Conteúdo (Separe os slides pulando duas linhas)</label>
                   <textarea class="form-control noresize" id="content" name=content rows="12" cols="80"></textarea>
                 </div> 
               </form>
-              <div class="btn-toolbar justify-content-between px-2 pb-1">
+              <div class="btn-toolbar justify-content-between px-2 pb-1 align-items-center">
                 <button id="save" class="btn btn-success" data-lang-str="btn_save"><i class="fas fa-save"></i> Salvar</button>
+                <span id="statusSalvarEditor" class="badge badge-success py-1 px-2" style="font-size: 0.85rem;"><i class="fas fa-check-circle mr-1"></i> Todas as alterações salvas</span>
               </div> 
             </div>
             
@@ -718,10 +681,6 @@
             Lista para projeção
           </div>
           <div class="card-block" style="height: 45vh; overflow-x: hidden !important; overflow-y: scroll;">
-            <div id="msgSave" class="alert alert-success alert-dismissible fade show" role="alert" style="display:none;">
-              <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-              <span id="msgSaveText">Louvor atualizado!</span>
-            </div> 
             <table id="projections" class="table table-sm table-bordered">
               <tbody></tbody>
             </table>
@@ -747,6 +706,18 @@
 <script src="js/bootstrap.min.js"></script> 
 <script src="js/perfect-scrollbar.js"></script>
 <script src="js/bible.js"></script>
+<!-- Módulos de Arquitetura -->
+<script src="js/modules/storage.js"></script>
+<script src="js/modules/media.js"></script>
+<script src="js/modules/projection.js"></script>
+<script src="js/modules/tree.js"></script>
 <script src="js/core.js"></script>
+<script>
+  // Garantia preventiva de liberação imediata da tela de carregamento
+  window.addEventListener('load', function() {
+    var l = document.getElementById('loading');
+    if (l) l.style.setProperty('display', 'none', 'important');
+  });
+</script>
 </body>
 </html>

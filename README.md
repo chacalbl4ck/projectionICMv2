@@ -45,22 +45,15 @@ Painel do Operador | Janela de Projeção (Telão)
 * **Economia de mais de 8.6 MB de processamento bloqueante no startup**, garantindo inicialização quase instantânea do painel.
 * As bases bíblicas (ACF e NVI) são carregadas em segundo plano sob demanda com indicador visual assim que o operador clica pela primeira vez na aba "Bíblia".
 
-### 7. Reprodução de Vídeos do YouTube por Link ao Telão
-* **Adição Rápida via Link:** Adicione vídeos do YouTube diretamente à árvore de mídias através do botão com o ícone do YouTube na barra de ferramentas.
-* **Compatibilidade Completa:** Reconhece links normais (`youtube.com/watch?v=...`), links de compartilhamento encurtados (`youtu.be/...`), YouTube Shorts (`youtube.com/shorts/...`), tags de incorporação (`embed`) ou apenas o código ID de 11 caracteres.
-* **Pré-visualização Inteligente:** Exibe a miniatura oficial em alta resolução e preenche automaticamente o título do vídeo via serviço oEmbed.
-* **Barra de Controle Completa e Interativa no Painel:**
-  * **Play / Pause** com alternância visual do botão.
-  * **Barra de Progresso (Seek Bar):** Permite navegar interativamente para qualquer ponto do vídeo arrastando a barra.
-  * **Tempo e Duração:** Marcador digital com tempo decorrido e tempo total (`00:00 / 00:00`).
-  * **Retrocesso e Avanço Rápido:** Botões dedicados de **-10 segundos** e **+10 segundos**.
-  * **Controle de Volume e Mudo:** Slider de volume (0 a 100%) e botão de alternância rápida de Mudo.
-* **Prevenção de Áudio Duplicado:** O iframe de miniatura do operador permanece automaticamente mudo, enquanto o telão externo reproduz o áudio na intensidade regulada pelo operador.
-* **Integração com OBS Studio:** Durante a exibição do vídeo, os Lower Thirds são recolhidos automaticamente para manter a transmissão de vídeo limpa.
+### 7. Ajuste Dinâmico de Texto ao Telão (Auto-Fit)
+* **Prevenção de Truncamento:** Algoritmo que calcula dinamicamente o espaço ocupado pelo texto em relação à resolução e dimensões da janela de projeção, ajustando a escala visual para garantir que nenhuma linha seja cortada.
+* **Uniformidade de Fontes:** Normalização de estrofes com marcações litúrgicas (`CORO`, `BIS`, `FINAL`, `REFRÃO`), garantindo tamanho de fonte perfeitamente uniforme entre estrofes comuns e estrofes com tags especiais.
+* **Persistência de Projeção:** Manutenção do slide e conteúdo em exibição no telão mesmo durante edições ou adições de louvores no painel de controle.
 
 ### 8. Gerenciamento Completo de Pastas, Mídias e Avisos
+* **Vínculo Local Seguro (`data.json`):** Indicador em tempo real e banner para vincular diretamente o arquivo de dados ao disco via File System Access API, com ícone de status informativo sobre alterações pendentes.
 * **Renomear Pastas:** Permite renomear qualquer pasta personalizada criada pelo operador através do botão <i class="fas fa-edit"></i> na barra de ferramentas.
-* **Visualizador de Mídias e YouTube:** Permite inspecionar imagens em alta resolução, reproduzir vídeos locais e pré-visualizar vídeos do YouTube com player embutido antes de projetar.
+* **Visualizador de Mídias Locais:** Permite inspecionar imagens em alta resolução e reproduzir vídeos locais em modal antes de enviar à projeção.
 * **Edição de Avisos com Seleção de Pastas:** Permite editar avisos já criados (nome, título e texto) e organizá-los na Pasta Geral ou em qualquer pasta personalizada.
 * **Banco Local IndexedDB (`MediaDB`):** Armazenamento de alta capacidade para evitar estouro da cota do `localStorage`.
 * **Interface Polida com Ícones Verificados:** Todos os ícones do sistema foram padronizados para o FontAwesome 5 oficial sem erros de renderização (`[! ?]`).
@@ -75,7 +68,7 @@ Painel do Operador | Janela de Projeção (Telão)
 * **FontAwesome 5:** Ícones vetoriais em toda a aplicação.
 * **BroadcastChannel API:** Sincronização inter-janelas e streaming.
 * **IndexedDB API (`MediaDB`):** Armazenamento local de mídias de alta resolução.
-* **Perfect Scrollbar:** Rolagem fluida no painel de estrofes ao vivo.
+* **File System Access API:** Salvamento e sincronização direta no disco local.
 
 ---
 
@@ -93,10 +86,11 @@ O sistema funciona diretamente no navegador, sem necessidade de servidores exter
 ## 📖 Como Usar
 
 ### 1. Projeção no Templo (Painel + Telão)
-1. Para a melhor experiência e liberação completa de reprodução do YouTube sem restrições de segurança do navegador, execute o arquivo [`iniciar_sistema.bat`](iniciar_sistema.bat) ou abra o arquivo [`index.html`](index.html) no navegador em sua tela de controle (monitor do operador).
+1. Abra o arquivo [`index.html`](index.html) no navegador em sua tela de controle (monitor do operador).
 2. O sistema abrirá automaticamente a janela do telão ([`view.html`](view.html)). Arraste a janela do telão para a tela estendida (projetor/TV) e pressione **F11** para tela cheia.
-3. No painel de arquivos à esquerda, dê um **duplo clique** sobre qualquer hino, aviso ou mídia para adicionar à lista de projeção.
-4. Na aba **"Ao Vivo"**, clique na estrofe desejada ou navegue utilizando as setas do teclado.
+3. Se desejar salvar modificações diretamente no seu arquivo físico, utilize o botão ou banner **Vincular data.json** na barra superior.
+4. No painel de arquivos à esquerda, dê um **duplo clique** sobre qualquer hino, aviso ou mídia para adicionar à lista de projeção.
+5. Na aba **"Ao Vivo"**, clique na estrofe desejada ou navegue utilizando as setas do teclado.
 
 ### 2. Transmissão para OBS Studio / vMix (Lower Thirds)
 1. No painel principal, clique no botão **"Saída OBS"** na barra superior ou acesse o arquivo [`obs.html`](obs.html).

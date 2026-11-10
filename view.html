@@ -13,25 +13,10 @@
   <!-- Camada de Blackout Instantâneo -->
   <div id="blackoutOverlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 999999; opacity: 0; pointer-events: none; transition: opacity 0.25s ease-in-out;"></div>
 
-  <!-- Container de Vídeo do YouTube em Tela Cheia -->
-  <div id="ytPlayerWrapper" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 50; display: none; align-items: center; justify-content: center; overflow: hidden;">
-    <iframe id="ytPlayerFrame" 
-            style="width: 100vw; height: 100vh; border: 0;" 
-            src="" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-            referrerpolicy="strict-origin-when-cross-origin" 
-            allowfullscreen>
-    </iframe>
-    <!-- Alerta visual caso o vídeo possua restrições do YouTube -->
-    <div id="ytErrorNotice" style="display: none; position: absolute; background: rgba(18, 18, 18, 0.95); border: 2px solid #dc3545; border-radius: 12px; padding: 24px 32px; color: #fff; max-width: 620px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.85); z-index: 60;">
-      <div style="font-size: 38px; color: #dc3545; margin-bottom: 8px;">⚠️</div>
-      <h4 style="margin: 0 0 10px; font-weight: bold; color: #fff;">Reprodução Restrita no YouTube</h4>
-      <p style="font-size: 14px; color: #ccc; margin-bottom: 18px;" id="ytErrorText">O autor deste vídeo desativou a incorporação externa ou o YouTube exige acesso direto.</p>
-      <a id="ytDirectLinkBtn" href="#" target="_blank" style="background: #dc3545; color: white; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
-        Abrir Diretamente no YouTube
-      </a>
-    </div>
+  <!-- Palco dedicado de mídia fullscreen respeitando dimensões do telão e aspect ratio -->
+  <div id="telaoMediaStage" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; z-index: 500; display: none; align-items: center; justify-content: center; overflow: hidden;">
+    <img id="telaoStageImg" alt="" style="display: none; width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain; margin: 0; border: none; box-shadow: none; background: transparent;">
+    <video id="telaoStageVideo" playsinline loop preload="auto" style="display: none; width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain; margin: 0; border: none; box-shadow: none; background: #000000;"></video>
   </div>
 
   <!-- 2. Create hidden header/footer <div> -->
@@ -41,15 +26,11 @@
     <header class="winetitle2"><div id="titulo"><br></div><div id="logo" style="background-color:white"><i class="icon-logo_bold"></i></div></header>    
     <header class="whitelogo"><div id="logo" style="float:right"><i class="icon-logo_bold_white"></i></div></header>
     <header class="backlay1-pt-br"><div class="backlay_1-pt-br"><i class="logo_tela_padrao icon-logo_bold_white"></i></div></header>
-    
 
     <footer class="fim">FIM</footer>
     <footer class="scripturetitle"><small></small></footer>      
 
-    <div class="slides">
-    
-    </div>    
-
+    <div class="slides"></div>    
   </div>
 
   <!-- Scripts -->
@@ -62,8 +43,8 @@
       history: false,
       keyboard: true,
       center: true,
-      theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
-      transition: 'fade', // default/cube/page/concave/zoom/linear/fade/none
+      theme: Reveal.getQueryHash().theme,
+      transition: 'fade',
     });  
     (function(){
     // ==========================================
@@ -71,342 +52,118 @@
     // ==========================================
     const projectionChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('projecao_icm_channel') : null;
 
-    // Distingue se esta janela é o TELÃO EXTERNO real (janela separada) ou apenas o IFRAME de miniatura no painel
+    // Distingue se esta janela é o TELÃO EXTERNO real ou apenas o IFRAME de miniatura no painel
     const isExternalTelao = (window.self === window.top);
 
     // ==========================================
-    // REPRODUÇÃO E CONTROLE DE VÍDEOS DO YOUTUBE
+    // AJUSTE DINÂMICO DE TEXTO PARA IMPEDIR TRUNCAMENTO
     // ==========================================
-    var ytPlayer = null;
-    var isYtApiReady = false;
-    var currentLoadedYtId = null;
-    var currentYtTime = 0;
-    var currentYtDuration = 0;
-    var currentYtState = -1;
-    var isYtMuted = false;
-    var currentVolume = 100;
-    var ytProgressInterval = null;
+    function fitTextToSlide() {
+      var slide = Reveal.getCurrentSlide();
+      if (!slide) return;
+      var verseText = slide.querySelector('.verse-text') || slide.querySelector('.verse-container') || slide.querySelector('div[style*="font-size"]');
+      if (!verseText) return;
 
-    // Dispara comandos nativos para o iframe do YouTube via postMessage
-    function postYtCommand(func, args) {
-      var frame = document.getElementById('ytPlayerFrame');
-      if (frame && frame.contentWindow) {
-        try {
-          frame.contentWindow.postMessage(JSON.stringify({
-            event: 'command',
-            func: func,
-            args: args || []
-          }), '*');
-        } catch(e) {}
-      }
-    }
+      verseText.style.transform = '';
+      verseText.style.transformOrigin = 'center center';
+      verseText.style.display = 'inline-block';
 
-    // Receptor das mensagens de status nativas do iframe do YouTube (infoDelivery)
-    window.addEventListener('message', function(event) {
-      try {
-        var data = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
-        if (data && data.event === 'infoDelivery' && data.info) {
-          if (data.info.currentTime !== undefined) currentYtTime = data.info.currentTime;
-          if (data.info.duration !== undefined) currentYtDuration = data.info.duration;
-          if (data.info.playerState !== undefined) currentYtState = data.info.playerState;
-          if (data.info.muted !== undefined) isYtMuted = data.info.muted;
-          if (data.info.volume !== undefined) currentVolume = data.info.volume;
-          emitYtStatus();
-        }
-      } catch (e) {}
-    });
+      // Dimensões úteis máximas no canvas do Reveal (1920x1080)
+      // Cabeçalho institucional ocupa ~120px e rodapé "FIM" ocupa ~80px
+      var maxW = 1820; 
+      var maxH = 880;
 
-    window.onYouTubeIframeAPIReady = function() {
-      isYtApiReady = true;
-    };
+      var textW = verseText.scrollWidth || verseText.offsetWidth;
+      var textH = verseText.scrollHeight || verseText.offsetHeight;
 
-    function startYtProgressLoop() {
-      if (ytProgressInterval) clearInterval(ytProgressInterval);
-      ytProgressInterval = setInterval(function() {
-        if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-          try {
-            currentYtTime = ytPlayer.getCurrentTime() || currentYtTime;
-            currentYtDuration = ytPlayer.getDuration() || currentYtDuration;
-            currentYtState = (typeof ytPlayer.getPlayerState === 'function') ? ytPlayer.getPlayerState() : currentYtState;
-          } catch(e) {}
-        }
-        emitYtStatus();
-      }, 350);
-    }
-
-    function stopYtProgressLoop() {
-      if (ytProgressInterval) {
-        clearInterval(ytProgressInterval);
-        ytProgressInterval = null;
-      }
-    }
-
-    function emitYtStatus() {
-      try {
-        var statusPayload = {
-          currentTime: currentYtTime || 0,
-          duration: currentYtDuration || 0,
-          playerState: currentYtState,
-          isMuted: isYtMuted,
-          volume: currentVolume,
-          ytId: currentLoadedYtId,
-          isExternal: isExternalTelao
-        };
-
-        if (isExternalTelao && projectionChannel) {
-          projectionChannel.postMessage({ action: 'YOUTUBE_STATUS', payload: statusPayload });
-        } else if (!isExternalTelao && window.parent && window.parent !== window) {
-          window.parent.postMessage(JSON.stringify({
-            host: 'projection-html5-painel',
-            function: 'YOUTUBE_STATUS',
-            data: statusPayload
-          }), "*");
-        }
-      } catch (e) {}
-    }
-
-    function showYtErrorNotice(ytId) {
-      var notice = document.getElementById('ytErrorNotice');
-      var linkBtn = document.getElementById('ytDirectLinkBtn');
-      if (notice) {
-        if (linkBtn) linkBtn.href = 'https://www.youtube.com/watch?v=' + ytId;
-        notice.style.display = 'block';
-      }
-    }
-
-    function hideYtErrorNotice() {
-      var notice = document.getElementById('ytErrorNotice');
-      if (notice) notice.style.display = 'none';
-    }
-
-    function initOrLoadYtVideo(ytId) {
-      var wrapper = document.getElementById('ytPlayerWrapper');
-      var frame = document.getElementById('ytPlayerFrame');
-      if (wrapper) wrapper.style.display = 'flex';
-      hideYtErrorNotice();
-
-      if (currentLoadedYtId === ytId && frame && frame.src) {
-        postYtCommand('playVideo');
-        if (ytPlayer && typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
-        startYtProgressLoop();
-        return;
-      }
-
-      currentLoadedYtId = ytId;
-      currentYtTime = 0;
-      currentYtDuration = 0;
-      currentYtState = -1;
-
-      // URL no domínio youtube-nocookie com privacidade e sem bloqueios de referrer
-      var muteParam = (!isExternalTelao) ? "&mute=1" : "";
-      var embedUrl = "https://www.youtube-nocookie.com/embed/" + ytId + "?enablejsapi=1&autoplay=1&rel=0&playsinline=1" + muteParam;
-
-      if (frame) {
-        frame.src = embedUrl;
-        frame.onload = function() {
-          try {
-            // Handshake inicial de escuta via postMessage
-            frame.contentWindow.postMessage(JSON.stringify({
-              event: 'listening',
-              id: 1,
-              channel: 'widget'
-            }), '*');
-
-            if (!isExternalTelao) {
-              postYtCommand('mute');
-            } else {
-              postYtCommand('unMute');
-              postYtCommand('setVolume', [currentVolume]);
-            }
-            postYtCommand('playVideo');
-          } catch(e) {}
-        };
-      }
-
-      // Se a API YT estiver carregada, vincula ao iframe existente sem recriar
-      if (isYtApiReady && window.YT && window.YT.Player && frame) {
-        try {
-          if (ytPlayer && typeof ytPlayer.destroy === 'function') {
-            try { ytPlayer.destroy(); } catch(e){}
-          }
-          ytPlayer = new YT.Player('ytPlayerFrame', {
-            host: 'https://www.youtube-nocookie.com',
-            events: {
-              onReady: function(event) {
-                if (!isExternalTelao) {
-                  event.target.mute();
-                } else {
-                  event.target.unMute();
-                  event.target.setVolume(currentVolume);
-                }
-                event.target.playVideo();
-                startYtProgressLoop();
-                emitYtStatus();
-              },
-              onStateChange: function(event) {
-                if (event && event.data !== undefined) currentYtState = event.data;
-                emitYtStatus();
-              },
-              onError: function(event) {
-                console.warn("YouTube Embed Error:", event.data);
-                showYtErrorNotice(ytId);
-              }
-            }
-          });
-        } catch(e) {
-          console.warn("Erro ao vincular YT.Player", e);
+      // Se o conteúdo ultrapassar a área útil, calcula a proporção exata para caber perfeitamente
+      if (textW > maxW || textH > maxH) {
+        var scaleW = maxW / textW;
+        var scaleH = maxH / textH;
+        var scale = Math.min(scaleW, scaleH);
+        if (scale < 1.0 && scale >= 0.55) {
+          verseText.style.transform = 'scale(' + scale.toFixed(3) + ')';
         }
       }
-
-      startYtProgressLoop();
-      emitYtStatus();
-    }
-
-    function checkYouTubeSlide() {
-      var currentSlide = Reveal.getCurrentSlide();
-      if (!currentSlide) {
-        var indices = (typeof Reveal.getIndices === 'function') ? Reveal.getIndices() : { h: 0 };
-        var allSlides = document.querySelectorAll('.reveal .slides section');
-        if (allSlides && allSlides[indices.h]) {
-          currentSlide = allSlides[indices.h];
-        }
-      }
-
-      var ytId = currentSlide ? currentSlide.getAttribute('data-youtube-id') : null;
-      var wrapper = document.getElementById('ytPlayerWrapper');
-      var frame = document.getElementById('ytPlayerFrame');
-
-      if (ytId) {
-        initOrLoadYtVideo(ytId);
-      } else {
-        if (wrapper) wrapper.style.display = 'none';
-        hideYtErrorNotice();
-        postYtCommand('pauseVideo');
-        if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
-          try { ytPlayer.pauseVideo(); } catch(e) {}
-        }
-        stopYtProgressLoop();
-      }
-    }
-
-    function handleYoutubeCommand(payload) {
-      if (!payload) return;
-      var cmd = payload.cmd;
-      try {
-        if (cmd === 'play') {
-          currentYtState = 1;
-          postYtCommand('playVideo');
-          if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
-            try { ytPlayer.playVideo(); } catch(e) {}
-          }
-        } else if (cmd === 'pause') {
-          currentYtState = 2;
-          postYtCommand('pauseVideo');
-          if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
-            try { ytPlayer.pauseVideo(); } catch(e) {}
-          }
-        } else if (cmd === 'togglePlay') {
-          if (currentYtState === 1) {
-            currentYtState = 2;
-            postYtCommand('pauseVideo');
-            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
-              try { ytPlayer.pauseVideo(); } catch(e) {}
-            }
-          } else {
-            currentYtState = 1;
-            postYtCommand('playVideo');
-            if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
-              try { ytPlayer.playVideo(); } catch(e) {}
-            }
-          }
-        } else if (cmd === 'stop') {
-          currentYtState = 2;
-          currentYtTime = 0;
-          postYtCommand('seekTo', [0, true]);
-          postYtCommand('pauseVideo');
-          if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
-            try {
-              ytPlayer.pauseVideo();
-              if (typeof ytPlayer.seekTo === 'function') ytPlayer.seekTo(0, true);
-            } catch(e) {}
-          }
-        } else if (cmd === 'seek') {
-          if (payload.seconds !== undefined) {
-            currentYtTime = payload.seconds;
-            postYtCommand('seekTo', [payload.seconds, true]);
-            if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
-              try { ytPlayer.seekTo(payload.seconds, true); } catch(e) {}
-            }
-          }
-        } else if (cmd === 'rewind') {
-          var cur = currentYtTime || 0;
-          var target = Math.max(0, cur - (payload.seconds || 10));
-          currentYtTime = target;
-          postYtCommand('seekTo', [target, true]);
-          if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
-            try { ytPlayer.seekTo(target, true); } catch(e) {}
-          }
-        } else if (cmd === 'forward') {
-          var cur = currentYtTime || 0;
-          var dur = currentYtDuration || cur + 30;
-          var target = Math.min(dur, cur + (payload.seconds || 10));
-          currentYtTime = target;
-          postYtCommand('seekTo', [target, true]);
-          if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
-            try { ytPlayer.seekTo(target, true); } catch(e) {}
-          }
-        } else if (cmd === 'setVolume') {
-          if (payload.volume !== undefined) {
-            currentVolume = parseInt(payload.volume, 10);
-            if (isNaN(currentVolume)) currentVolume = 100;
-            postYtCommand('setVolume', [currentVolume]);
-            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
-              try { ytPlayer.setVolume(currentVolume); } catch(e) {}
-            }
-            if (currentVolume > 0 && isYtMuted) {
-              isYtMuted = false;
-              postYtCommand('unMute');
-              if (ytPlayer && typeof ytPlayer.unMute === 'function') {
-                try { ytPlayer.unMute(); } catch(e) {}
-              }
-            }
-          }
-        } else if (cmd === 'setMute' || cmd === 'toggleMute') {
-          if (payload.mute !== undefined) {
-            isYtMuted = !!payload.mute;
-          } else {
-            isYtMuted = !isYtMuted;
-          }
-          if (isYtMuted) {
-            postYtCommand('mute');
-            if (ytPlayer && typeof ytPlayer.mute === 'function') {
-              try { ytPlayer.mute(); } catch(e) {}
-            }
-          } else {
-            postYtCommand('unMute');
-            if (ytPlayer && typeof ytPlayer.unMute === 'function') {
-              try { ytPlayer.unMute(); } catch(e) {}
-            }
-            if (currentVolume <= 0) currentVolume = 100;
-            postYtCommand('setVolume', [currentVolume]);
-            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
-              try { ytPlayer.setVolume(currentVolume); } catch(e) {}
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Erro ao executar comando do YouTube no telão", e);
-      }
-      emitYtStatus();
     }
 
     var lastProcessedSig = '';
     var lastProcessedTime = 0;
 
+    function enviarMensagemParaPainel(msgObj) {
+      if (isExternalTelao && projectionChannel) {
+        try { projectionChannel.postMessage(msgObj); } catch(e) {}
+      }
+      var target = (window.opener && !window.opener.closed) ? window.opener : (window.parent && window.parent !== window ? window.parent : null);
+      if (target) {
+        try { target.postMessage(msgObj, "*"); } catch(e) {}
+      }
+    }
+
     function processCommand(funcName, payload) {
+      // Nunca descartar entrega de mídia por deduplicação de assinatura
+      if (funcName === 'RESPONSE_MEDIA_BLOB' && payload) {
+        var mid = payload.mediaId;
+        var fName = payload.fileName;
+        var localUrl = null;
+
+        if (payload.arrayBuffer) {
+          var bufBlob = new Blob([payload.arrayBuffer], { type: payload.mimeType || 'application/octet-stream' });
+          localUrl = window.URL.createObjectURL(bufBlob);
+        } else if (payload.blob) {
+          localUrl = window.URL.createObjectURL(payload.blob);
+        } else if (payload.dataUrl) {
+          localUrl = payload.dataUrl;
+        }
+
+        if (localUrl) {
+          if (mid) telaoLocalBlobUrls[mid] = localUrl;
+          if (fName) telaoLocalBlobUrls['file:' + fName] = localUrl;
+
+          var sImg = document.getElementById('telaoStageImg');
+          var sVid = document.getElementById('telaoStageVideo');
+          [sImg, sVid].forEach(function(st) {
+            if (!st || st.style.display === 'none') return;
+            var sMid = st.getAttribute('data-media-id');
+            var sName = st.getAttribute('data-file-name');
+            if ((mid && sMid === mid) || (!mid && fName && sName === fName)) {
+              aplicarBlobUrl(st, localUrl, mid, fName);
+            }
+          });
+
+          var selector = mid ? ('img[data-media-id="' + mid + '"], video[data-media-id="' + mid + '"]') : ('img[data-file-name="' + fName + '"], video[data-file-name="' + fName + '"]');
+          document.querySelectorAll(selector).forEach(function(el) {
+            if (el.id !== 'telaoStageImg' && el.id !== 'telaoStageVideo') {
+              aplicarBlobUrl(el, localUrl, mid, fName);
+            }
+          });
+        }
+        return;
+      }
+
+      if (funcName === 'VIDEO_CONTROL' && payload) {
+        var cmdKey = payload.cmdId ? ('cmd:' + payload.cmdId) : '';
+        if (cmdKey && cmdKey === lastVideoControlKey) return;
+        if (cmdKey) lastVideoControlKey = cmdKey;
+        executarControleVideo(payload);
+        return;
+      }
+
+      if (funcName === 'VIDEO_SYNC' && payload) {
+        if (!isExternalTelao) {
+          var syncKey = payload.syncId
+            ? ('id:' + payload.syncId)
+            : ((payload.sentAt || 0) + '|' + (payload.currentTime || 0) + '|' + !!payload.paused);
+          if (syncKey === lastVideoSyncKey) return;
+          lastVideoSyncKey = syncKey;
+          aplicarSyncVideoPreview(payload);
+        }
+        return;
+      }
+
       var sig = funcName + '_' + (typeof payload === 'object' ? JSON.stringify(payload) : String(payload));
       var now = Date.now();
-      if (sig === lastProcessedSig && (now - lastProcessedTime) < 150) {
+      if (sig === lastProcessedSig && (now - lastProcessedTime) < 120) {
         return; // Ignora duplicatas simultâneas de BroadcastChannel + postMessage
       }
       lastProcessedSig = sig;
@@ -424,12 +181,15 @@
         changeFontSize(payload);
       } else if (funcName === 'blackout' || funcName === 'BLACKOUT') {
         toggleBlackout(payload);
-      } else if (funcName === 'YOUTUBE_CMD') {
-        handleYoutubeCommand(payload);
-      } else if (funcName === 'REQUEST_STATUS' || funcName === 'PING') {
-        // Apenas a janela externa real confirma status de telão ativo
-        if (isExternalTelao && projectionChannel) {
-          projectionChannel.postMessage({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
+      } else if (funcName === 'freeze' || funcName === 'FREEZE') {
+        toggleFreezeScreen(payload);
+      } else if (funcName === 'PING') {
+        if (isExternalTelao) {
+          enviarMensagemParaPainel({ action: 'PONG', isExternal: true, timestamp: Date.now() });
+        }
+      } else if (funcName === 'REQUEST_STATUS') {
+        if (isExternalTelao) {
+          enviarMensagemParaPainel({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
         }
       }
     }
@@ -441,16 +201,16 @@
       };
     }
 
-    // Compatibilidade via postMessage (para iframe de miniatura ou navegadores legados)
+    // Compatibilidade via postMessage (iframe de miniatura, protocolo file:/// e navegadores legados)
     window.addEventListener('message', function(event) {
       try {
-        var data = JSON.parse(event.data);
-        if (data.host === 'projection-html5') {
+        var data = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+        if (data && data.host === 'projection-html5') {
           processCommand(data.function, data.data);
+        } else if (data && data.action) {
+          processCommand(data.action, data.payload);
         }
-      } catch (e) {
-        // Ignora mensagens de outras extensões/fontes
-      }
+      } catch (e) {}
     });
 
     function toggleBlackout(status) {
@@ -461,8 +221,22 @@
     }
 
     function changeSlide(number) {
-      Reveal.slide(number, number, number);
-      checkYouTubeSlide();
+      var slideNum = (typeof number === 'number') ? number : parseInt(number, 10);
+      if (isNaN(slideNum) || slideNum < 0) slideNum = 0;
+      if (isExternalTelao && isTelaoFrozen) {
+        pendingFrozenSlide = slideNum;
+        return;
+      }
+      var curSlideBefore = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+      if (unfreezeResumeTimer && slideNum !== curSlideBefore) {
+        clearTimeout(unfreezeResumeTimer);
+        unfreezeResumeTimer = null;
+      }
+      Reveal.slide(slideNum, slideNum, slideNum);
+      setTimeout(function() {
+        fitTextToSlide();
+        atualizarStageMidia();
+      }, 50);
     }
 
     function clearSlide(status) {
@@ -481,36 +255,687 @@
     }
 
     function changeFontSize(size){
-      size+=2;
+      size = parseFloat(size);
+      if (isNaN(size)) size = 2;
+      size += 2;
       $('.reveal').css("font-size", size + "vw");
+      setTimeout(fitTextToSlide, 50);
     }
 
-    function reloadReveal(htmlslides){
-      $('.slides').html(htmlslides);
-      Reveal.initialize({
-        controls: false,
-        progress: false,
-        history: false,
-        keyboard: true,
-        // center: true,
-        theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
-        transition: 'fade', // default/cube/page/concave/zoom/linear/fade/none
-      });  
-      Reveal.sync();      
-      changeSlide(0);
-      checkYouTubeSlide();
+    var lastLoadedSlidesHtml = null;
+
+    function reloadReveal(payload){
+      if (isExternalTelao && isTelaoFrozen) {
+        pendingFrozenReload = payload;
+        return;
+      }
+      var htmlContent = (typeof payload === 'object' && payload !== null && typeof payload.html === 'string')
+        ? payload.html
+        : (typeof payload === 'string' ? payload : '');
+      var targetSlide = null;
+      if (typeof payload === 'object' && payload !== null && typeof payload.currentSlide === 'number') {
+        targetSlide = payload.currentSlide;
+      } else {
+        var indices = (typeof Reveal.getIndices === 'function') ? Reveal.getIndices() : { h: 0 };
+        targetSlide = (indices && typeof indices.h === 'number') ? indices.h : 0;
+      }
+
+      // Evita recriar o DOM do Reveal quando os slides não mudaram (impede loop de reloading e piscadas)
+      if (lastLoadedSlidesHtml !== null && htmlContent === lastLoadedSlidesHtml) {
+        var curIndices = (typeof Reveal.getIndices === 'function') ? Reveal.getIndices() : { h: 0 };
+        if (!curIndices || curIndices.h !== targetSlide) {
+          changeSlide(targetSlide);
+        } else {
+          atualizarStageMidia();
+        }
+        return;
+      }
+
+      lastLoadedSlidesHtml = htmlContent;
+      activeStageMediaKey = "";
+      $('.slides').html(htmlContent);
+      if (typeof Reveal.sync === 'function') Reveal.sync();
+      if (typeof Reveal.layout === 'function') Reveal.layout();
+      changeSlide(targetSlide);
+      setTimeout(verificarEResolverMidias, 100);
+    }
+
+    var telaoLocalBlobUrls = {};
+    var retriedWithBuffer = {};
+
+    function obterBlobDoIndexedDB(mediaId) {
+      return new Promise(function(resolve) {
+        if (!window.indexedDB || !mediaId) return resolve(null);
+        try {
+          var req = indexedDB.open("ProjecaoICM_DB", 1);
+          req.onsuccess = function(e) {
+            var db = e.target.result;
+            if (!db.objectStoreNames.contains("media")) return resolve(null);
+            var tx = db.transaction("media", "readonly");
+            var store = tx.objectStore("media");
+            var getReq = store.get(mediaId);
+            getReq.onsuccess = function() {
+              var res = getReq.result;
+              if (res && res.data) {
+                var fileOrBlob = res.data;
+                if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
+                  resolve(fileOrBlob);
+                } else if (typeof fileOrBlob.getFile === 'function') {
+                  fileOrBlob.getFile().then(resolve).catch(function() { resolve(null); });
+                } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+                  resolve(fileOrBlob);
+                } else {
+                  resolve(null);
+                }
+              } else {
+                resolve(null);
+              }
+            };
+            getReq.onerror = function() { resolve(null); };
+          };
+          req.onerror = function() { resolve(null); };
+        } catch(err) { resolve(null); }
+      });
+    }
+
+    var isTelaoFrozen = false;
+    var pendingFrozenReload = null;
+    var pendingFrozenSlide = null;
+    var frozenSlideIndex = null;
+    var unfreezeResumeTimer = null;
+
+    function toggleFreezeScreen(status) {
+      if (!isExternalTelao) return;
+      var frozen = !!status;
+      if (frozen === isTelaoFrozen) return;
+      isTelaoFrozen = frozen;
+
+      if (unfreezeResumeTimer) {
+        clearTimeout(unfreezeResumeTimer);
+        unfreezeResumeTimer = null;
+      }
+
+      if (isTelaoFrozen) {
+        frozenSlideIndex = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+        document.querySelectorAll('video').forEach(function(v) {
+          v.dataset.wasPlayingBeforeFreeze = (!v.paused && v.dataset.userPaused !== 'true') ? '1' : '0';
+          v.dataset.mutedBeforeFreeze = v.muted ? '1' : '0';
+          v.removeAttribute('autoplay');
+          v.autoplay = false;
+          try { v.pause(); } catch(e) {}
+          v.dataset.forcingMute = '1';
+          v.muted = true;
+          try { v.volume = 0; } catch(e) {}
+          delete v.dataset.forcingMute;
+        });
+        emitirSyncVideoTelao();
+      } else {
+        var prevFrozenSlide = frozenSlideIndex;
+        frozenSlideIndex = null;
+
+        if (pendingFrozenReload !== null) {
+          var rPayload = pendingFrozenReload;
+          pendingFrozenReload = null;
+          if (pendingFrozenSlide !== null) {
+            if (typeof rPayload === 'object' && rPayload !== null) {
+              rPayload = Object.assign({}, rPayload, { currentSlide: pendingFrozenSlide });
+            }
+            pendingFrozenSlide = null;
+          }
+          reloadReveal(rPayload);
+        } else if (pendingFrozenSlide !== null) {
+          var pSlide = pendingFrozenSlide;
+          pendingFrozenSlide = null;
+          changeSlide(pSlide);
+        }
+
+        unfreezeResumeTimer = setTimeout(function() {
+          unfreezeResumeTimer = null;
+          if (isTelaoFrozen) return;
+          var curIdx = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+          var mudouSlide = (prevFrozenSlide !== null && curIdx !== prevFrozenSlide);
+          document.querySelectorAll('video').forEach(function(v) {
+            var wasMuted = (v.dataset.mutedBeforeFreeze === '1');
+            var wasPlaying = (v.dataset.wasPlayingBeforeFreeze === '1');
+            delete v.dataset.mutedBeforeFreeze;
+            delete v.dataset.wasPlayingBeforeFreeze;
+
+            if (!mudouSlide && v.style.display !== 'none') {
+              v.muted = wasMuted;
+              try { v.volume = 1; } catch(e) {}
+              if (wasPlaying && v.dataset.userPaused !== 'true') {
+                reproduzirVideoComFallback(v);
+              }
+            } else if (mudouSlide) {
+              v.muted = false;
+              try { v.volume = 1; } catch(e) {}
+            }
+          });
+          emitirSyncVideoTelao();
+        }, 50);
+      }
+    }
+
+    function reproduzirVideoComFallback(videoEl, tentarComAudio) {
+      if (!videoEl || videoEl.tagName !== 'VIDEO') return;
+      if ((isExternalTelao && isTelaoFrozen) || videoEl.dataset.userPaused === 'true') {
+        try { videoEl.pause(); } catch(e) {}
+        return;
+      }
+      if (!isExternalTelao) {
+        videoEl.muted = true;
+        videoEl.defaultMuted = true;
+        try { videoEl.volume = 0; } catch(e) {}
+      } else if (tentarComAudio && videoEl.dataset.autoMutedFallback === 'true') {
+        videoEl.muted = false;
+      }
+      try {
+        var p = videoEl.play();
+        if (p !== undefined) {
+          p.catch(function(err) {
+            // Se bloqueado pela política de autoplay de popup sem interação prévia, inicia no mudo para garantir exibição visual imediata
+            if (err && (err.name === 'NotAllowedError' || String(err).indexOf('NotAllowedError') !== -1)) {
+              videoEl.muted = true;
+              videoEl.dataset.autoMutedFallback = 'true';
+              if (!isTelaoFrozen && videoEl.dataset.userPaused !== 'true') {
+                videoEl.play().catch(function(){});
+              }
+            }
+          });
+        }
+      } catch(e){}
+    }
+
+    // Desbloqueia áudio se usuário clicar diretamente no Telão externo (respeitando Congelar e Pausa)
+    document.addEventListener('click', function() {
+      if (!isExternalTelao || isTelaoFrozen) return;
+      document.querySelectorAll('video').forEach(function(v) {
+        if (v.muted && v.style.display !== 'none' && !v.paused && v.dataset.userPaused !== 'true') {
+          v.muted = false;
+          delete v.dataset.autoMutedFallback;
+          v.play().catch(function(){ v.muted = true; });
+        }
+      });
+    });
+
+    var activeStageMediaKey = "";
+    var lastVideoSyncKey = "";
+    var lastVideoControlKey = "";
+    var videoSyncSeq = 0;
+    var pendingVideoSync = null;
+
+    function obterVideoAtivoParaSync() {
+      var stage = document.getElementById('telaoMediaStage');
+      var sVid = document.getElementById('telaoStageVideo');
+      if (stage && stage.style.display !== 'none' && sVid && sVid.style.display !== 'none' && activeStageMediaKey) {
+        return { el: sVid, key: activeStageMediaKey };
+      }
+      var bgVid = document.querySelector('.slide-background.present video');
+      if (bgVid) {
+        var idx = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+        return { el: bgVid, key: 'BG_VIDEO_' + idx };
+      }
+      return null;
+    }
+
+    function coletarEstadoVideoAtivo() {
+      var ativo = obterVideoAtivoParaSync();
+      if (!ativo || !ativo.el) return null;
+      var slideIdx = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+      var curSlide = (typeof Reveal.getCurrentSlide === 'function') ? Reveal.getCurrentSlide() : null;
+      var mid = ativo.el.getAttribute('data-media-id') || (curSlide ? (curSlide.getAttribute('data-media-id') || '') : '');
+      return {
+        syncId: ++videoSyncSeq,
+        mediaKey: ativo.key,
+        mediaId: mid,
+        slideIndex: slideIdx,
+        currentTime: Number(ativo.el.currentTime) || 0,
+        duration: (ativo.el.duration && isFinite(ativo.el.duration)) ? Number(ativo.el.duration) : 0,
+        paused: !!ativo.el.paused,
+        playbackRate: Number(ativo.el.playbackRate) || 1,
+        sentAt: Date.now()
+      };
+    }
+
+    function emitirSyncVideoTelao() {
+      if (!isExternalTelao) return;
+      var st = coletarEstadoVideoAtivo();
+      if (!st) return;
+      enviarMensagemParaPainel({ action: 'VIDEO_SYNC', payload: st });
+    }
+
+    function emitirEstadoPreviewParaPainel() {
+      if (isExternalTelao) return;
+      var st = coletarEstadoVideoAtivo();
+      if (!st) return;
+      enviarMensagemParaPainel({ action: 'PREVIEW_VIDEO_STATE', payload: st });
+    }
+
+    function executarControleVideo(payload) {
+      if (!payload) return;
+      if (isExternalTelao && isTelaoFrozen) return;
+      var cmd = payload.command;
+      var ativo = obterVideoAtivoParaSync();
+      if (!ativo || !ativo.el) return;
+      var vid = ativo.el;
+      var dur = (vid.duration && isFinite(vid.duration)) ? vid.duration : Infinity;
+
+      if (cmd === 'toggle') {
+        if (vid.paused) {
+          delete vid.dataset.userPaused;
+          reproduzirVideoComFallback(vid, true);
+        } else {
+          vid.dataset.userPaused = 'true';
+          vid.removeAttribute('autoplay');
+          vid.autoplay = false;
+          try { vid.pause(); } catch(e) {}
+        }
+      } else if (cmd === 'play') {
+        delete vid.dataset.userPaused;
+        reproduzirVideoComFallback(vid, true);
+      } else if (cmd === 'pause') {
+        vid.dataset.userPaused = 'true';
+        vid.removeAttribute('autoplay');
+        vid.autoplay = false;
+        try { vid.pause(); } catch(e) {}
+      } else if (cmd === 'restart') {
+        delete vid.dataset.userPaused;
+        try { vid.currentTime = 0; } catch(e) {}
+        reproduzirVideoComFallback(vid, true);
+      } else if (cmd === 'seekBy') {
+        var delta = Number(payload.value) || 0;
+        var target = Math.max(0, Math.min(dur, (vid.currentTime || 0) + delta));
+        try { vid.currentTime = target; } catch(e) {}
+      } else if (cmd === 'seek') {
+        var absPos = Math.max(0, Math.min(dur, Number(payload.value) || 0));
+        try { vid.currentTime = absPos; } catch(e) {}
+      }
+
+      if (isExternalTelao) {
+        emitirSyncVideoTelao();
+      } else {
+        emitirEstadoPreviewParaPainel();
+      }
+    }
+
+    function aplicarSyncVideoPreview(payload) {
+      if (isExternalTelao || !payload) return;
+      var ativo = obterVideoAtivoParaSync();
+      if (!ativo || !ativo.el || (payload.mediaKey && payload.mediaKey !== ativo.key)) {
+        pendingVideoSync = payload;
+        return;
+      }
+      var vid = ativo.el;
+      vid.muted = true;
+      vid.defaultMuted = true;
+      try { vid.volume = 0; } catch(e) {}
+
+      if (vid.readyState < 1) {
+        pendingVideoSync = payload;
+        return;
+      }
+      pendingVideoSync = null;
+
+      var rate = (payload.playbackRate && isFinite(payload.playbackRate) && payload.playbackRate > 0) ? payload.playbackRate : 1;
+      var elapsedSec = (!payload.paused && payload.sentAt)
+        ? Math.min(1.5, Math.max(0, (Date.now() - payload.sentAt) / 1000))
+        : 0;
+      var expectedTime = (Number(payload.currentTime) || 0) + (elapsedSec * rate);
+      var dur = vid.duration;
+      if (dur && isFinite(dur) && dur > 0) {
+        expectedTime = expectedTime % dur;
+      }
+
+      if (vid.playbackRate !== rate) {
+        try { vid.playbackRate = rate; } catch(e) {}
+      }
+
+      if (payload.paused) {
+        if (!vid.paused) {
+          try { vid.pause(); } catch(e) {}
+        }
+        if (Math.abs((vid.currentTime || 0) - expectedTime) > 0.15) {
+          try { vid.currentTime = expectedTime; } catch(e) {}
+        }
+      } else {
+        if (vid.paused) {
+          reproduzirVideoComFallback(vid);
+        }
+        var curTime = vid.currentTime || 0;
+        var diff = Math.abs(curTime - expectedTime);
+        if (dur && isFinite(dur) && dur > 1) {
+          diff = Math.min(diff, Math.abs(dur - diff));
+        }
+        if (diff > 0.22) {
+          try { vid.currentTime = expectedTime; } catch(e) {}
+        }
+      }
+    }
+
+    function silenciarBackgroundVideosPreview() {
+      if (isExternalTelao) return;
+      document.querySelectorAll('.slide-background video').forEach(function(v) {
+        v.muted = true;
+        v.defaultMuted = true;
+        try { v.volume = 0; } catch(e) {}
+      });
+    }
+
+    function configurarSincronizacaoVideo() {
+      var sVid = document.getElementById('telaoStageVideo');
+      if (!sVid) return;
+
+      // Impede auto-play indevido ao minimizar e restaurar janela se o vídeo estiver pausado ou congelado
+      sVid.addEventListener('play', function() {
+        if ((isExternalTelao && isTelaoFrozen) || sVid.dataset.userPaused === 'true') {
+          try { sVid.pause(); } catch(e) {}
+        }
+      });
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          if ((isExternalTelao && isTelaoFrozen) || sVid.dataset.userPaused === 'true') {
+            if (!sVid.paused) {
+              try { sVid.pause(); } catch(e) {}
+            }
+          }
+        }
+      });
+
+      if (isExternalTelao) {
+        sVid.addEventListener('volumechange', function() {
+          if (isTelaoFrozen && sVid.dataset.forcingMute !== '1') {
+            sVid.dataset.forcingMute = '1';
+            try {
+              if (!sVid.muted) sVid.muted = true;
+              if (sVid.volume > 0) sVid.volume = 0;
+            } catch(e) {}
+            delete sVid.dataset.forcingMute;
+          }
+        });
+        ['loadedmetadata', 'play', 'playing', 'pause', 'seeked'].forEach(function(evt) {
+          sVid.addEventListener(evt, emitirSyncVideoTelao);
+        });
+        setInterval(emitirSyncVideoTelao, 400);
+      } else {
+        // Garante silêncio permanente na pré-visualização para evitar duplicidade de áudio com o Telão
+        sVid.muted = true;
+        sVid.defaultMuted = true;
+        try { sVid.volume = 0; } catch(e) {}
+        sVid.addEventListener('volumechange', function() {
+          if (sVid.dataset.forcingMute === '1') return;
+          if (!sVid.muted || sVid.volume > 0) {
+            sVid.dataset.forcingMute = '1';
+            try {
+              if (!sVid.muted) sVid.muted = true;
+              if (sVid.volume > 0) sVid.volume = 0;
+            } catch(e) {}
+            delete sVid.dataset.forcingMute;
+          }
+        });
+        ['loadedmetadata', 'canplay'].forEach(function(evt) {
+          sVid.addEventListener(evt, function() {
+            if (pendingVideoSync) aplicarSyncVideoPreview(pendingVideoSync);
+            emitirEstadoPreviewParaPainel();
+          });
+        });
+        ['play', 'playing', 'pause', 'seeked'].forEach(function(evt) {
+          sVid.addEventListener(evt, emitirEstadoPreviewParaPainel);
+        });
+        setInterval(emitirEstadoPreviewParaPainel, 400);
+      }
+    }
+
+    function aplicarBlobUrl(el, url, mediaId, fileName) {
+      if (!el || !url) return;
+
+      el.onerror = function() {
+        var key = mediaId || fileName || el.src;
+        if (!retriedWithBuffer[key] && (mediaId || fileName)) {
+          retriedWithBuffer[key] = true;
+          el.dataset.resolvedLocally = "false";
+          solicitarMidiaAoPainel(mediaId, fileName, true);
+        } else if (fileName && !el.dataset.fallbackRelApplied) {
+          el.dataset.fallbackRelApplied = "true";
+          var isVid = (el.tagName === 'VIDEO');
+          el.src = (isVid ? 'videos/' : 'imagens/') + encodeURIComponent(fileName);
+        }
+      };
+
+      if (el.tagName === 'VIDEO') {
+        el.querySelectorAll('source').forEach(function(s) { s.remove(); });
+        if (el.src !== url) {
+          el.src = url;
+          el.load();
+        }
+        el.dataset.resolvedLocally = "true";
+        if (!isExternalTelao) {
+          el.muted = true;
+          el.defaultMuted = true;
+          try { el.volume = 0; } catch(e) {}
+        }
+        reproduzirVideoComFallback(el);
+      } else {
+        if (el.src !== url) {
+          el.src = url;
+        }
+        el.dataset.resolvedLocally = "true";
+      }
+    }
+
+    function solicitarMidiaAoPainel(mediaId, fileName, forceBuffer) {
+      var reqMsg = {
+        action: 'REQUEST_MEDIA_BLOB',
+        mediaId: mediaId || "",
+        fileName: fileName || "",
+        forceBuffer: !!forceBuffer || (window.location && window.location.protocol === 'file:'),
+        timestamp: Date.now()
+      };
+      if (projectionChannel) {
+        try { projectionChannel.postMessage(reqMsg); } catch(e) {}
+      }
+      var target = (window.opener && !window.opener.closed) ? window.opener : (window.parent && window.parent !== window ? window.parent : null);
+      if (target) {
+        try { target.postMessage(reqMsg, "*"); } catch(e) {}
+      }
+    }
+
+    async function resolverFonteMidia(mediaId, fileName, fallbackSrc) {
+      if (mediaId && telaoLocalBlobUrls[mediaId]) return telaoLocalBlobUrls[mediaId];
+      if (fileName && telaoLocalBlobUrls['file:' + fileName]) return telaoLocalBlobUrls['file:' + fileName];
+
+      var blobOrUrl = null;
+      var hostWin = (window.opener && !window.opener.closed) ? window.opener : (window.parent && window.parent !== window ? window.parent : null);
+      if (hostWin) {
+        try {
+          if (typeof hostWin.obterBlobParaTelao === 'function') {
+            blobOrUrl = hostWin.obterBlobParaTelao(mediaId, fileName);
+          }
+        } catch(e) {}
+      }
+
+      if (!blobOrUrl && mediaId) {
+        blobOrUrl = await obterBlobDoIndexedDB(mediaId);
+      }
+
+      if (blobOrUrl) {
+        var resolvedUrl = (typeof blobOrUrl === 'string') ? blobOrUrl : window.URL.createObjectURL(blobOrUrl);
+        if (mediaId) telaoLocalBlobUrls[mediaId] = resolvedUrl;
+        if (fileName) telaoLocalBlobUrls['file:' + fileName] = resolvedUrl;
+        return resolvedUrl;
+      }
+
+      var isFileProto = (window.location && window.location.protocol === 'file:');
+      if (fallbackSrc && !fallbackSrc.startsWith('blob:null') && (!isFileProto || !fallbackSrc.startsWith('blob:'))) {
+        return fallbackSrc;
+      }
+
+      return null;
+    }
+
+    function esconderStageMidia() {
+      activeStageMediaKey = "";
+      pendingVideoSync = null;
+      var stage = document.getElementById('telaoMediaStage');
+      var sImg = document.getElementById('telaoStageImg');
+      var sVid = document.getElementById('telaoStageVideo');
+      if (sVid) {
+        sVid.onerror = null;
+        try { sVid.pause(); } catch(e) {}
+        if (sVid.hasAttribute('src')) {
+          sVid.removeAttribute('src');
+          try { sVid.load(); } catch(e) {}
+        }
+        sVid.removeAttribute('data-media-id');
+        sVid.removeAttribute('data-file-name');
+        sVid.style.display = 'none';
+      }
+      if (sImg) {
+        sImg.onerror = null;
+        sImg.removeAttribute('src');
+        sImg.removeAttribute('data-media-id');
+        sImg.removeAttribute('data-file-name');
+        sImg.style.display = 'none';
+      }
+      if (stage) stage.style.display = 'none';
+    }
+
+    async function atualizarStageMidia() {
+      var currentSlide = (typeof Reveal.getCurrentSlide === 'function') ? Reveal.getCurrentSlide() : null;
+      if (!currentSlide || currentSlide.getAttribute('data-media-slide') !== 'true') {
+        esconderStageMidia();
+        return;
+      }
+
+      var mediaType = currentSlide.getAttribute('data-media-type') || 'image';
+      var mediaId = currentSlide.getAttribute('data-media-id') || '';
+      var fileName = currentSlide.getAttribute('data-file-name') || '';
+      var fallbackSrc = currentSlide.getAttribute('data-media-src') || '';
+      var stageKey = mediaType + '|' + mediaId + '|' + fileName + '|' + fallbackSrc;
+
+      var stage = document.getElementById('telaoMediaStage');
+      var sImg = document.getElementById('telaoStageImg');
+      var sVid = document.getElementById('telaoStageVideo');
+      if (!stage || !sImg || !sVid) return;
+
+      stage.style.display = 'flex';
+      var targetEl = (mediaType === 'video') ? sVid : sImg;
+
+      // Mantém reprodução contínua sem recarregar nem piscar se o mesmo slide já está ativo ou em resolução
+      if (stageKey === activeStageMediaKey && ((targetEl.dataset.resolvedLocally === 'true' && targetEl.src) || targetEl.dataset.resolvingStageKey === stageKey)) {
+        if (mediaType === 'video' && targetEl.dataset.resolvedLocally === 'true' && targetEl.dataset.userPaused !== 'true' && !(isExternalTelao && isTelaoFrozen)) {
+          reproduzirVideoComFallback(sVid);
+        }
+        return;
+      }
+
+      activeStageMediaKey = stageKey;
+      targetEl.dataset.resolvingStageKey = stageKey;
+      delete targetEl.dataset.fallbackRelApplied;
+      delete targetEl.dataset.resolvedLocally;
+      delete targetEl.dataset.userPaused;
+
+      if (mediaType === 'video') {
+        sImg.style.display = 'none';
+        sImg.removeAttribute('data-media-id');
+        sImg.removeAttribute('data-file-name');
+        sVid.style.display = 'block';
+        if (mediaId) sVid.setAttribute('data-media-id', mediaId);
+        if (fileName) sVid.setAttribute('data-file-name', fileName);
+        if (!isExternalTelao || isTelaoFrozen) {
+          sVid.muted = true;
+          try { sVid.volume = 0; } catch(e) {}
+        } else {
+          sVid.muted = false;
+          try { sVid.volume = 1; } catch(e) {}
+          delete sVid.dataset.autoMutedFallback;
+        }
+      } else {
+        try { sVid.pause(); } catch(e) {}
+        sVid.style.display = 'none';
+        sVid.removeAttribute('data-media-id');
+        sVid.removeAttribute('data-file-name');
+        sImg.style.display = 'block';
+        if (mediaId) sImg.setAttribute('data-media-id', mediaId);
+        if (fileName) sImg.setAttribute('data-file-name', fileName);
+      }
+
+      var resolvedUrl = await resolverFonteMidia(mediaId, fileName, fallbackSrc);
+      if (targetEl.dataset.resolvingStageKey === stageKey) {
+        delete targetEl.dataset.resolvingStageKey;
+      }
+      if (activeStageMediaKey !== stageKey) return;
+
+      if (resolvedUrl) {
+        aplicarBlobUrl(targetEl, resolvedUrl, mediaId, fileName);
+        if (isExternalTelao && mediaType === 'video') {
+          setTimeout(emitirSyncVideoTelao, 80);
+        } else if (!isExternalTelao && mediaType === 'video' && pendingVideoSync) {
+          aplicarSyncVideoPreview(pendingVideoSync);
+        }
+      } else if (mediaId || fileName) {
+        solicitarMidiaAoPainel(mediaId, fileName, window.location && window.location.protocol === 'file:');
+      }
+    }
+
+    async function resolverElementoMidia(el) {
+      var mediaId = el.getAttribute('data-media-id');
+      var fileName = el.getAttribute('data-file-name');
+      if (!mediaId && !fileName) return;
+
+      var estaCarregada = false;
+      if (el.dataset.resolvedLocally === "true" && el.src && !el.src.startsWith('blob:null')) {
+        if (el.tagName === 'IMG') {
+          estaCarregada = el.complete && el.naturalWidth > 0;
+        } else if (el.tagName === 'VIDEO') {
+          estaCarregada = el.readyState > 0 || !el.error;
+        }
+      }
+
+      if (estaCarregada) {
+        if (el.tagName === 'VIDEO') reproduzirVideoComFallback(el);
+        return;
+      }
+
+      var resolvedUrl = await resolverFonteMidia(mediaId, fileName, el.getAttribute('src') || '');
+      if (resolvedUrl) {
+        aplicarBlobUrl(el, resolvedUrl, mediaId, fileName);
+      } else {
+        solicitarMidiaAoPainel(mediaId, fileName, window.location && window.location.protocol === 'file:');
+      }
+    }
+
+    async function verificarEResolverMidias() {
+      await atualizarStageMidia();
+      // Pré-aquece mídias dos demais slides no cache local sem bloquear o slide atual
+      document.querySelectorAll('.slides section[data-media-slide="true"]').forEach(function(sec) {
+        var mid = sec.getAttribute('data-media-id');
+        var fname = sec.getAttribute('data-file-name');
+        if (mid && !telaoLocalBlobUrls[mid]) {
+          resolverFonteMidia(mid, fname, sec.getAttribute('data-media-src') || '');
+        }
+      });
     }
 
     Reveal.addEventListener('slidechanged', function() {
-      checkYouTubeSlide();
+      fitTextToSlide();
+      silenciarBackgroundVideosPreview();
+      atualizarStageMidia();
+    });
+
+    Reveal.addEventListener('ready', function() {
+      fitTextToSlide();
+      silenciarBackgroundVideosPreview();
+      verificarEResolverMidias();
+    });
+
+    window.addEventListener('resize', function() {
+      fitTextToSlide();
     });
 
     // Notifica o painel que o Telão externo está pronto
     function notifyPainelReady() {
       if (isExternalTelao) {
-        if (projectionChannel) {
-          projectionChannel.postMessage({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
-        }
+        enviarMensagemParaPainel({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
         if (window.opener && typeof window.opener.postMessage === 'function') {
           try {
             window.opener.postMessage(JSON.stringify({
@@ -527,17 +952,17 @@
 
     // Ao fechar ou recarregar a janela externa, avisa imediatamente o painel
     window.addEventListener('beforeunload', function() {
-      if (isExternalTelao && projectionChannel) {
-        projectionChannel.postMessage({ action: 'TELAO_CLOSED', timestamp: Date.now() });
+      if (isExternalTelao) {
+        enviarMensagemParaPainel({ action: 'TELAO_CLOSED', timestamp: Date.now() });
       }
     });
 
     $(document).ready(function() {
+      configurarSincronizacaoVideo();
       notifyPainelReady();
+      setTimeout(fitTextToSlide, 100);
     });
     })()
   </script>
-  <!-- YouTube IFrame Player API -->
-  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>

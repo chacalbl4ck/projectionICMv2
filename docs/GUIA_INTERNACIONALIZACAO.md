@@ -29,9 +29,8 @@ Caso queira reativar a funcionalidade no futuro, siga os passos abaixo:
 Crie novamente o arquivo `js/langs.js` com a estrutura completa fornecida na **Seção 4** deste guia.
 
 ### Passo 2: Importar o script no `index.html`
-No final de `index.html`, antes de `js/core.js`, adicione a tag `<script>`:
+No final de `index.html`, antes de `js/core.js`, adicione a tag `<script>` (observe que o carregamento bíblico agora ocorre sob demanda via `js/bible.js`):
 ```html
-<script src="bible/acf.js"></script>
 <script src="js/bible.js"></script>
 <script src="js/langs.js"></script> <!-- ADICIONE ESTA LINHA -->
 <script src="js/core.js"></script>
@@ -90,6 +89,18 @@ var title = '<i class="fas fa-info-circle"></i>&nbsp;'+TRANSLATIONS[config.lang]
 5. **Avisos no Telão:**
 ```javascript
 viewSlides+="<section data-background=\"imagens/madeira_bg.jpg\">\n<table class=\"reveal warning-table\">\n<tr height=\"10vh\">\n<td class=\"warning-title\" width=\"80%\">"+aviso.warning.content.title+"</td>\n<td width=\"20%\"><div id=\"fancypart\" class=\"warning-logo\"><i class=\""+TRANSLATIONS[config.lang]['logo_icon']+"\"></i></div></td>\n</tr>\n...
+```
+
+6. **Indicadores de Vínculo de Arquivo e Alterações Salvas (`atualizarIndicadorVinculo` e `marcarAlteracoesPendentes`):**
+```javascript
+// Exemplo de integração com os novos elementos da interface v2.0.0:
+$('#fileHandleStatus').html(arquivoVinculado 
+    ? '<i class="fas fa-link"></i> ' + TRANSLATIONS[config.lang]['status_linked']
+    : '<i class="fas fa-unlink"></i> ' + TRANSLATIONS[config.lang]['status_unlinked']);
+
+$('#statusSalvar').html(temAlteracoesPendentes
+    ? '<i class="fas fa-circle text-warning"></i> ' + TRANSLATIONS[config.lang]['status_unsaved']
+    : '<i class="fas fa-check-circle text-success"></i> ' + TRANSLATIONS[config.lang]['status_saved']);
 ```
 
 ---
@@ -201,7 +212,15 @@ let TRANSLATIONS = {
       'placeholder': 'Nombre del aviso'
     },
     'warning': 'Aviso',
-    'logo_icon': 'icon-logo_bold'
+    'logo_icon': 'icon-logo_bold',
+    'link_data_file': 'Vincular data.json',
+    'status_saved': 'Guardado',
+    'status_unsaved': 'Cambios no guardados',
+    'status_linked': 'Vinculado',
+    'status_unlinked': 'No vinculado',
+    'obs_output': 'Salida OBS',
+    'btn_preview_media': 'Previsualizar',
+    'rename_folder': 'Renombrar carpeta'
   }
 };
 ```
@@ -338,7 +357,15 @@ let TRANSLATIONS = {
       'placeholder': 'Warning name'
     },
     'warning':'Warning',
-    'logo_icon':'icon-logo_usa'
+    'logo_icon':'icon-logo_usa',
+    'link_data_file': 'Link data.json',
+    'status_saved': 'Saved',
+    'status_unsaved': 'Unsaved changes',
+    'status_linked': 'Linked',
+    'status_unlinked': 'Not linked',
+    'obs_output': 'OBS Output',
+    'btn_preview_media': 'Preview',
+    'rename_folder': 'Rename folder'
   },
   'pt-br': {
     'navbrand': 'Projeção ICM',
@@ -437,7 +464,15 @@ let TRANSLATIONS = {
       'placeholder': 'Nome do aviso'
     },
     'warning':'Aviso',
-    'logo_icon':'icon-logo_bold'
+    'logo_icon':'icon-logo_bold',
+    'link_data_file': 'Vincular data.json',
+    'status_saved': 'Salvo',
+    'status_unsaved': 'Alterações não salvas',
+    'status_linked': 'Vinculado',
+    'status_unlinked': 'Não vinculado',
+    'obs_output': 'Saída OBS',
+    'btn_preview_media': 'Visualizar',
+    'rename_folder': 'Renomear pasta'
   },
   'it': {
     'navbrand': 'Proiezione MEMDI',
@@ -500,7 +535,7 @@ let TRANSLATIONS = {
     },
     'delSong_msg_start': 'Vuoi davvero eliminare la musica ',
     'delFolder_msg_start': 'Vuoi davvero eliminare la cartella ',
-    'delFolder_msg_end': ' e tutto il suo contenuto ?',
+    'delFolder_msg_end': ' e todo o seu conteúdo ?',
     'list_projection': 'Lista di proiezione',
     'empty_projection_list_msg': 'Lista vuota. Fai doppio clic sulla canzone da aggiungere',
     'need_export_msg': {
@@ -536,7 +571,15 @@ let TRANSLATIONS = {
       'placeholder': 'Nome dell\'avviso'
     },
     'warning':'Avviso',
-    'logo_icon':'icon-logo_ita'
+    'logo_icon':'icon-logo_ita',
+    'link_data_file': 'Collega data.json',
+    'status_saved': 'Salvato',
+    'status_unsaved': 'Modifiche non salvate',
+    'status_linked': 'Collegato',
+    'status_unlinked': 'Non collegato',
+    'obs_output': 'Uscita OBS',
+    'btn_preview_media': 'Anteprima',
+    'rename_folder': 'Rinomina cartella'
   }
 };
 

@@ -197,11 +197,11 @@ kbd {
     color: #dfbd68;
 }
 
-#livesongs tbody td { width: 23.6vw; max-width: 23.6vw; }
+#livesongs tbody td { width: 50%; max-width: 23.6vw; }
 
 #livesongs tbody { 
-    display: block; 
-    width: 47.5vw;
+    display: table; 
+    width: 100%;
 }
 
 a{
@@ -236,8 +236,8 @@ a{
 #scrollblock{
     position: relative;
     height: 79vh; 
-    /* overflow-x: hidden !important; */
-    /* overflow-y: hidden !important;      */
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 .center-block-tabs label{

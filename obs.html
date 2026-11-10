@@ -128,6 +128,14 @@
     .lower-third-text font[color="#00FF00"] {
       color: #34d399 !important;
     }
+    .lower-third-text blockquote {
+      margin: 0;
+      padding: 0;
+      display: inline;
+      background: none;
+      box-shadow: none;
+      font-style: normal;
+    }
 
     /* Camada de Blackout */
     #obsBlackout {
@@ -177,9 +185,14 @@
       var isBlackout = false;
       var isFrozen = false;
 
-      function parseSlides(html) {
-        rawSlidesHtml = html || "";
+      function parseSlides(payload) {
+        var html = (typeof payload === 'object' && payload !== null && payload.html) ? payload.html : payload;
+        rawSlidesHtml = (typeof html === 'string') ? html : "";
         parsedSlides = [];
+
+        if (typeof payload === 'object' && payload !== null && typeof payload.currentSlide === 'number') {
+          activeSlideIndex = payload.currentSlide;
+        }
 
         var tempDiv = document.createElement('div');
         tempDiv.innerHTML = rawSlidesHtml;
@@ -189,23 +202,10 @@
 
         sections.forEach(function(sec, idx) {
           var state = sec.getAttribute('data-state') || "";
-          var textDiv = sec.querySelector('div[style*="font-size"]');
+          var textDiv = sec.querySelector('.verse-text') || sec.querySelector('div[style*="font-size"]') || sec.querySelector('.verse-container');
           var scriptureP = sec.querySelector('p');
           var warningTable = sec.querySelector('.warning-table');
           var isTelaPadrao = (idx === 0 || sec.innerHTML.indexOf('MARANATA') > -1 || sec.innerHTML.indexOf('Santa Ceia') > -1);
-          var isYouTube = (sec.getAttribute('data-youtube-id') || state.indexOf('youtube-slide') > -1);
-
-          // Slides de YouTube ou mídia sem texto não devem projetar lower thirds
-          if (isYouTube) {
-            parsedSlides.push({
-              index: idx,
-              type: 'default',
-              title: '',
-              content: '',
-              isDefault: true
-            });
-            return;
-          }
 
           // Verifica se é slide de título do louvor
           if (state.indexOf('showtitle') > -1) {
@@ -328,13 +328,23 @@
         wrapper.classList.add('visible');
       }
 
+      function enviarAoPainel(action) {
+        var msg = { action: action, timestamp: Date.now() };
+        if (projectionChannel) {
+          try { projectionChannel.postMessage(msg); } catch(e) {}
+        }
+        if (window.opener && !window.opener.closed) {
+          try { window.opener.postMessage(msg, "*"); } catch(e) {}
+        }
+      }
+
       function processCommand(action, payload) {
-        if (action === 'RELOAD_SLIDES') {
+        if (action === 'RELOAD_SLIDES' || action === 'reloadReveal') {
           parseSlides(payload);
           updateDisplay();
-        } else if (action === 'SLIDE_CHANGE' || action === 'CHANGE_SLIDE') {
+        } else if (action === 'SLIDE_CHANGE' || action === 'CHANGE_SLIDE' || action === 'changeSlide') {
           if (!isFrozen) {
-            activeSlideIndex = parseInt(payload) || 0;
+            activeSlideIndex = (typeof payload === 'number') ? payload : (parseInt(payload, 10) || 0);
             updateDisplay();
           }
         } else if (action === 'BLACKOUT' || action === 'blackout') {
@@ -342,11 +352,25 @@
           updateDisplay();
         } else if (action === 'FREEZE') {
           isFrozen = !!payload;
-        } else if (action === 'REQUEST_STATUS') {
-          if (projectionChannel) {
-            projectionChannel.postMessage({ action: 'OBS_READY', timestamp: Date.now() });
-          }
+        } else if (action === 'REQUEST_STATUS' || action === 'PING') {
+          enviarAoPainel('OBS_READY');
         }
+      }
+
+      function carregarSnapshotLocal() {
+        try {
+          var raw = localStorage.getItem('obs_live_sync');
+          if (!raw) return false;
+          var snap = JSON.parse(raw);
+          if (snap && snap.html) {
+            isBlackout = !!snap.isBlackout;
+            isFrozen = !!snap.isFrozen;
+            parseSlides({ html: snap.html, currentSlide: snap.currentSlide || 0 });
+            updateDisplay();
+            return true;
+          }
+        } catch(e) {}
+        return false;
       }
 
       if (projectionChannel) {
@@ -354,23 +378,41 @@
           if (!event.data) return;
           processCommand(event.data.action, event.data.payload);
         };
-        projectionChannel.postMessage({ action: 'OBS_READY', timestamp: Date.now() });
       }
 
-      // Suporte a window.postMessage (caso aberto em iframe ou pop-up)
+      // Suporte a window.postMessage (objeto direto ou string JSON para file:/// e pop-ups)
       window.addEventListener('message', function(event) {
         try {
-          var data = JSON.parse(event.data);
-          if (data.host === 'projection-html5') {
+          var data = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+          if (data && data.host === 'projection-html5') {
             processCommand(data.function, data.data);
+          } else if (data && data.action) {
+            processCommand(data.action, data.payload);
           }
         } catch (e) {}
       });
 
-      // Solicita os slides atuais ao inicializar
-      if (projectionChannel) {
-        projectionChannel.postMessage({ action: 'REQUEST_SLIDES' });
-      }
+      // Fallback via evento de storage caso BroadcastChannel seja bloqueado na origem
+      window.addEventListener('storage', function(event) {
+        if (event.key === 'obs_live_sync') {
+          carregarSnapshotLocal();
+        }
+      });
+
+      // Solicita os slides atuais ao inicializar e tenta sincronizar caso chegue antes do painel responder
+      carregarSnapshotLocal();
+      enviarAoPainel('OBS_READY');
+      enviarAoPainel('REQUEST_SLIDES');
+
+      var obsRetryInterval = setInterval(function() {
+        if (parsedSlides.length > 0) {
+          clearInterval(obsRetryInterval);
+          return;
+        }
+        if (!carregarSnapshotLocal()) {
+          enviarAoPainel('REQUEST_SLIDES');
+        }
+      }, 1000);
     })();
   </script>
 </body>

@@ -11,8 +11,8 @@ Projeção para Igreja Cristã Maranata.
 Uso
 ---
 
-1. Execute **iniciar_sistema.bat** ou **index.html**
-2. **Permitir pop-up** (aviso no canto superior direto do navegador)
+1. Abra **index.html** no seu navegador
+2. **Permitir pop-up** (aviso no canto superior direito do navegador)
 3. O painel e o telão serão inicializados automaticamente.
 
 Tutoriais
@@ -33,10 +33,11 @@ Características
 * Criar pastas para organizar letras e mídias
 * Crie de forma rápida sua lista de projeção (apenas com um duplo-clique no louvor)
 * Projeta avisos
-* Projeta imagens e vídeos
-* Reprodução e controle de vídeos do YouTube diretamente no telão
+* Projeta imagens e vídeos de fundo
+* Ajuste automático de texto ao tamanho da janela (Auto-fit viewport)
 * Integração com OBS Studio (Lower Thirds transparentes)
 * Suporte a bíblias com busca ultrarrápida (ACF e NVI)
+* Vínculo de dados com salvamento local no disco via File System Access API
 
 Tecnologias Utilizadas
 ----------------------
@@ -46,7 +47,7 @@ Tecnologias Utilizadas
 3. Reveal.js
 4. jQuery
 5. FontAwesome
-6. YouTube IFrame API
+6. BroadcastChannel API & File System Access API
 
 Revisões
 --------
