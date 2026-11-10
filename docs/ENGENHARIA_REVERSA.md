@@ -27,7 +27,7 @@ A estrutura física consolidada do repositório é distribuída conforme a árvo
 projection-html5-icm-master/
 ├── index.html                        <-- Painel de Controle Principal do Operador (869 linhas)
 ├── view.html                         <-- Interface de Apresentação / Telão do Templo com Auto-Fit e Palco Multimídia (1054 linhas)
-├── obs.html                          <-- Saída Transparente para OBS Studio / Streaming (419 linhas)
+├── obs.html                          <-- Saída Transparente para OBS Studio / Streaming (501 linhas)
 ├── controle.html                     <-- Interface Mobile de Controle Remoto via Wi-Fi (652 linhas)
 ├── server.js                         <-- Servidor HTTP + SSE Local Zero-Dependências para Controle Wi-Fi (443 linhas)
 ├── Iniciar_Com_Wifi.bat              <-- Inicializador Windows do Servidor Local + Painel Wi-Fi (18 linhas)
@@ -815,6 +815,16 @@ Abaixo constam as especificações de todas as melhorias que consolidam as vers�
   1. **Criação de [`.gitignore`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/.gitignore):** Criado na raiz do repositório ignorando [`RELATORIO_ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/RELATORIO_ENGENHARIA_REVERSA.md) e sua cópia oficial espelhada [`docs/ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/docs/ENGENHARIA_REVERSA.md).
   2. **Desindexação Pendente no Índice Git (`git rm --cached`):** Como ambos os arquivos já estavam previamente rastreados no repositório (`HEAD`) e o ambiente restrito impediu escrita em `.git/index.lock` (`Permission denied`), é necessário executar `git rm --cached RELATORIO_ENGENHARIA_REVERSA.md docs/ENGENHARIA_REVERSA.md` no terminal local antes do commit de produção para manter as cópias locais preservadas no disco e removê-las apenas do repositório.
 * **Arquivos:** [`.gitignore`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/.gitignore), [`RELATORIO_ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/RELATORIO_ENGENHARIA_REVERSA.md) e [`docs/ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/docs/ENGENHARIA_REVERSA.md).
+
+---
+
+### Melhoria 36: Renderização das Chaves de Repetição (`BIS` e `2x`–`6x`) na Saída OBS ✅ [IMPLEMENTADA]
+* **Problema Reportado:** As marcações de repetição (`BIS`, `BIS no final` e chaves `2x`–`6x`) não apareciam na transmissão OBS ([`obs.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/obs.html)).
+* **Diagnóstico:** [`obs.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/obs.html) não carregava [`css/view.css`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/css/view.css) e forçava `.lower-third-text blockquote { display: inline; }` sem nenhuma regra `::after` para renderizar os grafismos `imagens/chaves-*.png`. Além disso, o editor ([`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js#L608-L627)) inseria classes no plural (`chaves-2x`..`chaves-6x`) enquanto [`css/view.css`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/css/view.css) definia apenas no singular (`chave-2x`..`chave-6x`).
+* **Soluções Implementadas:**
+  1. **Regras de Chaves Musicais no Lower Third ([`obs.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/obs.html#L140-L220)):** Adicionadas regras `.lower-third-text blockquote[class*="chave"]` (`display: inline-block; position: relative; max-width: calc(100% - 140px); padding: 0 14px 0 0; vertical-align: top;`) e pseudo-elemento `::after` apontando para todas as 13 imagens `imagens/chaves-*.png` (`chave-bis`, `chave-bis-small`, `chave-bis-no-final`, `chave-2x`..`6x`, `chave-2x-small`..`6x-small` e equivalentes no plural `chaves-*`).
+  2. **Alinhamento Singular/Plural no Telão ([`css/view.css`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/css/view.css)):** Adicionados os seletores aliases `blockquote.chaves-*` ao lado dos seletores `blockquote.chave-*` existentes para garantir exibição consistente tanto no Telão quanto no OBS.
+* **Arquivos:** [`obs.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/obs.html#L131-L220) e [`css/view.css`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/css/view.css#L16-L223).
 
 ---
 

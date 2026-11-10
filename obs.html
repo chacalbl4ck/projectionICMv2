@@ -137,6 +137,88 @@
       font-style: normal;
     }
 
+    /* Chaves musicais de repetição (BIS / 2x..6x) na saída OBS */
+    .lower-third-text blockquote[class*="chave"] {
+      display: inline-block;
+      position: relative;
+      width: auto;
+      max-width: calc(100% - 140px);
+      margin: 0;
+      padding: 0 14px 0 0;
+      vertical-align: top;
+      font-style: normal;
+      background: none;
+      box-shadow: none;
+    }
+    .lower-third-text blockquote.chave-bis-no-final,
+    .lower-third-text blockquote.chaves-bis-no-final {
+      max-width: calc(100% - 210px);
+    }
+    .lower-third-text blockquote[class*="chave"]:after {
+      content: '';
+      position: absolute;
+      left: 100%;
+      top: 0;
+      bottom: 0;
+      width: 240px;
+      background-repeat: no-repeat;
+      background-position: left center;
+      background-size: auto 100%;
+      pointer-events: none;
+    }
+    .lower-third-text blockquote.chave-bis:after,
+    .lower-third-text blockquote.chaves-bis:after {
+      background-image: url('imagens/chaves-bis.png');
+    }
+    .lower-third-text blockquote.chave-bis-small:after,
+    .lower-third-text blockquote.chaves-bis-small:after {
+      background-image: url('imagens/chaves-bis-small.png');
+    }
+    .lower-third-text blockquote.chave-bis-no-final:after,
+    .lower-third-text blockquote.chaves-bis-no-final:after {
+      background-image: url('imagens/chaves-bis-no-final.png');
+    }
+    .lower-third-text blockquote.chave-2x:after,
+    .lower-third-text blockquote.chaves-2x:after {
+      background-image: url('imagens/chaves-2x.png');
+    }
+    .lower-third-text blockquote.chave-3x:after,
+    .lower-third-text blockquote.chaves-3x:after {
+      background-image: url('imagens/chaves-3x.png');
+    }
+    .lower-third-text blockquote.chave-4x:after,
+    .lower-third-text blockquote.chaves-4x:after {
+      background-image: url('imagens/chaves-4x.png');
+    }
+    .lower-third-text blockquote.chave-5x:after,
+    .lower-third-text blockquote.chaves-5x:after {
+      background-image: url('imagens/chaves-5x.png');
+    }
+    .lower-third-text blockquote.chave-6x:after,
+    .lower-third-text blockquote.chaves-6x:after {
+      background-image: url('imagens/chaves-6x.png');
+    }
+    .lower-third-text blockquote.chave-2x-small:after,
+    .lower-third-text blockquote.chaves-2x-small:after {
+      background-image: url('imagens/chaves-2x-small.png');
+    }
+    .lower-third-text blockquote.chave-3x-small:after,
+    .lower-third-text blockquote.chaves-3x-small:after {
+      background-image: url('imagens/chaves-3x-small.png');
+    }
+    .lower-third-text blockquote.chave-4x-small:after,
+    .lower-third-text blockquote.chaves-4x-small:after {
+      background-image: url('imagens/chaves-4x-small.png');
+    }
+    .lower-third-text blockquote.chave-5x-small:after,
+    .lower-third-text blockquote.chaves-5x-small:after {
+      background-image: url('imagens/chaves-5x-small.png');
+    }
+    .lower-third-text blockquote.chave-6x-small:after,
+    .lower-third-text blockquote.chaves-6x-small:after {
+      background-image: url('imagens/chaves-6x-small.png');
+    }
+
     /* Camada de Blackout */
     #obsBlackout {
       position: fixed;
