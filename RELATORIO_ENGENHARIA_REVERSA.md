@@ -744,6 +744,18 @@ Abaixo constam as especificações de todas as melhorias que consolidam a versã
 
 ---
 
+### Melhoria 31: Aba Dedicada de Edição da Bíblia (ACF e NVI) com Persistência Local e Exportação ✅ [IMPLEMENTADA]
+* **Solicitação:** Adicionar uma aba de **Edição da Bíblia** na interface principal do operador.
+* **Soluções Implementadas:**
+  1. **Nova Aba na Navegação Central (`index.html`):** Adicionada a guia `#bible-edit-tab` ("Edição da Bíblia") em `#guias` e o painel `#bible-edit` com seletores de Versão (`ACF` / `NVI`), Livro (`66` livros) e Capítulo (`#editBibleVersion`, `#editBibleBook`, `#editBibleChapter`), filtro instantâneo por número ou palavra-chave (`#editBibleSearch`), lista rolável de versículos editáveis (`#bibleEditVersesContainer`), indicador de status (`#bibleEditStatusBadge`) e botões `#btnSaveBibleChapter`, `#btnAddBibleVerse`, `#btnRestoreBibleChapter` e `#btnExportBibleEdits`.
+  2. **Motor de Edição, Restauração e Sincronização (`js/bible.js`):**
+     * **Carga Sob Demanda Integrada:** [`inicializarBibliaLazy`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L44) carrega as bases e aplica automaticamente customizações salvas via [`aplicarEdicoesCustomizadasBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L244), além de sincronizar o livro/capítulo atual da aba **Bíblia** ao abrir o editor ([`sincronizarEditorComSelecaoBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L529)).
+     * **Persistência Leve por Capítulo (Delta Storage):** [`salvarCapituloEdicaoBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L426) e [`persistirEdicoesCustomizadasBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L283) salvam somente os capítulos alterados em `localStorage` (`bible_custom_edits`) e backup no `MediaDB` (`app_bible_custom_edits`), preservando intacto o texto de fábrica em `originalBibleChapters`.
+     * **Atualização em Tempo Real e Recursos Extras:** Suporte a editar textos (preservando versículos ocultos por filtro), adicionar novo versículo ([`adicionarVersiculoEdicaoBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L459)), restaurar versículo individual (`.btn-restore-single-verse`) ou capítulo completo ([`restaurarCapituloEdicaoBiblia`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L493)), exportar arquivo atualizado (`acf.js` / `nvi.js` via [`exportarVersaoBibliaJs`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L509)) e atualizar instantaneamente a aba **Bíblia**, a lista **Ao Vivo**, o **Telão** e a saída **OBS** quando houver passagens bíblicas na fila.
+* **Arquivos:** `index.html` ([L556–561](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L556-L561), [L679–727](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L679-L727)), `js/bible.js` ([L44–96](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L44-L96), [L218–636](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/bible.js#L218-L636)).
+
+---
+
 ## 6. Matriz Comparativa de Arquitetura (Evolução Contínua)
 
 | Aspecto Arquitetural | Versão 1.x (Legada) | Versão 2.0.0 (Intermediária) | Versão 2.1.0 (Atual Consolidada) |

@@ -555,7 +555,10 @@
               </li>
               <li class="nav-item">
                 <a class="nav-link" id="bible-tab" data-toggle="tab" href="#bible" role="tab" aria-controls="bible" aria-selected="false" data-lang-str="tab_bible">Bíblia</a>
-              </li> 
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="bible-edit-tab" data-toggle="tab" href="#bible-edit" role="tab" aria-controls="bible-edit" aria-selected="false">Edição da Bíblia</a>
+              </li>
             </ul> 
           </div> 
 
@@ -668,6 +671,57 @@
                         <div id="preViewScripture" class="bg-light"></div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Aba Edição da Bíblia -->
+            <div class="tab-pane fade" id="bible-edit" role="tabpanel" aria-labelledby="bible-edit-tab">
+              <div id="bibleEditLoadingIndicator" class="text-center p-5" style="display:none;">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                <h5 class="text-light">Carregando bases bíblicas para edição (ACF e NVI)...</h5>
+                <p class="text-muted">Apenas um instante no primeiro acesso.</p>
+              </div>
+              <div id="bibleEditContentArea" class="p-2" style="display:none;">
+                <div class="row align-items-end mb-2">
+                  <div class="col-md-2 col-4 pr-1">
+                    <label for="editBibleVersion" class="mb-1">Versão:</label>
+                    <select class="form-control form-control-sm" id="editBibleVersion">
+                      <option value="acf">ACF</option>
+                      <option value="nvi">NVI</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4 col-8 px-1">
+                    <label for="editBibleBook" class="mb-1">Livro:</label>
+                    <select class="form-control form-control-sm" id="editBibleBook"></select>
+                  </div>
+                  <div class="col-md-2 col-4 px-1">
+                    <label for="editBibleChapter" class="mb-1">Capítulo:</label>
+                    <select class="form-control form-control-sm" id="editBibleChapter"></select>
+                  </div>
+                  <div class="col-md-4 col-8 pl-1">
+                    <label for="editBibleSearch" class="mb-1">Filtrar versículo:</label>
+                    <div class="input-group input-group-sm">
+                      <input type="text" class="form-control" id="editBibleSearch" placeholder="Nº ou palavra-chave...">
+                      <div class="input-group-append">
+                        <button type="button" class="btn btn-outline-secondary" id="btnClearBibleEditSearch" title="Limpar filtro"><i class="fas fa-times"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="bibleEditVersesContainer" style="height: 55vh; overflow-y: auto; overflow-x: hidden; background: #1f1f1f; border: 1px solid #444; border-radius: 4px; padding: 8px;"></div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap" style="gap: 8px;">
+                  <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
+                    <button type="button" class="btn btn-success btn-sm" id="btnSaveBibleChapter"><i class="fas fa-save mr-1"></i> Salvar Alterações</button>
+                    <button type="button" class="btn btn-outline-info btn-sm" id="btnAddBibleVerse" title="Adicionar um versículo ao final deste capítulo"><i class="fas fa-plus mr-1"></i> Novo Versículo</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" id="btnRestoreBibleChapter" title="Restaurar este capítulo para o texto original"><i class="fas fa-undo mr-1"></i> Restaurar Capítulo</button>
+                  </div>
+                  <div class="d-flex align-items-center" style="gap: 6px;">
+                    <span id="bibleEditStatusBadge" class="badge badge-secondary py-1 px-2" style="font-size: 0.82rem;">Pronto</span>
+                    <button type="button" class="btn btn-outline-light btn-sm" id="btnExportBibleEdits" title="Baixar arquivo atualizado (.js) desta versão"><i class="fas fa-download mr-1"></i> Exportar (.js)</button>
                   </div>
                 </div>
               </div>
