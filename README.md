@@ -2,11 +2,9 @@
 
 Sistema moderno, leve e completo de projeção e transmissão de louvores, textos bíblicos e avisos para cultos da **Igreja Cristã Maranata**.
 
-<p align="center">
-  <video src="https://github.com/chacalbl4ck/projectionICMv2/raw/refs/heads/main/docs/assets/img/2026-11-10%2013-59-47.mp4" width="100%" controls autoplay muted loop>
-    Seu navegador não suporta tags de vídeo.
-  </video>
-</p>
+Painel do Operador | Janela de Projeção (Telão)
+:-------------------------:|:-------------------------:
+(/docs/assets/img/visao.gif)
 ---
 
 ## 🚀 Principais Recursos e Novidades da Versão 2.0.0
