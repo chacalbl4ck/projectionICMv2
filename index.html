@@ -87,6 +87,11 @@
       <li class="nav-item ml-1">
         <button id="btnLaunchObs" class="btn btn-outline-info font-weight-bold" title="Abrir saída transparente para OBS Studio (Lower Thirds)"><i class="fas fa-video"></i> Saída OBS</button>
       </li>
+      <li class="nav-item ml-1">
+        <button id="btnWifiRemote" type="button" class="btn btn-outline-success font-weight-bold" title="Controlar a transmissão pelo celular conectado no Wi-Fi">
+          <i class="fas fa-wifi"></i> Controle Wi-Fi <span id="wifiClientCountBadge" class="badge badge-light ml-1" style="display:none;">0</span>
+        </button>
+      </li>
       <small class="navbar-text ml-2 text-muted">v2.0.0</small>
     </ul> 
   </nav>
@@ -510,6 +515,76 @@
     </div>
   </div>
 
+  <!-- Modal de Controle Remoto via Wi-Fi (Celular) -->
+  <div class="modal fade" id="wifiRemoteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content text-light bg-dark border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title"><i class="fas fa-wifi text-success mr-2"></i> Controle via Celular (Wi-Fi)</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span id="wifiModalServerBadge" class="badge badge-secondary p-2">Verificando modo...</span>
+            <span id="wifiModalConnectedText" class="small text-muted">Nenhum celular conectado</span>
+          </div>
+
+          <div id="wifiOnlineArea" style="display:none;">
+            <div class="text-center mb-3 p-3 bg-white rounded">
+              <canvas id="wifiQrCanvas" style="max-width: 220px; width: 100%; height: auto;"></canvas>
+              <div class="text-dark small mt-1 font-weight-bold">Aponte a câmera do celular na mesma rede Wi-Fi</div>
+            </div>
+
+            <div class="form-group mb-2">
+              <label for="wifiSelectIp" class="small mb-1 text-warning">Adaptador de Rede / IP do Computador:</label>
+              <select id="wifiSelectIp" class="form-control form-control-sm bg-secondary text-light border-0"></select>
+            </div>
+
+            <div class="form-group mb-2">
+              <label for="wifiRemoteUrlInput" class="small mb-1 text-warning">Link para abrir no navegador do celular:</label>
+              <div class="input-group input-group-sm">
+                <input type="text" id="wifiRemoteUrlInput" class="form-control bg-secondary text-light border-0" readonly>
+                <div class="input-group-append">
+                  <button type="button" id="btnCopyWifiUrl" class="btn btn-success"><i class="fas fa-copy"></i> Copiar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center p-2 rounded mb-2" style="background: #1f1f1f; border: 1px solid #444;">
+              <div>
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="wifiCheckRequirePin" checked>
+                  <label class="custom-control-label small font-weight-bold" for="wifiCheckRequirePin">Exigir PIN de Segurança</label>
+                </div>
+                <small class="text-muted">PIN atual: <strong id="wifiPinDisplay" class="text-warning">----</strong></small>
+              </div>
+              <button type="button" id="btnRegenerateWifiPin" class="btn btn-sm btn-outline-warning"><i class="fas fa-sync-alt mr-1"></i> Novo PIN</button>
+            </div>
+
+            <div class="text-right">
+              <a id="wifiTestLocalLink" href="/controle.html" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-mobile-alt mr-1"></i> Testar Tela do Celular Aqui</a>
+            </div>
+          </div>
+
+          <div id="wifiOfflineGuide" style="display:none;">
+            <div class="alert alert-warning text-dark mb-2">
+              <strong><i class="fas fa-info-circle mr-1"></i> Como ativar o acesso por celular no Wi-Fi:</strong>
+              <p class="mb-2 mt-1 small">Você abriu o arquivo diretamente pelo navegador (<code>file:///</code>). Para que o celular na rede Wi-Fi encontre este computador:</p>
+              <ol class="small pl-3 mb-2">
+                <li>Execute com um duplo clique o arquivo <strong><code>Iniciar_Com_Wifi.bat</code></strong> na pasta do sistema (ou rode <code>node server.js</code> no terminal).</li>
+                <li>O painel abrirá automaticamente em <code>http://localhost:3000/index.html</code> com o <strong>QR Code</strong> pronto para escanear no celular.</li>
+              </ol>
+              <a href="http://localhost:3000/index.html" class="btn btn-sm btn-dark font-weight-bold"><i class="fas fa-external-link-alt mr-1"></i> Ir para http://localhost:3000</a>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main class="container-fluid">
     <div class="row pt-2">
       <div class="col-3"> 
@@ -765,6 +840,7 @@
 <script src="js/modules/media.js"></script>
 <script src="js/modules/projection.js"></script>
 <script src="js/modules/tree.js"></script>
+<script src="js/modules/remote.js"></script>
 <script src="js/core.js"></script>
 <script>
   // Garantia preventiva de liberação imediata da tela de carregamento

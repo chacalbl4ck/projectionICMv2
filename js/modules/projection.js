@@ -261,6 +261,7 @@ function atualizarStatusTelao(conectado) {
             btn.html('<i class="fas fa-tv"></i> Abrir Telão');
         }
     }
+    if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 window.setTelaoStatus = atualizarStatusTelao;
 window.atualizarStatusTelao = atualizarStatusTelao;
@@ -283,6 +284,7 @@ function toggleBlackout(forceState) {
         if (badge.length) badge.addClass('d-none');
         if (alertBadge.length) alertBadge.hide();
     }
+    if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 
 // Controle de Freeze (Congelamento da última imagem no Telão + silêncio de vídeos)
@@ -304,6 +306,7 @@ function toggleFreeze(forceState) {
         if (alertBadge.length) alertBadge.hide();
         mudaProjecaoAtiva();
     }
+    if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 
 // Inicializa a janela do telão
@@ -566,6 +569,7 @@ function atualizarControlesVideoPainel(state) {
             label.textContent = formatarTempoVideo(cur) + ' / ' + formatarTempoVideo(dur);
         }
     });
+    if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(true);
 }
 
 function enviarComandoControleVideo(slideId, command, value) {
@@ -807,6 +811,7 @@ function mudaProjecaoAtiva(){
             } catch(e) {}
         }
     }
+    if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 
 function reloadProjectionList(){

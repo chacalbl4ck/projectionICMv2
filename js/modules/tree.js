@@ -226,6 +226,9 @@ function renderizarArvoreNativa(dadosLouvores, listaAvisos, listaImagens) {
     if (typeof window.filtrarArvoreSemReabrir === 'function' && lastSearchQuery !== '') {
         window.filtrarArvoreSemReabrir();
     }
+    if (typeof window.notificarCatalogoRemoto === 'function') {
+        window.notificarCatalogoRemoto();
+    }
 
     $('#listaDePastas a').click(function(e) {
         e.preventDefault();

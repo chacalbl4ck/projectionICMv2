@@ -922,6 +922,9 @@ async function escanearPastasAutomaticas() {
             if (mudou && typeof window.filtrarArvoreSemReabrir === 'function') {
                 window.filtrarArvoreSemReabrir();
             }
+            if (mudou && typeof window.notificarCatalogoRemoto === 'function') {
+                window.notificarCatalogoRemoto();
+            }
         }
     } finally {
         isScanningAutoFolders = false;
