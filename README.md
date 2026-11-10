@@ -2,10 +2,9 @@
 
 Sistema moderno, leve e completo de projeção e transmissão de louvores, textos bíblicos e avisos para cultos da **Igreja Cristã Maranata**.
 
-Painel do Operador | Janela de Projeção (Telão)
-:-------------------------:|:-------------------------:
-![](/docs/assets/img/painel.gif) | ![](/docs/assets/img/projecao.gif)
+Painel do Operador
 
+![](/docs/assets/img/visao.gif)
 ---
 
 ## 🚀 Principais Recursos e Novidades da Versão 2.0.0
