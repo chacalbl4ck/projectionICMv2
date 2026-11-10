@@ -25,7 +25,7 @@ A estrutura física consolidada do repositório é distribuída conforme a árvo
 
 ```
 projection-html5-icm-master/
-├── index.html                        <-- Painel de Controle Principal do Operador (853 linhas)
+├── index.html                        <-- Painel de Controle Principal do Operador (869 linhas)
 ├── view.html                         <-- Interface de Apresentação / Telão do Templo com Auto-Fit e Palco Multimídia (1054 linhas)
 ├── obs.html                          <-- Saída Transparente para OBS Studio / Streaming (419 linhas)
 ├── controle.html                     <-- Interface Mobile de Controle Remoto via Wi-Fi (652 linhas)
@@ -71,11 +71,11 @@ projection-html5-icm-master/
 │   └── chaves-*.png                  <-- Chaves gráficas de repetição musical (BIS, 2x até 6x normais e small)
 ├── videos/                           <-- Pasta automática monitorada para mídias de vídeo locais
 └── js/                               <-- Bibliotecas e lógica funcional do sistema
-    ├── core.js                       <-- Orquestrador de ciclo de vida, editor, modal Sobre e atalhos (1147 linhas)
+    ├── core.js                       <-- Orquestrador de ciclo de vida, editor, modal Sobre e atalhos (1157 linhas)
     ├── modules/                      <-- Arquitetura Modular de Domínios
     │   ├── storage.js                <-- Persistência, IndexedDB e File System Access API (229 linhas)
     │   ├── media.js                  <-- Mídias, Blobs tipados, varredura adaptativa e visualizador (1390 linhas)
-    │   ├── projection.js             <-- Projeção, BroadcastChannel, controles de vídeo e fundos (962 linhas)
+    │   ├── projection.js             <-- Projeção, BroadcastChannel, abertura automática, controles de vídeo e fundos (1005 linhas)
     │   ├── tree.js                   <-- Árvore nativa de arquivos, busca full-text e pastas (638 linhas)
     │   └── remote.js                 <-- Ponte SSE Wi-Fi, snapshot, catálogo remoto e QR Code offline (924 linhas)
     ├── bible.js                      <-- Controlador bíblico com lazy-loading e edição por capítulo (636 linhas)
@@ -138,7 +138,7 @@ flowchart TD
 
 ---
 
-### 3.1. Painel de Controle Principal ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html) — 853 linhas)
+### 3.1. Painel de Controle Principal ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html) — 869 linhas)
 
 O `index.html` centraliza a operação e o controle litúrgico. Na evolução v2.1.0 / v2.2, foram removidos todos os componentes do YouTube, adicionadas a aba de Edição da Bíblia e o modal de Controle Wi-Fi, eliminadas janelas intrusivas de alerta e consolidado um fluxo moderno de persistência física em disco:
 
@@ -792,6 +792,19 @@ Abaixo constam as especificações de todas as melhorias que consolidam as vers�
   3. **Atualização Integral do Guia Oficial ([`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md)):**
      * Reorganizado para refletir fielmente todos os recursos da versão `v2.2`: Controle Remoto via Wi-Fi (`Iniciar_Com_Wifi.bat`, QR Code offline e PIN), Aba Edição da Bíblia (`ACF`/`NVI`), Controles inline de vídeo + sincronia e áudio exclusivo no Telão, Congelar imagens/vídeos/áudio, Palco fullscreen com *aspect ratio*, Pastas Automáticas com cache offline, Saída OBS transparente, arquitetura modular em `js/modules/` e tabela oficial de atalhos verificada em código.
 * **Arquivos:** [`controle.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/controle.html#L162), [`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L95), [`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js#L738-L742), [`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js#L419), [`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md) e relatórios de Engenharia Reversa.
+
+---
+
+### Melhoria 34: Abertura Automática do Telão ao Iniciar o Sistema ✅ [IMPLEMENTADA]
+* **Solicitação:** Abrir a janela do Telão (`view.html`) automaticamente sempre que o sistema for iniciado.
+* **Soluções Implementadas:**
+  1. **Detecção Prévia e Disparo Único na Inicialização (`js/modules/projection.js` + `js/core.js`):**
+     * No carregamento de `js/modules/projection.js`, envia um `PING` imediato via `BroadcastChannel` para detectar se já existe uma janela `view.html` aberta e conectada (evitando recarregar ou duplicar o projetor ao atualizar o painel com `F5`).
+     * Adicionada a função [`iniciarTelaoAutomatico`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js) com trava de execução única (`telaoAutoLaunchAttempted`), invocada em [`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js) ao término de `carregaLouvores().finally(...)` (com fallback em `1000ms`), acionando [`startProjection({ silentOnBlock: true })`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js) caso o Telão ainda não esteja conectado.
+  2. **Tratamento Não Intrusivo para Bloqueio de Pop-ups (`index.html` + `projection.js`):**
+     * Em [`startProjection`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js), o modo silencioso (`silentOnBlock: true`) evita disparar `alert()` automático na carga da página quando o navegador ainda não teve pop-ups autorizados, exibindo em seu lugar o banner discreto `#bannerTelaoAuto` ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html)) com o botão `#btnAbrirTelaoBanner` (**Abrir Telão agora**) e orientação para permitir pop-ups na barra de endereços.
+     * Sempre que o Telão conecta (`atualizarStatusTelao(true)` ou abertura bem-sucedida), [`ocultarAvisoPopUpTelao`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js) oculta o banner automaticamente.
+* **Arquivos:** [`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html), [`js/modules/projection.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js), [`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js) e [`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md).
 
 ---
 

@@ -1120,15 +1120,25 @@ $(document).ready(function() {
         }
     });
 
-    // Inicia o sistema e remove a tela de carregamento
+    // Inicia o sistema, remove a tela de carregamento e abre o Telão automaticamente
     carregaLouvores().finally(function() {
         hideLoading();
+        setTimeout(function() {
+            if (typeof window.iniciarTelaoAutomatico === 'function') {
+                window.iniciarTelaoAutomatico();
+            }
+        }, 150);
     });
 
-    // Trava de segurança: garante a liberação da interface em no máximo 600ms
+    // Trava de segurança: garante a liberação da interface e disparo único do Telão
     setTimeout(function() {
         hideLoading();
     }, 600);
+    setTimeout(function() {
+        if (typeof window.iniciarTelaoAutomatico === 'function') {
+            window.iniciarTelaoAutomatico();
+        }
+    }, 1000);
 
     // Inicia monitoramento contínuo das pastas automáticas
     setInterval(escanearPastasAutomaticas, 5000);

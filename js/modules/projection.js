@@ -8,9 +8,14 @@ var isBlackout = false;
 var isFrozen = false;
 var telaoConnected = false;
 var popupBloqueado = false;
+var telaoAutoLaunchAttempted = false;
 var windowView = null;
 var windowObs = null;
 var lastTelaoPong = 0;
+
+if (projectionBroadcast) {
+    try { projectionBroadcast.postMessage({ action: 'PING', timestamp: Date.now() }); } catch(e) {}
+}
 
 var projecao = [];
 var projecaoAtiva = 0;
@@ -239,6 +244,7 @@ function atualizarStatusTelao(conectado) {
     var btn = $('#btnLaunchView');
 
     if (conectado) {
+        ocultarAvisoPopUpTelao();
         if (badge.length) {
             badge.removeClass('badge-secondary').addClass('badge-success');
             badge.attr('title', 'A janela do Telão está conectada e recebendo comandos em tempo real.');
@@ -309,8 +315,24 @@ function toggleFreeze(forceState) {
     if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 
+function mostrarAvisoPopUpTelao() {
+    var banner = $('#bannerTelaoAuto');
+    if (banner.length) {
+        banner.addClass('d-flex').css('display', 'flex');
+    }
+}
+
+function ocultarAvisoPopUpTelao() {
+    var banner = $('#bannerTelaoAuto');
+    if (banner.length) {
+        banner.removeClass('d-flex').css('display', 'none');
+    }
+}
+
 // Inicializa a janela do telão
-function startProjection() { 
+function startProjection(options) {
+    var opts = options || {};
+    var silentOnBlock = !!opts.silentOnBlock;
     if (typeof(windowView) == 'undefined' || windowView == null || windowView.closed) {
         try {
             windowView = window.open(
@@ -325,10 +347,14 @@ function startProjection() {
         if (!windowView || windowView.closed || typeof windowView.closed == 'undefined') {
             popupBloqueado = true;
             console.warn("Pop-up do telão bloqueado pelo navegador.");
-            alert("Atenção: O navegador bloqueou a abertura da janela do Telão.\n\nPor favor, clique no ícone de pop-up bloqueado na barra de endereços do navegador e escolha 'Sempre permitir pop-ups para esta página'. Depois clique novamente no botão 'Abrir Telão'.");
+            mostrarAvisoPopUpTelao();
+            if (!silentOnBlock) {
+                alert("Atenção: O navegador bloqueou a abertura da janela do Telão.\n\nPor favor, clique no ícone de pop-up bloqueado na barra de endereços do navegador e escolha 'Sempre permitir pop-ups para esta página'. Depois clique novamente no botão 'Abrir Telão'.");
+            }
             return false;
         } else {
             popupBloqueado = false;
+            ocultarAvisoPopUpTelao();
             try { windowView.opener = window; } catch(e){}
             try { windowView.focus(); } catch(e){}
             atualizarStatusTelao(true);
@@ -338,12 +364,25 @@ function startProjection() {
         }
         updateViewSlides(projecaoAtiva);
     } else {
+        ocultarAvisoPopUpTelao();
         try { windowView.focus(); } catch(e){}
         if (!telaoConnected) updateViewSlides(projecaoAtiva);
     }
     return true;
 }
 window.startProjection = startProjection;
+
+function iniciarTelaoAutomatico() {
+    if (telaoAutoLaunchAttempted) return false;
+    telaoAutoLaunchAttempted = true;
+    if (telaoConnected || (windowView && !windowView.closed)) {
+        ocultarAvisoPopUpTelao();
+        updateViewSlides(projecaoAtiva);
+        return true;
+    }
+    return startProjection({ silentOnBlock: true });
+}
+window.iniciarTelaoAutomatico = iniciarTelaoAutomatico;
 
 function toggleFullScreen() {
     if (!document.fullscreenElement) {
@@ -872,9 +911,13 @@ $(document).ready(function() {
         }
     });
 
-    $('#btnLaunchView, #btnTelao, #btnLaunchTelao, [data-action="start-projection"]').off('click').on('click', function(e) {
+    $('#btnLaunchView, #btnTelao, #btnLaunchTelao, #btnAbrirTelaoBanner, [data-action="start-projection"]').off('click').on('click', function(e) {
         e.preventDefault();
         startProjection();
+    });
+
+    $('#btnDispensarBannerTelao').off('click').on('click', function() {
+        ocultarAvisoPopUpTelao();
     });
 
     $("#btnLaunchObs").off('click').on('click', function(e) {

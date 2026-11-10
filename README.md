@@ -85,7 +85,7 @@ Painel do Operador
 
 ### 1. Projeção Tradicional no Computador (Painel + Telão)
 1. Abra o arquivo [`index.html`](index.html) no navegador na tela de controle do operador *(ou inicie via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) para habilitar também o controle pelo celular)*.
-2. Clique em **Abrir Telão** para exibir [`view.html`](view.html), arraste a janela para o projetor/TV e pressione **F11** para tela cheia.
+2. O sistema abrirá **automaticamente** a janela do Telão ([`view.html`](view.html)) ao iniciar *(caso o navegador bloqueie o pop-up automático na primeira execução, autorize pop-ups para o endereço ou clique em **Abrir Telão agora** no aviso exibido)*. Arraste a janela para o projetor/TV e pressione **F11** para tela cheia.
 3. Para salvar alterações diretamente no arquivo físico, utilize **Vincular data.json** na barra superior.
 4. No painel esquerdo, dê um **duplo clique** sobre qualquer hino, aviso ou mídia (ou selecione versículos nas abas **Bíblia** / **Edição da Bíblia**) para enviar à fila de projeção.
 5. Na aba **Ao Vivo**, clique nos slides ou utilize as setas do teclado para conduzir o culto.
