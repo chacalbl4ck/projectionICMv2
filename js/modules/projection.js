@@ -135,6 +135,7 @@ function processarMensagemJanela(data) {
         atualizarStatusTelao(true);
         updateViewSlides(projecaoAtiva);
         if (isBlackout) broadcastCommand('BLACKOUT', true);
+        if (isFrozen) broadcastCommand('FREEZE', true);
     } else if (action === 'OBS_READY' || action === 'REQUEST_SLIDES') {
         if (action === 'OBS_READY' && windowObs && !windowObs.closed) {
             try {
@@ -882,11 +883,11 @@ $(document).ready(function() {
         }
     });
 
-    $('#btnBlackout').click(function() {
+    $('#btnBlackout').off('click').on('click', function() {
         toggleBlackout();
     });
 
-    $('#btnFreeze').click(function() {
+    $('#btnFreeze').off('click').on('click', function() {
         toggleFreeze();
     });
 

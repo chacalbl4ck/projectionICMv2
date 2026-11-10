@@ -19,6 +19,9 @@
     <video id="telaoStageVideo" playsinline loop preload="auto" style="display: none; width: 100%; height: 100%; max-width: 100vw; max-height: 100vh; object-fit: contain; margin: 0; border: none; box-shadow: none; background: #000000;"></video>
   </div>
 
+  <!-- Canvas de captura visual do último frame ao congelar vídeos -->
+  <canvas id="telaoFreezeCanvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 800; pointer-events: none; display: none; background-color: #000000;"></canvas>
+
   <!-- 2. Create hidden header/footer <div> -->
   <div class="reveal">
     <!-- Headers Padrão ICM -->
@@ -227,6 +230,10 @@
         pendingFrozenSlide = slideNum;
         return;
       }
+      if (!isExternalTelao && isPreviewFrozen) {
+        isPreviewFrozen = false;
+        ocultarCanvasCongelado();
+      }
       var curSlideBefore = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
       if (unfreezeResumeTimer && slideNum !== curSlideBefore) {
         clearTimeout(unfreezeResumeTimer);
@@ -339,14 +346,81 @@
     }
 
     var isTelaoFrozen = false;
+    var isPreviewFrozen = false;
     var pendingFrozenReload = null;
     var pendingFrozenSlide = null;
     var frozenSlideIndex = null;
     var unfreezeResumeTimer = null;
 
+    function estaCongeladoAgora() {
+      return isExternalTelao ? isTelaoFrozen : isPreviewFrozen;
+    }
+
+    function capturarQuadroVideoParaCanvas(vid) {
+      var canvas = document.getElementById('telaoFreezeCanvas');
+      if (!canvas || !vid || !vid.videoWidth || !vid.videoHeight) return false;
+      try {
+        var cw = window.innerWidth || canvas.clientWidth || vid.videoWidth;
+        var ch = window.innerHeight || canvas.clientHeight || vid.videoHeight;
+        if (!cw || !ch) return false;
+        canvas.width = cw;
+        canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return false;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, cw, ch);
+        var scale = Math.min(cw / vid.videoWidth, ch / vid.videoHeight);
+        var dw = vid.videoWidth * scale;
+        var dh = vid.videoHeight * scale;
+        ctx.drawImage(vid, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+        canvas.style.display = 'block';
+        return true;
+      } catch(e) {
+        return false;
+      }
+    }
+
+    function ocultarCanvasCongelado() {
+      var canvas = document.getElementById('telaoFreezeCanvas');
+      if (canvas) {
+        canvas.style.display = 'none';
+        try {
+          var ctx = canvas.getContext('2d');
+          if (ctx) ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+        } catch(e) {}
+      }
+    }
+
     function toggleFreezeScreen(status) {
-      if (!isExternalTelao) return;
       var frozen = !!status;
+
+      if (!isExternalTelao) {
+        if (frozen === isPreviewFrozen) return;
+        isPreviewFrozen = frozen;
+        if (isPreviewFrozen) {
+          var pAtivo = obterVideoAtivoParaSync();
+          if (pAtivo && pAtivo.el) capturarQuadroVideoParaCanvas(pAtivo.el);
+          document.querySelectorAll('video').forEach(function(v) {
+            v.dataset.wasPlayingBeforeFreeze = (!v.paused && v.dataset.userPaused !== 'true') ? '1' : '0';
+            v.removeAttribute('autoplay');
+            v.autoplay = false;
+            try { v.pause(); } catch(e) {}
+          });
+          emitirEstadoPreviewParaPainel();
+        } else {
+          ocultarCanvasCongelado();
+          document.querySelectorAll('video').forEach(function(v) {
+            var wp = (v.dataset.wasPlayingBeforeFreeze === '1');
+            delete v.dataset.wasPlayingBeforeFreeze;
+            if (wp && v.style.display !== 'none' && v.dataset.userPaused !== 'true') {
+              reproduzirVideoComFallback(v);
+            }
+          });
+          emitirEstadoPreviewParaPainel();
+        }
+        return;
+      }
+
       if (frozen === isTelaoFrozen) return;
       isTelaoFrozen = frozen;
 
@@ -357,6 +431,10 @@
 
       if (isTelaoFrozen) {
         frozenSlideIndex = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
+        var ativoFreeze = obterVideoAtivoParaSync();
+        if (ativoFreeze && ativoFreeze.el) {
+          capturarQuadroVideoParaCanvas(ativoFreeze.el);
+        }
         document.querySelectorAll('video').forEach(function(v) {
           v.dataset.wasPlayingBeforeFreeze = (!v.paused && v.dataset.userPaused !== 'true') ? '1' : '0';
           v.dataset.mutedBeforeFreeze = v.muted ? '1' : '0';
@@ -370,6 +448,7 @@
         });
         emitirSyncVideoTelao();
       } else {
+        ocultarCanvasCongelado();
         var prevFrozenSlide = frozenSlideIndex;
         frozenSlideIndex = null;
 
@@ -418,7 +497,7 @@
 
     function reproduzirVideoComFallback(videoEl, tentarComAudio) {
       if (!videoEl || videoEl.tagName !== 'VIDEO') return;
-      if ((isExternalTelao && isTelaoFrozen) || videoEl.dataset.userPaused === 'true') {
+      if (estaCongeladoAgora() || videoEl.dataset.userPaused === 'true') {
         try { videoEl.pause(); } catch(e) {}
         return;
       }
@@ -598,7 +677,7 @@
           try { vid.currentTime = expectedTime; } catch(e) {}
         }
       } else {
-        if (vid.paused) {
+        if (!isPreviewFrozen && vid.paused) {
           reproduzirVideoComFallback(vid);
         }
         var curTime = vid.currentTime || 0;
@@ -625,15 +704,40 @@
       var sVid = document.getElementById('telaoStageVideo');
       if (!sVid) return;
 
-      // Impede auto-play indevido ao minimizar e restaurar janela se o vídeo estiver pausado ou congelado
-      sVid.addEventListener('play', function() {
-        if ((isExternalTelao && isTelaoFrozen) || sVid.dataset.userPaused === 'true') {
-          try { sVid.pause(); } catch(e) {}
-        }
+      // Intercepta globalmente qualquer <video> (palco ou fundo Reveal) impedindo auto-play/desmute ao pausar, congelar ou restaurar
+      ['play', 'playing'].forEach(function(evtName) {
+        document.addEventListener(evtName, function(e) {
+          var v = e && e.target;
+          if (!v || v.tagName !== 'VIDEO') return;
+          if (estaCongeladoAgora() || v.dataset.userPaused === 'true') {
+            try { v.pause(); } catch(err) {}
+            if (isExternalTelao && isTelaoFrozen) {
+              v.muted = true;
+              try { v.volume = 0; } catch(err) {}
+            }
+          }
+        }, true);
       });
+
+      document.addEventListener('volumechange', function(e) {
+        var v = e && e.target;
+        if (!v || v.tagName !== 'VIDEO') return;
+        if (!isExternalTelao || (isExternalTelao && isTelaoFrozen)) {
+          if (v.dataset.forcingMute === '1') return;
+          if (!v.muted || v.volume > 0) {
+            v.dataset.forcingMute = '1';
+            try {
+              if (!v.muted) v.muted = true;
+              if (v.volume > 0) v.volume = 0;
+            } catch(err) {}
+            delete v.dataset.forcingMute;
+          }
+        }
+      }, true);
+
       document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible') {
-          if ((isExternalTelao && isTelaoFrozen) || sVid.dataset.userPaused === 'true') {
+          if (estaCongeladoAgora() || sVid.dataset.userPaused === 'true') {
             if (!sVid.paused) {
               try { sVid.pause(); } catch(e) {}
             }
@@ -642,15 +746,8 @@
       });
 
       if (isExternalTelao) {
-        sVid.addEventListener('volumechange', function() {
-          if (isTelaoFrozen && sVid.dataset.forcingMute !== '1') {
-            sVid.dataset.forcingMute = '1';
-            try {
-              if (!sVid.muted) sVid.muted = true;
-              if (sVid.volume > 0) sVid.volume = 0;
-            } catch(e) {}
-            delete sVid.dataset.forcingMute;
-          }
+        sVid.addEventListener('loadeddata', function() {
+          if (isTelaoFrozen) capturarQuadroVideoParaCanvas(sVid);
         });
         ['loadedmetadata', 'play', 'playing', 'pause', 'seeked'].forEach(function(evt) {
           sVid.addEventListener(evt, emitirSyncVideoTelao);
@@ -661,17 +758,6 @@
         sVid.muted = true;
         sVid.defaultMuted = true;
         try { sVid.volume = 0; } catch(e) {}
-        sVid.addEventListener('volumechange', function() {
-          if (sVid.dataset.forcingMute === '1') return;
-          if (!sVid.muted || sVid.volume > 0) {
-            sVid.dataset.forcingMute = '1';
-            try {
-              if (!sVid.muted) sVid.muted = true;
-              if (sVid.volume > 0) sVid.volume = 0;
-            } catch(e) {}
-            delete sVid.dataset.forcingMute;
-          }
-        });
         ['loadedmetadata', 'canplay'].forEach(function(evt) {
           sVid.addEventListener(evt, function() {
             if (pendingVideoSync) aplicarSyncVideoPreview(pendingVideoSync);
@@ -822,7 +908,7 @@
 
       // Mantém reprodução contínua sem recarregar nem piscar se o mesmo slide já está ativo ou em resolução
       if (stageKey === activeStageMediaKey && ((targetEl.dataset.resolvedLocally === 'true' && targetEl.src) || targetEl.dataset.resolvingStageKey === stageKey)) {
-        if (mediaType === 'video' && targetEl.dataset.resolvedLocally === 'true' && targetEl.dataset.userPaused !== 'true' && !(isExternalTelao && isTelaoFrozen)) {
+        if (mediaType === 'video' && targetEl.dataset.resolvedLocally === 'true' && targetEl.dataset.userPaused !== 'true' && !estaCongeladoAgora()) {
           reproduzirVideoComFallback(sVid);
         }
         return;

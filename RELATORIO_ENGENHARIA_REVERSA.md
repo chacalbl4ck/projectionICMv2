@@ -734,6 +734,16 @@ Abaixo constam as especificações de todas as melhorias que consolidam a versã
 
 ---
 
+### Melhoria 30: Reforço Visual e Global do Congelamento de Vídeos (Palco, Fundos Reveal e Prévia) ✅ [IMPLEMENTADA]
+* **Problema Reportado:** A função **Congelar** não estava congelando vídeos em todos os fluxos de projeção (como vídeos na prévia `#iframeProjection`, vídeos de fundo do Reveal.js ou casos onde o Telão era aberto após ativar o Congelar).
+* **Soluções Implementadas:**
+  1. **Captura do Último Quadro em Canvas Dedicado (`#telaoFreezeCanvas`):** Adicionado canvas fullscreen (`z-index: 800`, entre `#telaoMediaStage` e `#blackoutOverlay`) e as funções [`capturarQuadroVideoParaCanvas`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L359) / [`ocultarCanvasCongelado`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L383) em `view.html`, congelando pixel a pixel o último frame exibido respeitando o *aspect ratio* tanto de `#telaoStageVideo` quanto de vídeos de fundo do Reveal.js.
+  2. **Interceptação Global em Fase de Captura:** Adicionados listeners `play`, `playing` e `volumechange` globais no `document` (`useCapture = true`), bloqueando imediatamente a reprodução ou desmute de qualquer `<video>` (palco principal ou fundo `.slide-background video` controlado pelo Reveal.js) enquanto [`estaCongeladoAgora`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L355) for verdadeiro.
+  3. **Congelamento na Prévia (`#iframeProjection`) e Reconexão do Telão:** [`toggleFreezeScreen`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L394) agora congela também o vídeo em execução na pré-visualização (`isPreviewFrozen`) ao pressionar **Congelar** (liberando localmente apenas se o operador navegar intencionalmente para preparar outro slide em `#livesongs`), e [`processarMensagemJanela`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js#L138) em `projection.js` propaga `FREEZE: true` imediatamente quando `TELAO_READY` ocorre com o sistema já congelado.
+* **Arquivos:** `view.html` ([L23–24](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L23-L24), [L229–238](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L229-L238), [L355–498](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L355-L498), [L679–765](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L679-L765), [L928](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/view.html#L928)), `js/modules/projection.js` ([L138](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js#L138), [L886–892](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js#L886-L892)).
+
+---
+
 ## 6. Matriz Comparativa de Arquitetura (Evolução Contínua)
 
 | Aspecto Arquitetural | Versão 1.x (Legada) | Versão 2.0.0 (Intermediária) | Versão 2.1.0 (Atual Consolidada) |
