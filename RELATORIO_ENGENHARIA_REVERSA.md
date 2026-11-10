@@ -31,6 +31,7 @@ projection-html5-icm-master/
 ├── controle.html                     <-- Interface Mobile de Controle Remoto via Wi-Fi (652 linhas)
 ├── server.js                         <-- Servidor HTTP + SSE Local Zero-Dependências para Controle Wi-Fi (443 linhas)
 ├── Iniciar_Com_Wifi.bat              <-- Inicializador Windows do Servidor Local + Painel Wi-Fi (18 linhas)
+├── .gitignore                        <-- Exclusão dos relatórios internos de Engenharia Reversa do controle Git para produção
 ├── README.md                         <-- Guia oficial de recursos, atalhos e operação (v2.2)
 ├── RELATORIO_ENGENHARIA_REVERSA.md   <-- [Este Documento Técnico de Arquitetura e Engenharia Reversa]
 ├── GUIA_INTERNACIONALIZACAO.md       <-- Documentação técnica para reativação de multi-idiomas
@@ -805,6 +806,15 @@ Abaixo constam as especificações de todas as melhorias que consolidam as vers�
      * Em [`startProjection`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js), o modo silencioso (`silentOnBlock: true`) evita disparar `alert()` automático na carga da página quando o navegador ainda não teve pop-ups autorizados, exibindo em seu lugar o banner discreto `#bannerTelaoAuto` ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html)) com o botão `#btnAbrirTelaoBanner` (**Abrir Telão agora**) e orientação para permitir pop-ups na barra de endereços.
      * Sempre que o Telão conecta (`atualizarStatusTelao(true)` ou abertura bem-sucedida), [`ocultarAvisoPopUpTelao`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js) oculta o banner automaticamente.
 * **Arquivos:** [`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html), [`js/modules/projection.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js), [`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js) e [`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md).
+
+---
+
+### Melhoria 35: Exclusão dos Relatórios de Engenharia Reversa via `.gitignore` para Produção ✅ [IMPLEMENTADA]
+* **Solicitação:** Adicionar o relatório de engenharia reversa ao `.gitignore` para preparação de deploy/produção.
+* **Soluções Implementadas:**
+  1. **Criação de [`.gitignore`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/.gitignore):** Criado na raiz do repositório ignorando [`RELATORIO_ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/RELATORIO_ENGENHARIA_REVERSA.md) e sua cópia oficial espelhada [`docs/ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/docs/ENGENHARIA_REVERSA.md).
+  2. **Desindexação Pendente no Índice Git (`git rm --cached`):** Como ambos os arquivos já estavam previamente rastreados no repositório (`HEAD`) e o ambiente restrito impediu escrita em `.git/index.lock` (`Permission denied`), é necessário executar `git rm --cached RELATORIO_ENGENHARIA_REVERSA.md docs/ENGENHARIA_REVERSA.md` no terminal local antes do commit de produção para manter as cópias locais preservadas no disco e removê-las apenas do repositório.
+* **Arquivos:** [`.gitignore`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/.gitignore), [`RELATORIO_ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/RELATORIO_ENGENHARIA_REVERSA.md) e [`docs/ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/docs/ENGENHARIA_REVERSA.md).
 
 ---
 
