@@ -1,5 +1,5 @@
 # Relatório de Engenharia Reversa & Especificação Técnica de Melhorias
-## Sistema: Projeção ICM HTML5 v2.1.0 (`projectionICMv2`)
+## Sistema: Projeção ICM HTML5 v2.2 (`projectionICMv2`)
 
 ---
 
@@ -7,28 +7,31 @@
 
 | Parâmetro | Detalhe |
 | :--- | :--- |
-| **Nome do Software** | Projeção ICM HTML5 (Versão 2.1.0 Consolidada) |
+| **Nome do Software** | Projeção ICM HTML5 (Versão 2.2 Consolidada) |
 | **Repositório Git** | `https://github.com/chacalbl4ck/projectionICMv2.git` |
 | **Autor Original** | Ítalo Carvalho Zaina (*Revisores originais: Sinvaldo, Geff*) |
-| **Manutenção & Evolução (v2.0.0 / v2.1.0)** | **ICM — Leopoldina / MG**<br>• Caio Monteiro ([caiormleo@outlook.com.br](mailto:caiormleo@outlook.com.br) / [@chacalbl4ck](https://github.com/chacalbl4ck))<br>• André Castilho ([atendimento@amcast.com.br](mailto:atendimento@amcast.com.br)) |
-| **Branch / Versão Analisada** | `main` (Versão 2.1.0 — Ciclo de Estabilidade, Auto-Fit de Viewport e Faxina de Dependências) |
-| **Tecnologias Base** | HTML5 Semântico, CSS3 Flexbox/Grid, JavaScript Moderno (ES6+), BroadcastChannel API, IndexedDB API (`MediaDB`), File System Access API nativa, jQuery 3.3.1, Bootstrap 4, Reveal.js 3.6.0+, FontAwesome 5 (SVG & WebFonts) |
-| **Domínio da Aplicação** | Projeção e transmissão litúrgica multimídia para cultos da Igreja Cristã Maranata (Louvores, Bíblias ACF/NVI sob demanda, Avisos, Mídias Locais de Imagem/Vídeo e Lower Thirds transparentes para OBS Studio/vMix) |
-| **Ambiente de Execução** | Navegadores Web modernos (Google Chrome, Microsoft Edge, Mozilla Firefox, Opera, Brave) com inicialização direta via navegador e sincronização local sem dependência de scripts em lote ou servidores de desenvolvimento externos |
+| **Manutenção & Evolução (v2.0.0 / v2.1.0 / v2.2)** | **ICM — Leopoldina / MG**<br>• Caio Monteiro ([caiormleo@outlook.com.br](mailto:caiormleo@outlook.com.br) / [@chacalbl4ck](https://github.com/chacalbl4ck))<br>• André Castilho ([atendimento@amcast.com.br](mailto:atendimento@amcast.com.br)) |
+| **Branch / Versão Analisada** | `main` (Versão 2.2 — Ciclo de Estabilidade, Controles de Vídeo/Congelar, Edição Bíblica e Controle Wi-Fi) |
+| **Tecnologias Base** | HTML5 Semântico, CSS3 Flexbox/Grid, JavaScript Moderno (ES6+), BroadcastChannel API, IndexedDB API (`MediaDB`), File System Access API nativa, Node.js (HTTP + SSE nativo para controle Wi-Fi), jQuery 3.3.1, Bootstrap 4, Reveal.js 3.6.0+, FontAwesome 5 (SVG & WebFonts) |
+| **Domínio da Aplicação** | Projeção e transmissão litúrgica multimídia para cultos da Igreja Cristã Maranata (Louvores, Bíblias ACF/NVI com leitura e edição sob demanda, Avisos, Mídias Locais de Imagem/Vídeo, Controle Remoto Wi-Fi e Lower Thirds transparentes para OBS Studio/vMix) |
+| **Ambiente de Execução** | Navegadores Web modernos (Google Chrome, Microsoft Edge, Mozilla Firefox, Opera, Brave) em modo direto (`index.html`), com servidor local Node.js opcional zero-dependências ([`Iniciar_Com_Wifi.bat`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/Iniciar_Com_Wifi.bat) + [`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js)) para controle remoto via Wi-Fi |
 | **Política de Conteúdo** | **Projeto de uso litúrgico/interno:** o acervo integral de louvores ([`data/data.json`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/data/data.json) com ~1,90 MB) e as versões bíblicas completas ([`bible/acf.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/bible/acf.js) e [`bible/nvi.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/bible/nvi.js) totalizando ~8,05 MB) são ativos essenciais permanentes e **permanecem 100% preservados e operacionais no projeto**. |
 
 ---
 
 ## 2. Inventário Completo de Arquivos e Componentes
 
-A estrutura física consolidada do repositório conta atualmente com **85 arquivos** totalizando aproximadamente **17,2 MB** (após a remoção da função do YouTube, eliminação do script `iniciar_sistema.bat` e faxina das bibliotecas órfãs `head.min.js`, `perfect-scrollbar.min.js` e `bootstrap.css` descompactado), distribuídos conforme a árvore oficial:
+A estrutura física consolidada do repositório é distribuída conforme a árvore oficial abaixo:
 
 ```
 projection-html5-icm-master/
-├── index.html                        <-- Painel de Controle Principal do Operador (738 linhas, ~42 KB)
-├── view.html                         <-- Interface de Apresentação / Telão do Templo com Auto-Fit (334 linhas, ~14 KB)
-├── obs.html                          <-- Saída Transparente para OBS Studio / Streaming (371 linhas, ~12 KB)
-├── README.md                         <-- Guia oficial de recursos, atalhos e operação
+├── index.html                        <-- Painel de Controle Principal do Operador (853 linhas)
+├── view.html                         <-- Interface de Apresentação / Telão do Templo com Auto-Fit e Palco Multimídia (1054 linhas)
+├── obs.html                          <-- Saída Transparente para OBS Studio / Streaming (419 linhas)
+├── controle.html                     <-- Interface Mobile de Controle Remoto via Wi-Fi (652 linhas)
+├── server.js                         <-- Servidor HTTP + SSE Local Zero-Dependências para Controle Wi-Fi (443 linhas)
+├── Iniciar_Com_Wifi.bat              <-- Inicializador Windows do Servidor Local + Painel Wi-Fi (18 linhas)
+├── README.md                         <-- Guia oficial de recursos, atalhos e operação (v2.2)
 ├── RELATORIO_ENGENHARIA_REVERSA.md   <-- [Este Documento Técnico de Arquitetura e Engenharia Reversa]
 ├── GUIA_INTERNACIONALIZACAO.md       <-- Documentação técnica para reativação de multi-idiomas
 ├── bible/                            <-- Bases de dados bíblicos integrais em matrizes JavaScript
@@ -61,24 +64,26 @@ projection-html5-icm-master/
 │   ├── TrajanPro-Regular.ttf         <-- Tipografia dos títulos institucionais ("Maranata") (~403 KB)
 │   ├── Jester.ttf / scriptmt.ttf     <-- Fontes cursivas complementares
 │   └── icm.ttf / .woff / .svg / .eot <-- Pacote oficial de glifos e símbolos litúrgicos da ICM
-├── imagens/                          <-- Imagens de fundo, marcas d'água e chaves musicais de repetição
+├── imagens/                          <-- Imagens de fundo, marcas d'água, chaves musicais e pasta automática
 │   ├── fundo.jpg / madeira_bg.jpg    <-- Fundos estáticos padrão (~47 KB e ~69 KB)
 │   ├── campo-uva.jpg                 <-- Fundo especial para Santa Ceia (~924 KB)
 │   ├── fundo-comunicado.png          <-- Arte padrão para avisos e comunicados da igreja
 │   └── chaves-*.png                  <-- Chaves gráficas de repetição musical (BIS, 2x até 6x normais e small)
+├── videos/                           <-- Pasta automática monitorada para mídias de vídeo locais
 └── js/                               <-- Bibliotecas e lógica funcional do sistema
-    ├── core.js                       <-- Orquestrador de ciclo de vida, editor e atalhos (~370 linhas)
+    ├── core.js                       <-- Orquestrador de ciclo de vida, editor, modal Sobre e atalhos (1147 linhas)
     ├── modules/                      <-- Arquitetura Modular de Domínios
-    │   ├── storage.js                <-- Persistência, IndexedDB e File System Access API (~190 linhas)
-    │   ├── media.js                  <-- Mídias, Blobs tipados, varredura adaptativa e visualizador (~520 linhas)
-    │   ├── projection.js             <-- Projeção, BroadcastChannel, slides Reveal.js e fundos (~450 linhas)
-    │   └── tree.js                   <-- Árvore nativa de arquivos, busca full-text e pastas (~410 linhas)
-    ├── bible.js                      <-- Controlador bíblico com lazy-loading assíncrono (202 linhas, ~9 KB)
+    │   ├── storage.js                <-- Persistência, IndexedDB e File System Access API (229 linhas)
+    │   ├── media.js                  <-- Mídias, Blobs tipados, varredura adaptativa e visualizador (1390 linhas)
+    │   ├── projection.js             <-- Projeção, BroadcastChannel, controles de vídeo e fundos (962 linhas)
+    │   ├── tree.js                   <-- Árvore nativa de arquivos, busca full-text e pastas (638 linhas)
+    │   └── remote.js                 <-- Ponte SSE Wi-Fi, snapshot, catálogo remoto e QR Code offline (924 linhas)
+    ├── bible.js                      <-- Controlador bíblico com lazy-loading e edição por capítulo (636 linhas)
     ├── reveal.js                     <-- Motor de projeção e transição de slides Reveal.js (~157 KB)
     ├── jquery-3.3.1.min.js           <-- Framework jQuery v3.3.1 (~87 KB)
     ├── popper.min.js                 <-- Utilitário de posicionamento Bootstrap (~19 KB)
     ├── bootstrap.min.js              <-- Componentes interativos Bootstrap v4 (~49 KB)
-    ├── fontawesome-all.min.js        <-- Acervo completo de ícones FontAwesome 5 (~672 KB)
+    ├── fontawesome-all.min.js        <-- Acervo completo de ícones FontAwesome 5 (813 definições SVG)
     ├── perfect-scrollbar.js          <-- Rolagem sincronizada de alta precisão (~35 KB)
     └── jquery.selection.js           <-- Utilitário de inserção rápida de tags no editor (~13 KB)
 ```
@@ -133,9 +138,9 @@ flowchart TD
 
 ---
 
-### 3.1. Painel de Controle Principal ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html) — 738 linhas)
+### 3.1. Painel de Controle Principal ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html) — 853 linhas)
 
-O `index.html` centraliza a operação e o controle litúrgico. Na versão 2.1.0, foram removidos todos os componentes do YouTube, eliminadas janelas intrusivas de alerta e implementado um fluxo visual moderno de persistência física em disco:
+O `index.html` centraliza a operação e o controle litúrgico. Na evolução v2.1.0 / v2.2, foram removidos todos os componentes do YouTube, adicionadas a aba de Edição da Bíblia e o modal de Controle Wi-Fi, eliminadas janelas intrusivas de alerta e consolidado um fluxo moderno de persistência física em disco:
 
 #### 1. Barra de Navegação Superior (`<nav class="navbar">`):
 * **Configurações Litúrgicas (`#btnAbrirConf`):** Controle de temas (padrão ICM e Santa Ceia), tamanhos de fonte responsivos (`fontSizeRange` de 1vw a 4vw), imagens/vídeos de fundo e alternância de texto padrão (*"Maranata | O Senhor Jesus Vem"*).
@@ -342,7 +347,7 @@ A base `data.json` permanece rigorosamente preservada, estruturada em árvore JS
 
 ## 4. Diagnóstico Técnico de Vulnerabilidades, Gargalos e Status de Resolução
 
-| Ref. | Vulnerabilidade / Gargalo Identificado | Local Original | Status na v2.1.0 | Solução Arquitetural Aplicada |
+| Ref. | Vulnerabilidade / Gargalo Identificado | Local Original | Status na v2.2 | Solução Arquitetural Aplicada |
 | :---: | :--- | :--- | :---: | :--- |
 | **4.1** | **Bloqueio agressivo de pop-up pelo navegador** | `core.js` (timer automático) | **RESOLVIDO** | Launcher interativo com instruções claras na tela e fallback de reconexão via `BroadcastChannel`. |
 | **4.2** | **Dependência de servidores locais externos ou scripts `.bat`** | Raiz (`iniciar_sistema.bat`) | **RESOLVIDO** | Remoção de `iniciar_sistema.bat`; o sistema opera direto no navegador com suporte integral à File System Access API. |
@@ -363,9 +368,9 @@ A base `data.json` permanece rigorosamente preservada, estruturada em árvore JS
 
 ---
 
-## 5. Especificação Técnica Detalhada das Melhorias e Correções (v2.1.0)
+## 5. Especificação Técnica Detalhada das Melhorias e Correções (v2.1.0 / v2.2)
 
-Abaixo constam as especificações de todas as melhorias que consolidam a versão 2.1.0:
+Abaixo constam as especificações de todas as melhorias que consolidam as versões 2.1.0 e 2.2:
 
 ---
 
@@ -756,28 +761,61 @@ Abaixo constam as especificações de todas as melhorias que consolidam a versã
 
 ---
 
+### Melhoria 32: Controle Remoto da Transmissão via Celular no Wi-Fi ✅ [IMPLEMENTADA]
+* **Solicitação:** Adicionar função de controle da transmissão pelo celular conectado na mesma rede Wi-Fi.
+* **Arquitetura Implementada:**
+  1. **Servidor Local + Ponte SSE Zero-Dependências ([`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js) & [`Iniciar_Com_Wifi.bat`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/Iniciar_Com_Wifi.bat)):**
+     * Implementa [`createAppServer`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js) usando exclusivamente módulos nativos do Node.js (`http`, `fs`, `path`, `os`, `crypto`), sem necessidade de `npm install`.
+     * [`obterIpsLocais`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js#L31) detecta interfaces IPv4 ativas filtrando endereços link-local APIPA (`169.254.x.x`) quando há LAN válida.
+     * Segurança por PIN numérico aleatório de 4 dígitos exigido nas rotas remotas (`/api/events?role=remote`, `/api/remote-check`, `/api/command`, `GET /api/state` e `GET /api/library` via header `x-remote-pin` ou `?pin=`), enquanto endpoints exclusivos do painel operador (`POST /api/state`, `/api/events?role=host`, `/api/info`, `/api/pin` e `POST /api/library`) são restritos estritamente ao endereço loopback (`127.0.0.1` / `::1`) via [`isLoopbackAddress`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js#L49).
+     * Suporte HTTP `Range` para reprodução de mídias/vídeos e proteção `403` contra leitura estática de `server.js`, `Iniciar_Com_Wifi.bat` e path traversal.
+  2. **Ponte em Tempo Real e QR Code Offline ([`js/modules/remote.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/remote.js)):**
+     * Conecta o painel principal a `/api/events?role=host` via `EventSource` com reconexão automática e registra eventos de estado (`notificarEstadoRemoto`) e publicação do acervo (`notificarCatalogoRemoto`).
+     * Despacha comandos remotos em tempo real (`NEXT_SLIDE`, `PREV_SLIDE`, `GOTO_SLIDE`, `TOGGLE_BLACKOUT`, `TOGGLE_FREEZE`, `GOTO_TELAPADRAO`, `VIDEO_CONTROL`, `GOTO_QUEUE_ITEM`, `REMOVE_QUEUE_ITEM`, `ADD_LIBRARY_ITEM`, `REQUEST_STATE`, `REQUEST_LIBRARY`) reaproveitando as funções oficiais de projeção, fila e vídeo.
+     * Inclui o gerador interno `QRGen` (ISO/IEC 18004 modo Byte com correção ECC-L) para renderizar o QR Code offline no modal `#wifiRemoteModal` sem depender de APIs ou CDNs externos.
+  3. **Interface Mobile Otimizada ([`controle.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/controle.html)):**
+     * Página responsiva escura pensada para toque em smartphones com validação automática de PIN (inclusive via `?pin=` do QR Code), badge de conexão SSE e status do Telão.
+     * **Aba Ao Vivo:** Exibe slide atual, próximo slide, atalhos grandes **Anterior / Próximo**, controles litúrgicos **Blackout**, **Congelar** e **Padrão**, player de vídeo sincronizado (`Play/Pause`, `-10s`, `+10s`, seek bar e minutagem) e salto direto para qualquer estrofe da fila.
+     * **Aba Fila & Acervo:** Lista da fila Ao Vivo com remoção rápida e busca normalizada para adicionar louvores, avisos, mídias locais e arquivos das pastas automáticas.
+* **Arquivos:** [`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js), [`Iniciar_Com_Wifi.bat`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/Iniciar_Com_Wifi.bat), [`controle.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/controle.html), [`js/modules/remote.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/remote.js), [`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L90-L95), [`js/modules/projection.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/projection.js), [`js/modules/tree.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/tree.js) e [`js/modules/media.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/modules/media.js).
+
+---
+
+### Melhoria 33: Atualização Consolidada (`v2.2`), Documentação `README.md` e Correção de Ícone no Controle Móvel ✅ [IMPLEMENTADA]
+* **Solicitação:** Atualizar o `README.md`, atualizar a versão do sistema para `2.2` e corrigir o ícone de **Ao Vivo** que aparecia como interrogação e exclamação (`[?!]`) na página do celular.
+* **Soluções Implementadas:**
+  1. **Correção do Ícone FontAwesome no Celular ([`controle.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/controle.html#L162)):**
+     * Auditoria automatizada contra as 813 definições do bundle local [`js/fontawesome-all.min.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/fontawesome-all.min.js) identificou que a classe `fa-broadcast-tower` (usada no botão `#rmTabBtnLive`) era o único dentre os 65 ícones utilizados na aplicação ausente do pacote FontAwesome 5 incluído no projeto.
+     * Substituído por `<i class="fas fa-tv mr-1"></i>` (`fa-tv`, validado no pacote), eliminando por completo a renderização `[?!]` na aba **Ao Vivo** de `controle.html`.
+  2. **Consolidação Oficial da Versão `v2.2`:**
+     * Atualizados os indicadores visuais e metadados de versão para **`v2.2`** na barra superior do operador ([`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L95)), no modal **Sobre** ([`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js#L738-L742)), no banner CLI do servidor Wi-Fi ([`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js#L419)) e na documentação técnica.
+  3. **Atualização Integral do Guia Oficial ([`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md)):**
+     * Reorganizado para refletir fielmente todos os recursos da versão `v2.2`: Controle Remoto via Wi-Fi (`Iniciar_Com_Wifi.bat`, QR Code offline e PIN), Aba Edição da Bíblia (`ACF`/`NVI`), Controles inline de vídeo + sincronia e áudio exclusivo no Telão, Congelar imagens/vídeos/áudio, Palco fullscreen com *aspect ratio*, Pastas Automáticas com cache offline, Saída OBS transparente, arquitetura modular em `js/modules/` e tabela oficial de atalhos verificada em código.
+* **Arquivos:** [`controle.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/controle.html#L162), [`index.html`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/index.html#L95), [`js/core.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/js/core.js#L738-L742), [`server.js`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/server.js#L419), [`README.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/README.md) e relatórios de Engenharia Reversa.
+
+---
+
 ## 6. Matriz Comparativa de Arquitetura (Evolução Contínua)
 
-| Aspecto Arquitetural | Versão 1.x (Legada) | Versão 2.0.0 (Intermediária) | Versão 2.1.0 (Atual Consolidada) |
+| Aspecto Arquitetural | Versão 1.x (Legada) | Versão 2.0.0 / 2.1.0 (Anterior) | Versão 2.2 (Atual Consolidada) |
 | :--- | :--- | :--- | :--- |
-| **Comunicação Inter-Janelas** | `postMessage` dependente de janelas | API nativa `BroadcastChannel` | API nativa `BroadcastChannel` com heartbeat e auto-reconexão |
-| **Execução Local** | Falhas de CORS em `file:///` | Script `.bat` com servidor Python/Node | Execução direta no navegador com File System Access API nativa |
-| **Persistência de Dados** | Upload/Download manual de arquivos | Auto-save assistido via FileHandle | Banner de vínculo, persistência física em disco e status discreto |
-| **Vídeos e Mídias** | Inexistente | Iframe do YouTube + vídeos locais | Formatos homologados (MP4, AVI, JPG, JPEG, PNG, GIF, WEBP); mídias sem limite e fundos limitados a 10MB/30s |
-| **Gerenciamento de Arquivos Pesados** | Falhas de quota no localStorage | Base64 instável em arquivos grandes | Referenciamento local direto no HD (Zero Cópia); sanitização estrita de JSON |
-| **Pastas Automáticas** | Inexistente (requeria cadastro manual) | Inexistente | Pastas `videos/` e `imagens/` com sincronização e leitura em tempo real |
-| **Dimensionamento do Telão** | Fixo (propenso a corte de texto) | Reveal.js com escala padrão | Auto-Fit dinâmico (`fitTextToSlide`) impedindo truncamento |
-| **Tipografia Hinológica** | Inconsistente (estrofes variavam) | Variava por contagem bruta de HTML | Texto normalizado: fontes uniformes em `CORO`, `BIS` e `FINAL` |
-| **Fluxo de Edição** | Telão resetava para Tela Padrão | Telão resetava para Tela Padrão | Preservação contínua do slide projetado durante qualquer edição |
-| **Criação de Louvores** | Falhava ao selecionar na árvore | Falhava na atribuição de índices | Pasta expandida automaticamente, seleção imediata e foco ágil |
-| **Notificações do Operador** | Pop-ups intrusivos (`#msgSave`) | Alertas Bootstrap persistentes | Ícones informativos discretos (`Salvo` / `Não salvo`) |
-| **Dependências Órfãs** | Múltiplas bibliotecas legadas | jsTree e bandeiras removidas | Faxina completa (`head.min.js`, `perfect-scrollbar.min.js`, `bootstrap.css`) |
+| **Comunicação Inter-Janelas** | `postMessage` dependente de janelas | API nativa `BroadcastChannel` | `BroadcastChannel` com heartbeat + Ponte SSE em tempo real (`server.js`) |
+| **Controle Remoto** | Inexistente | Operação apenas no PC | Controle pelo celular no Wi-Fi (`controle.html`) com QR Code offline e PIN |
+| **Execução Local** | Falhas de CORS em `file:///` | Direto no navegador | Modo direto (`index.html`) + servidor Node.js opcional zero-dependências (`Iniciar_Com_Wifi.bat`) |
+| **Persistência de Dados** | Upload/Download manual | Vínculo `data.json` em disco | Vínculo `data.json` em disco + cache offline `MediaDB` (pastas e Bíblia) |
+| **Vídeos e Mídias** | Inexistente | Mídias locais e Auto-Fit básico | Palco fullscreen `object-fit: contain`, player na fila, sincronia e áudio exclusivo no Telão |
+| **Congelar / Freeze** | Congelava apenas estrofes de texto | Freeze básico de slides | Captura de frame em `<canvas>` + silenciamento global de qualquer `<video>` |
+| **Edição Bíblica** | Leitura somente fixa | Lazy-loading ACF/NVI | Aba dedicada de Edição (`ACF`/`NVI`) por capítulo + delta storage + exportação `.js` |
+| **Gerenciamento de Arquivos** | Falhas de quota no localStorage | Referenciamento local + `MediaDB` | Zero Cópia + pastas automáticas `videos/` e `imagens/` com ordenação estável e cache |
+| **Dimensionamento do Telão** | Fixo (propenso a corte) | Auto-Fit inicial | Auto-Fit determinístico `fitTextToSlide` + preservação de proporção em mídias |
+| **Ícones & UI** | FontAwesome desatualizado | Ícones padronizados | 100% dos ícones auditados contra `fontawesome-all.min.js` (zero `[?!]`) |
+| **Dependências Órfãs** | Bibliotecas legadas soltas | Faxina `head.min.js`, `perfect-scrollbar.min.js`, `bootstrap.css` | Arquitetura modular limpa em `js/modules/` (`storage`, `media`, `projection`, `tree`, `remote`) |
 
 ---
 
 ## 7. Próximos Passos e Recomendações de Manutenção
 
-Com a estabilização e limpeza profunda do sistema na v2.1.0:
+Com a estabilização e consolidação dos recursos na `v2.2`:
 1. **Regra Permanente de Engenharia Reversa:** Conforme diretriz estabelecida, **qualquer futura alteração de código, banco de dados ou estrutura visual do sistema deve ser obrigatoriamente refletida neste relatório técnico** ([`RELATORIO_ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/RELATORIO_ENGENHARIA_REVERSA.md)) e replicada em [`docs/ENGENHARIA_REVERSA.md`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/docs/ENGENHARIA_REVERSA.md).
 2. **Backups Litúrgicos:** Recomenda-se manter cópias periódicas do arquivo [`data/data.json`](file:///c:/Users/Emporio/Downloads/projection-html5-icm-master/data/data.json) através da opção "Exportar" do menu.
 3. **Padrão de Contribuição:** Novas inserções no acervo devem obedecer à quebra de linha dupla (`\n\n`) para a segmentação de estrofes e às marcações semânticas litúrgicas da ICM.

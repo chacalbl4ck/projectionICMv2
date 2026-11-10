@@ -416,7 +416,7 @@ function startCliServer(preferredPort) {
             const info = srv.getRemotePin();
             console.log('');
             console.log('==========================================================');
-            console.log(' PROJECAO ICM - SERVIDOR DE CONTROLE WI-FI ATIVO');
+            console.log(' PROJECAO ICM v2.2 - SERVIDOR DE CONTROLE WI-FI ATIVO');
             console.log('==========================================================');
             console.log(' Painel no PC:       http://localhost:' + currentPort + '/index.html');
             if (ips.length > 0) {
