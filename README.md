@@ -91,7 +91,7 @@ Painel do Operador
 5. Na aba **Ao Vivo**, clique nos slides ou utilize as setas do teclado para conduzir o culto.
 
 ### 2. Controle Remoto pelo Celular no Wi-Fi
-1. Certifique-se de possuir o **Node.js LTS** instalado e dê um duplo clique em [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) *(ou execute `node server.js` no terminal)*.
+1. Certifique-se de possuir o **[Node.js LTS](https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi)** instalado e dê um duplo clique em [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) *(ou execute `node server.js` no terminal)*.
 2. O painel abrirá em `http://localhost:3000/index.html`. Clique no botão **Controle Wi-Fi** na barra superior.
 3. Conecte o celular na **mesma rede Wi-Fi** do computador e escaneie o **QR Code** (ou acesse a URL exibida e informe o **PIN de 4 dígitos**).
 4. Pelo celular (`controle.html`), acompanhe os slides ao vivo, avance/retroceda estrofes, acione **Blackout**, **Congelar**, **Tela Padrão**, controle vídeos e adicione itens do acervo à fila.
