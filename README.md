@@ -1,4 +1,4 @@
-# Projeção ICM HTML5 `v2.2`
+# Projeção ICM HTML5 `v2.2.1`
 
 Sistema moderno, modular e completo de projeção e transmissão de louvores, textos bíblicos, avisos e mídias para cultos da **Igreja Cristã Maranata**.
 
@@ -8,7 +8,7 @@ Painel do Operador
 
 ---
 
-## 🚀 Principais Recursos e Novidades (`v2.2`)
+## 🚀 Principais Recursos e Novidades (`v2.2.1`)
 
 ### 1. Controle Remoto pelo Celular via Wi-Fi (`ProjecaoICM.exe` / `server.js` + `controle.html`)
 * **Conexão Rápida via QR Code e PIN:** Tanto a janela nativa do [`ProjecaoICM.exe`](ProjecaoICM.exe) quanto o botão **Controle Wi-Fi** na barra superior do painel exibem o QR Code offline, o endereço na rede local e um PIN numérico de 4 dígitos para acesso seguro a partir do navegador do celular conectado ao mesmo Wi-Fi.
@@ -123,7 +123,7 @@ Atalho | Ação
 
 ## 👤 Autoria e Manutenção
 
-### Manutenedores do Projeto (`v2.2`)
+### Manutenedores do Projeto (`v2.2.1`)
 * **ICM — Leopoldina / MG**
   * **Caio Monteiro**
     * **E-mail:** [caiormleo@outlook.com.br](mailto:caiormleo@outlook.com.br)

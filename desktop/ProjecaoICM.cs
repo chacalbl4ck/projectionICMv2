@@ -1,5 +1,5 @@
 // =====================================================================
-// Projeção ICM v2.2 - Executável Desktop Autônomo (Servidor HTTP/SSE + UI Tray)
+// Projeção ICM v2.2.1 - Executável Desktop Autônomo (Servidor HTTP/SSE + UI Tray)
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -25,8 +25,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Sistema de Projeção e Transmissão Litúrgica - Igreja Cristã Maranata")]
 [assembly: AssemblyProduct("Projeção ICM HTML5")]
 [assembly: AssemblyCompany("ICM - Leopoldina / MG")]
-[assembly: AssemblyVersion("2.2.0.0")]
-[assembly: AssemblyFileVersion("2.2.0.0")]
+[assembly: AssemblyVersion("2.2.1.0")]
+[assembly: AssemblyFileVersion("2.2.1.0")]
 
 namespace ProjecaoICMDesktop
 {
@@ -1341,7 +1341,7 @@ namespace ProjecaoICMDesktop
             _server = server;
             _webRoot = webRoot;
 
-            this.Text = "Projeção ICM v2.2";
+            this.Text = "Projeção ICM v2.2.1";
             this.Icon = appIcon;
             this.ShowInTaskbar = true;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -1365,7 +1365,7 @@ namespace ProjecaoICMDesktop
             if (appIcon != null) picLogo.Image = appIcon.ToBitmap();
 
             Label lblTitle = new Label();
-            lblTitle.Text = "Projeção ICM HTML5  v2.2";
+            lblTitle.Text = "Projeção ICM HTML5  v2.2.1";
             lblTitle.Font = new Font("Segoe UI", 13.5f, FontStyle.Bold);
             lblTitle.ForeColor = Color.FromArgb(251, 191, 36);
             lblTitle.AutoSize = true;
@@ -1515,7 +1515,7 @@ namespace ProjecaoICMDesktop
             Icon safeTrayIcon = trayIconImg ?? appIcon ?? SystemIcons.Application;
             _trayIcon = new NotifyIcon(_components);
             _trayIcon.Icon = safeTrayIcon;
-            _trayIcon.Text = string.Format("Projeção ICM v2.2 (Porta {0})", _server.Port);
+            _trayIcon.Text = string.Format("Projeção ICM v2.2.1 (Porta {0})", _server.Port);
 
             ContextMenuStrip menu = new ContextMenuStrip(_components);
             menu.Items.Add("Abrir Painel de Controle", null, delegate { LaunchBrowser(_txtPanelUrl.Text); });
@@ -1696,7 +1696,7 @@ namespace ProjecaoICMDesktop
             this.Hide();
             try
             {
-                _trayIcon.ShowBalloonTip(3000, "Projeção ICM v2.2", "Servidor ativo na bandeja do sistema (próximo ao relógio ou em ^).", ToolTipIcon.Info);
+                _trayIcon.ShowBalloonTip(3000, "Projeção ICM v2.2.1", "Servidor ativo na bandeja do sistema (próximo ao relógio ou em ^).", ToolTipIcon.Info);
             }
             catch { }
         }
@@ -1813,7 +1813,7 @@ namespace ProjecaoICMDesktop
 
     static class Program
     {
-        private const string BundleVersion = "2.2.0";
+        private const string BundleVersion = "2.2.1";
 
         [STAThread]
         static int Main(string[] args)
@@ -2069,8 +2069,8 @@ namespace ProjecaoICMDesktop
                 Icon winLarge = LoadEmbeddedAppIcon(new Size(48, 48));
                 AssertTrue(winLarge != null && winLarge.Width == 48 && winLarge.Height == 48, "app_icon.ico 48x48 inválido");
                 AssertTrue(MainForm.IsOwnNotifyIconEntry(@"C:\Apps\ProjecaoICM.exe", "Outro", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry exact failed");
-                AssertTrue(MainForm.IsOwnNotifyIconEntry(@"{6D809377}\ProjecaoICM\ProjecaoICM.exe", "Projeção ICM v2.2", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry knownfolder failed");
-                AssertTrue(!MainForm.IsOwnNotifyIconEntry(@"C:\Apps\AnyDesk.exe", "Projeção ICM v2.2", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry false positive");
+                AssertTrue(MainForm.IsOwnNotifyIconEntry(@"{6D809377}\ProjecaoICM\ProjecaoICM.exe", "Projeção ICM v2.2.1", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry knownfolder failed");
+                AssertTrue(!MainForm.IsOwnNotifyIconEntry(@"C:\Apps\AnyDesk.exe", "Projeção ICM v2.2.1", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry false positive");
                 Console.WriteLine("   PASS: Icones embutidos OK (Tray=" + trayCrisp.Width + "x" + trayCrisp.Height + ", Win=" + winLarge.Width + "x" + winLarge.Height + ")");
 
                 Console.WriteLine("2) Verificando recurso app_bundle.zip e extração portátil...");

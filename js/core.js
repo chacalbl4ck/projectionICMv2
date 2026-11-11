@@ -735,11 +735,11 @@ $(document).ready(function() {
         $('#modalNotImplemented > .modal-dialog > .modal-content > .modal-header > h5').html(title);
         var bodyHtml = `
           <div class="p-1">
-            <h5 class="text-warning mb-2"><i class="fas fa-desktop mr-1"></i> Projeção ICM HTML5 <span class="badge badge-warning text-dark ml-1">v2.2</span></h5>
+            <h5 class="text-warning mb-2"><i class="fas fa-desktop mr-1"></i> Projeção ICM HTML5 <span class="badge badge-warning text-dark ml-1">v2.2.1</span></h5>
             <p class="mb-3 text-light">Sistema avançado de projeção e transmissão de louvores, textos bíblicos e avisos para cultos.</p>
             
             <div class="card bg-secondary text-light p-3 mb-3 border-0">
-              <p class="mb-1 font-weight-bold"><i class="fas fa-code-branch mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.2):</p>
+              <p class="mb-1 font-weight-bold"><i class="fas fa-code-branch mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.2.1):</p>
               <p class="mb-2 text-warning small font-weight-bold"><i class="fas fa-map-marker-alt mr-1"></i> ICM - Leopoldina / MG</p>
               
               <div class="border-top border-dark pt-2 mb-2">
