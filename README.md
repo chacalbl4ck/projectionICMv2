@@ -2,6 +2,8 @@
 
 Sistema moderno, modular e completo de projeção e transmissão de louvores, textos bíblicos, avisos e mídias para cultos da **Igreja Cristã Maranata**.
 
+> **Aviso Importante:** Este software **não é um software oficial nem é endossado pela Igreja Cristã Maranata (ICM)**. Trata-se de um projeto independente, feito por membros para os membros.
+
 Painel do Operador
 
 ![](/docs/assets/img/visao.gif)

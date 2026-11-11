@@ -737,6 +737,11 @@ $(document).ready(function() {
           <div class="p-1">
             <h5 class="text-warning mb-2"><i class="fas fa-desktop mr-1"></i> Projeção ICM HTML5 <span class="badge badge-warning text-dark ml-1">v2.2.1</span></h5>
             <p class="mb-3 text-light">Sistema avançado de projeção e transmissão de louvores, textos bíblicos e avisos para cultos.</p>
+
+            <div class="alert alert-warning text-dark p-2 mb-3 small border-0" role="alert">
+              <p class="mb-1 font-weight-bold"><i class="fas fa-exclamation-triangle mr-1"></i> Aviso Importante:</p>
+              <p class="mb-0">Este software <strong>não é um software oficial nem é endossado pela Igreja Cristã Maranata (ICM)</strong>. Trata-se de um projeto independente, feito por membros para os membros.</p>
+            </div>
             
             <div class="card bg-secondary text-light p-3 mb-3 border-0">
               <p class="mb-1 font-weight-bold"><i class="fas fa-code-branch mr-1 text-info"></i> Manutenção e Desenvolvimento (v2.2.1):</p>
