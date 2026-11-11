@@ -19,6 +19,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 [assembly: AssemblyTitle("Projeção ICM")]
 [assembly: AssemblyDescription("Sistema de Projeção e Transmissão Litúrgica - Igreja Cristã Maranata")]
@@ -1328,6 +1329,8 @@ namespace ProjecaoICMDesktop
         private string _currentWifiUrl;
         private string _lastQrUrl;
         private bool _updatingIps;
+        private System.Windows.Forms.Timer _trayPromoteTimer;
+        private int _trayPromoteAttempts;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern uint RegisterWindowMessage(string lpString);
@@ -1526,7 +1529,6 @@ namespace ProjecaoICMDesktop
             _trayIcon.MouseClick += delegate(object sender, MouseEventArgs me) {
                 if (me.Button == MouseButtons.Left) RestoreWindow();
             };
-            _trayIcon.Visible = true;
 
             _server.OnStatusChanged = delegate {
                 if (!this.IsDisposed && this.IsHandleCreated)
@@ -1538,13 +1540,22 @@ namespace ProjecaoICMDesktop
             this.Shown += delegate {
                 try
                 {
-                    _trayIcon.Visible = false;
+                    // Promove previamente no Windows 11 caso já exista registro sem preferência IsPromoted
+                    bool newlyPromoted = false;
+                    bool foundEntry = TryPromoteTrayIconOnWin11(out newlyPromoted);
                     _trayIcon.Visible = true;
+                    if (!foundEntry) StartTrayPromotionCheck();
                 }
                 catch { }
             };
 
             this.FormClosing += delegate {
+                if (_trayPromoteTimer != null)
+                {
+                    _trayPromoteTimer.Stop();
+                    _trayPromoteTimer.Dispose();
+                    _trayPromoteTimer = null;
+                }
                 _trayIcon.Visible = false;
                 _trayIcon.Dispose();
                 if (_picQr != null && _picQr.Image != null)
@@ -1557,6 +1568,102 @@ namespace ProjecaoICMDesktop
             };
 
             RefreshStatusUi();
+        }
+
+        private void StartTrayPromotionCheck()
+        {
+            if (_trayPromoteTimer != null) return;
+            _trayPromoteAttempts = 0;
+            _trayPromoteTimer = new System.Windows.Forms.Timer(_components);
+            _trayPromoteTimer.Interval = 500;
+            _trayPromoteTimer.Tick += delegate {
+                _trayPromoteAttempts++;
+                bool newlyPromoted = false;
+                bool resolved = TryPromoteTrayIconOnWin11(out newlyPromoted);
+                if (newlyPromoted && _trayIcon != null)
+                {
+                    try
+                    {
+                        _trayIcon.Visible = false;
+                        _trayIcon.Visible = true;
+                    }
+                    catch { }
+                }
+                if ((resolved || _trayPromoteAttempts >= 8) && _trayPromoteTimer != null)
+                {
+                    _trayPromoteTimer.Stop();
+                    _trayPromoteTimer.Dispose();
+                    _trayPromoteTimer = null;
+                }
+            };
+            _trayPromoteTimer.Start();
+        }
+
+        public static bool IsOwnNotifyIconEntry(string entryExePath, string entryTooltip, string selfExePath)
+        {
+            if (string.IsNullOrEmpty(entryExePath) || string.IsNullOrEmpty(selfExePath)) return false;
+            string cleanEntry = entryExePath.Trim();
+            string cleanSelf = Path.GetFullPath(selfExePath);
+
+            try
+            {
+                if (Path.IsPathRooted(cleanEntry) && !cleanEntry.StartsWith("{", StringComparison.Ordinal))
+                {
+                    if (string.Equals(Path.GetFullPath(cleanEntry), cleanSelf, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { }
+
+            string exeFileName = Path.GetFileName(cleanSelf);
+            if (!string.IsNullOrEmpty(exeFileName) &&
+                cleanEntry.EndsWith("\\" + exeFileName, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrEmpty(entryTooltip) &&
+                entryTooltip.StartsWith("Projeção ICM", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static bool TryPromoteTrayIconOnWin11(out bool newlyPromoted)
+        {
+            newlyPromoted = false;
+            bool foundAny = false;
+            try
+            {
+                string selfExe = Application.ExecutablePath;
+                using (RegistryKey root = Registry.CurrentUser.OpenSubKey(@"Control Panel\NotifyIconSettings", false))
+                {
+                    if (root == null) return true; // Windows 10 ou anterior
+                    string[] names = root.GetSubKeyNames();
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        using (RegistryKey subRead = root.OpenSubKey(names[i], false))
+                        {
+                            if (subRead == null) continue;
+                            string exePath = subRead.GetValue("ExecutablePath") as string;
+                            string tip = subRead.GetValue("InitialTooltip") as string;
+                            if (!IsOwnNotifyIconEntry(exePath, tip, selfExe)) continue;
+
+                            foundAny = true;
+                            if (subRead.GetValue("IsPromoted") == null)
+                            {
+                                using (RegistryKey subWrite = root.OpenSubKey(names[i], true))
+                                {
+                                    if (subWrite != null && subWrite.GetValue("IsPromoted") == null)
+                                    {
+                                        subWrite.SetValue("IsPromoted", 1, RegistryValueKind.DWord);
+                                        newlyPromoted = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return foundAny;
         }
 
         protected override void WndProc(ref Message m)
@@ -1575,19 +1682,31 @@ namespace ProjecaoICMDesktop
 
         private void HideToTray()
         {
+            bool newlyPromoted = false;
+            TryPromoteTrayIconOnWin11(out newlyPromoted);
+            if (!_trayIcon.Visible || newlyPromoted)
+            {
+                try
+                {
+                    if (newlyPromoted) _trayIcon.Visible = false;
+                    _trayIcon.Visible = true;
+                }
+                catch { }
+            }
             this.Hide();
             try
             {
-                _trayIcon.ShowBalloonTip(2500, "Projeção ICM v2.2", "Servidor ativo na bandeja do sistema (clique no ícone ou em ^ próximo ao relógio).", ToolTipIcon.Info);
+                _trayIcon.ShowBalloonTip(3000, "Projeção ICM v2.2", "Servidor ativo na bandeja do sistema (próximo ao relógio ou em ^).", ToolTipIcon.Info);
             }
             catch { }
         }
 
-        private void RestoreWindow()
+        public void RestoreWindow()
         {
             this.Show();
             this.ShowInTaskbar = true;
             this.WindowState = FormWindowState.Normal;
+            this.BringToFront();
             this.Activate();
         }
 
@@ -1707,6 +1826,7 @@ namespace ProjecaoICMDesktop
                 }
             }
 
+            const string restoreEventName = "ProjecaoICM_v22_RestoreWindow_Event";
             bool createdNew;
             string portFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -1716,6 +1836,13 @@ namespace ProjecaoICMDesktop
             {
                 if (!createdNew)
                 {
+                    try
+                    {
+                        using (EventWaitHandle ev = EventWaitHandle.OpenExisting(restoreEventName))
+                            ev.Set();
+                    }
+                    catch { }
+
                     int activePort = 3000;
                     try
                     {
@@ -1754,7 +1881,8 @@ namespace ProjecaoICMDesktop
                 }
 
                 Icon appIcon = LoadEmbeddedAppIcon(new Size(48, 48));
-                Icon trayIconImg = LoadEmbeddedAppIcon(SystemInformation.SmallIconSize);
+                Size traySize = (SystemInformation.SmallIconSize.Width >= 32) ? SystemInformation.SmallIconSize : new Size(32, 32);
+                Icon trayIconImg = LoadEmbeddedAppIcon(traySize);
 
                 MainForm form = new MainForm(server, webRoot, appIcon, trayIconImg);
                 // Abre automaticamente o painel no navegador padrão (o qual abrirá o Telão automaticamente)
@@ -1762,8 +1890,31 @@ namespace ProjecaoICMDesktop
                     MainForm.LaunchBrowser(string.Format("http://localhost:{0}/index.html", server.Port));
                 };
 
-                Application.Run(form);
+                using (EventWaitHandle restoreEv = new EventWaitHandle(false, EventResetMode.AutoReset, restoreEventName))
+                {
+                    RegisteredWaitHandle waitReg = ThreadPool.RegisterWaitForSingleObject(
+                        restoreEv,
+                        delegate {
+                            if (!form.IsDisposed && form.IsHandleCreated)
+                            {
+                                try { form.BeginInvoke((MethodInvoker)form.RestoreWindow); } catch { }
+                            }
+                        },
+                        null,
+                        -1,
+                        false);
+                    try
+                    {
+                        Application.Run(form);
+                    }
+                    finally
+                    {
+                        try { waitReg.Unregister(null); } catch { }
+                    }
+                }
                 try { if (File.Exists(portFile)) File.Delete(portFile); } catch { }
+                GC.KeepAlive(appIcon);
+                GC.KeepAlive(trayIconImg);
                 GC.KeepAlive(singleInstance);
                 return 0;
             }
@@ -1913,9 +2064,14 @@ namespace ProjecaoICMDesktop
                 AssertTrue(ico != null && ico.Width > 0 && ico.Height > 0, "Icone Win32 não encontrado no EXE");
                 Icon traySmall = LoadEmbeddedAppIcon(SystemInformation.SmallIconSize);
                 AssertTrue(traySmall != null && traySmall.Width > 0 && traySmall.Height > 0, "app_icon.ico SmallIconSize inválido");
+                Icon trayCrisp = LoadEmbeddedAppIcon(new Size(32, 32));
+                AssertTrue(trayCrisp != null && trayCrisp.Width == 32 && trayCrisp.Height == 32, "app_icon.ico 32x32 inválido");
                 Icon winLarge = LoadEmbeddedAppIcon(new Size(48, 48));
                 AssertTrue(winLarge != null && winLarge.Width == 48 && winLarge.Height == 48, "app_icon.ico 48x48 inválido");
-                Console.WriteLine("   PASS: Icones embutidos OK (Tray=" + traySmall.Width + "x" + traySmall.Height + ", Win=" + winLarge.Width + "x" + winLarge.Height + ")");
+                AssertTrue(MainForm.IsOwnNotifyIconEntry(@"C:\Apps\ProjecaoICM.exe", "Outro", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry exact failed");
+                AssertTrue(MainForm.IsOwnNotifyIconEntry(@"{6D809377}\ProjecaoICM\ProjecaoICM.exe", "Projeção ICM v2.2", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry knownfolder failed");
+                AssertTrue(!MainForm.IsOwnNotifyIconEntry(@"C:\Apps\AnyDesk.exe", "Projeção ICM v2.2", @"C:\Apps\ProjecaoICM.exe"), "IsOwnNotifyIconEntry false positive");
+                Console.WriteLine("   PASS: Icones embutidos OK (Tray=" + trayCrisp.Width + "x" + trayCrisp.Height + ", Win=" + winLarge.Width + "x" + winLarge.Height + ")");
 
                 Console.WriteLine("2) Verificando recurso app_bundle.zip e extração portátil...");
                 string tempRoot = Path.Combine(Path.GetTempPath(), "projecao_icm_selftest_" + Guid.NewGuid().ToString("N"));
