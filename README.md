@@ -83,20 +83,25 @@ Painel do Operador
 
 ## 📖 Como Usar
 
-### 1. Projeção Tradicional no Computador (Painel + Telão)
-1. Abra o arquivo [`index.html`](index.html) no navegador na tela de controle do operador *(ou inicie via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) para habilitar também o controle pelo celular)*.
+### 1. Executável Desktop Windows (`ProjecaoICM.exe`) — Recomendado
+1. Dê um duplo clique em [`ProjecaoICM.exe`](ProjecaoICM.exe) (com o ícone oficial da Igreja Cristã Maranata).
+2. O aplicativo inicia automaticamente o servidor local embutido *(sem exigir instalação do Node.js)*, abre o Painel de Controle e o **Telão** (`view.html`), exibe o endereço e **PIN** para o Controle Wi-Fi no celular e minimiza para a bandeja do sistema.
+3. O executável também funciona de forma **portátil e autônoma** caso seja copiado sozinho para outra pasta ou outro computador Windows (extrai automaticamente os recursos em `%LocalAppData%\ProjecaoICM\app`).
+
+### 2. Modo Tradicional via Navegador ou Script Node.js
+1. Abra o arquivo [`index.html`](index.html) no navegador na tela de controle do operador *(ou inicie via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) usando o **[Node.js LTS](https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi)** para habilitar o controle pelo celular)*.
 2. O sistema abrirá **automaticamente** a janela do Telão ([`view.html`](view.html)) ao iniciar *(caso o navegador bloqueie o pop-up automático na primeira execução, autorize pop-ups para o endereço ou clique em **Abrir Telão agora** no aviso exibido)*. Arraste a janela para o projetor/TV e pressione **F11** para tela cheia.
 3. Para salvar alterações diretamente no arquivo físico, utilize **Vincular data.json** na barra superior.
 4. No painel esquerdo, dê um **duplo clique** sobre qualquer hino, aviso ou mídia (ou selecione versículos nas abas **Bíblia** / **Edição da Bíblia**) para enviar à fila de projeção.
 5. Na aba **Ao Vivo**, clique nos slides ou utilize as setas do teclado para conduzir o culto.
 
-### 2. Controle Remoto pelo Celular no Wi-Fi
-1. Certifique-se de possuir o **[Node.js LTS](https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi)** instalado e dê um duplo clique em [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) *(ou execute `node server.js` no terminal)*.
-2. O painel abrirá em `http://localhost:3000/index.html`. Clique no botão **Controle Wi-Fi** na barra superior.
+### 3. Controle Remoto pelo Celular no Wi-Fi
+1. Inicie o sistema via [`ProjecaoICM.exe`](ProjecaoICM.exe) **ou** via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) *(requer Node.js apenas no `.bat`)*.
+2. O painel abrirá em `http://localhost:3000/index.html`. Clique no botão **Controle Wi-Fi** na barra superior (ou consulte a janela do `ProjecaoICM.exe`).
 3. Conecte o celular na **mesma rede Wi-Fi** do computador e escaneie o **QR Code** (ou acesse a URL exibida e informe o **PIN de 4 dígitos**).
 4. Pelo celular (`controle.html`), acompanhe os slides ao vivo, avance/retroceda estrofes, acione **Blackout**, **Congelar**, **Tela Padrão**, controle vídeos e adicione itens do acervo à fila.
 
-### 3. Transmissão para OBS Studio / vMix (Lower Thirds)
+### 4. Transmissão para OBS Studio / vMix (Lower Thirds)
 1. No painel principal, clique em **Saída OBS** ou adicione uma fonte do tipo **Navegador** (*Browser Source*) no OBS Studio apontando para [`obs.html`](obs.html) (`http://localhost:3000/obs.html` quando usando o servidor Wi-Fi ou `file:///.../obs.html` no modo direto).
 2. Configure **Largura:** `1920` e **Altura:** `1080`.
 3. As letras dos louvores, avisos e versículos aparecerão automaticamente no terço inferior com fundo transparente sobre a câmera.
