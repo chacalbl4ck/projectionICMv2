@@ -973,6 +973,343 @@ namespace ProjecaoICMDesktop
         }
     }
 
+    public static class OfflineQrGenerator
+    {
+        private static readonly int[] Exp = new int[512];
+        private static readonly int[] Log = new int[256];
+
+        private class QrSpec
+        {
+            public int Size;
+            public int Cap;
+            public int DataBytes;
+            public int EcBytes;
+            public int Blocks;
+            public int[] Align;
+            public QrSpec(int size, int cap, int dataBytes, int ecBytes, int blocks, int[] align)
+            {
+                Size = size; Cap = cap; DataBytes = dataBytes; EcBytes = ecBytes; Blocks = blocks; Align = align;
+            }
+        }
+
+        private static readonly QrSpec[] Specs = new QrSpec[]
+        {
+            null,
+            new QrSpec(21, 17, 19, 7, 1, new int[0]),
+            new QrSpec(25, 32, 34, 10, 1, new int[] { 6, 18 }),
+            new QrSpec(29, 53, 55, 15, 1, new int[] { 6, 22 }),
+            new QrSpec(33, 78, 80, 20, 1, new int[] { 6, 26 }),
+            new QrSpec(37, 106, 108, 26, 1, new int[] { 6, 30 }),
+            new QrSpec(41, 134, 136, 18, 2, new int[] { 6, 34 })
+        };
+
+        static OfflineQrGenerator()
+        {
+            int x = 1;
+            for (int i = 0; i < 255; i++)
+            {
+                Exp[i] = x;
+                Exp[i + 255] = x;
+                Log[x] = i;
+                x = (x << 1) ^ ((x & 128) != 0 ? 0x11d : 0);
+            }
+        }
+
+        private static int GfMul(int a, int b)
+        {
+            if (a == 0 || b == 0) return 0;
+            return Exp[Log[a] + Log[b]];
+        }
+
+        private static int[] RsGenPoly(int ecLen)
+        {
+            int[] poly = new int[] { 1 };
+            for (int i = 0; i < ecLen; i++)
+            {
+                int[] next = new int[poly.Length + 1];
+                int root = Exp[i];
+                for (int j = 0; j < poly.Length; j++)
+                {
+                    next[j] ^= poly[j];
+                    next[j + 1] ^= GfMul(poly[j], root);
+                }
+                poly = next;
+            }
+            return poly;
+        }
+
+        private static int[] RsRemainder(int[] data, int ecLen)
+        {
+            int[] gen = RsGenPoly(ecLen);
+            int[] rem = new int[data.Length + ecLen];
+            Array.Copy(data, rem, data.Length);
+            for (int i = 0; i < data.Length; i++)
+            {
+                int factor = rem[i];
+                if (factor != 0)
+                {
+                    for (int j = 0; j < gen.Length; j++)
+                    {
+                        rem[i + j] ^= GfMul(gen[j], factor);
+                    }
+                }
+            }
+            int[] ec = new int[ecLen];
+            Array.Copy(rem, data.Length, ec, 0, ecLen);
+            return ec;
+        }
+
+        private static int[] EncodeDataBits(string text, out QrSpec outSpec)
+        {
+            byte[] utf8 = Encoding.UTF8.GetBytes(text ?? "");
+            int ver = 1;
+            while (ver < Specs.Length && utf8.Length > Specs[ver].Cap) ver++;
+            if (ver >= Specs.Length) ver = Specs.Length - 1;
+            QrSpec spec = Specs[ver];
+            outSpec = spec;
+
+            int payLen = Math.Min(utf8.Length, spec.capCompat());
+            List<int> bits = new List<int>();
+            PushBits(bits, 4, 4); // Modo Byte (0100)
+            PushBits(bits, payLen, 8);
+            for (int i = 0; i < payLen; i++) PushBits(bits, utf8[i], 8);
+
+            int maxBits = spec.DataBytes * 8;
+            int term = Math.Min(4, maxBits - bits.Count);
+            PushBits(bits, 0, term);
+            while (bits.Count % 8 != 0) bits.Add(0);
+
+            List<int> codewords = new List<int>();
+            for (int p = 0; p < bits.Count; p += 8)
+            {
+                int bv = 0;
+                for (int q = 0; q < 8; q++) bv = (bv << 1) | bits[p + q];
+                codewords.Add(bv);
+            }
+            int padIdx = 0;
+            while (codewords.Count < spec.DataBytes)
+            {
+                codewords.Add((padIdx % 2 == 0) ? 0xec : 0x11);
+                padIdx++;
+            }
+
+            int dataPerBlock = spec.DataBytes / spec.Blocks;
+            List<int[]> dataBlocks = new List<int[]>();
+            List<int[]> ecBlocks = new List<int[]>();
+            int offset = 0;
+            for (int b = 0; b < spec.Blocks; b++)
+            {
+                int[] blk = new int[dataPerBlock];
+                codewords.CopyTo(offset, blk, 0, dataPerBlock);
+                offset += dataPerBlock;
+                dataBlocks.Add(blk);
+                ecBlocks.Add(RsRemainder(blk, spec.EcBytes));
+            }
+
+            List<int> finalBytes = new List<int>();
+            for (int cIdx = 0; cIdx < dataPerBlock; cIdx++)
+                for (int bIdx = 0; bIdx < spec.Blocks; bIdx++) finalBytes.Add(dataBlocks[bIdx][cIdx]);
+            for (int eIdx = 0; eIdx < spec.EcBytes; eIdx++)
+                for (int bIdx = 0; bIdx < spec.Blocks; bIdx++) finalBytes.Add(ecBlocks[bIdx][eIdx]);
+
+            List<int> finalBits = new List<int>(finalBytes.Count * 8);
+            for (int f = 0; f < finalBytes.Count; f++)
+                for (int bit = 7; bit >= 0; bit--) finalBits.Add((finalBytes[f] >> bit) & 1);
+            return finalBits.ToArray();
+        }
+
+        private static void SetFunc(int[,] mat, bool[,] isFunc, int n, int r, int c, bool val)
+        {
+            if (r < 0 || r >= n || c < 0 || c >= n) return;
+            mat[r, c] = val ? 1 : 0;
+            isFunc[r, c] = true;
+        }
+
+        private static void DrawFinder(int[,] mat, bool[,] isFunc, int n, int top, int left)
+        {
+            for (int dr = -1; dr <= 7; dr++)
+            {
+                for (int dc = -1; dc <= 7; dc++)
+                {
+                    int rr = top + dr, cc = left + dc;
+                    if (rr < 0 || rr >= n || cc < 0 || cc >= n) continue;
+                    bool inBox = dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6;
+                    bool dark = inBox && (dr == 0 || dr == 6 || dc == 0 || dc == 6 || (dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4));
+                    SetFunc(mat, isFunc, n, rr, cc, dark);
+                }
+            }
+        }
+
+        private static void CreateBaseGrid(QrSpec spec, out int[,] mat, out bool[,] isFunc)
+        {
+            int n = spec.Size;
+            mat = new int[n, n];
+            isFunc = new bool[n, n];
+
+            DrawFinder(mat, isFunc, n, 0, 0);
+            DrawFinder(mat, isFunc, n, 0, n - 7);
+            DrawFinder(mat, isFunc, n, n - 7, 0);
+
+            if (spec.Align.Length >= 2)
+            {
+                int aPos = spec.Align[spec.Align.Length - 1];
+                for (int dr = -2; dr <= 2; dr++)
+                    for (int dc = -2; dc <= 2; dc++)
+                        SetFunc(mat, isFunc, n, aPos + dr, aPos + dc, Math.Max(Math.Abs(dr), Math.Abs(dc)) != 1);
+            }
+
+            for (int i = 8; i < n - 8; i++)
+            {
+                SetFunc(mat, isFunc, n, 6, i, i % 2 == 0);
+                SetFunc(mat, isFunc, n, i, 6, i % 2 == 0);
+            }
+
+            SetFunc(mat, isFunc, n, n - 8, 8, true);
+            for (int k = 0; k < 9; k++)
+            {
+                if (k != 6) { isFunc[8, k] = true; isFunc[k, 8] = true; }
+            }
+            for (int m = 0; m < 8; m++)
+            {
+                isFunc[8, n - 1 - m] = true;
+                isFunc[n - 1 - m, 8] = true;
+            }
+        }
+
+        private static int ComputeFormatBits(int maskIdx)
+        {
+            int data = (1 << 3) | maskIdx;
+            int rem = data << 10;
+            for (int i = 4; i >= 0; i--)
+                if (((rem >> (i + 10)) & 1) != 0) rem ^= (0x537 << i);
+            return ((data << 10) | rem) ^ 0x5412;
+        }
+
+        private static int[,] ApplyFormatAndMask(int n, int[,] baseMat, bool[,] isFunc, int[] bits, int maskIdx)
+        {
+            int[,] mat = (int[,])baseMat.Clone();
+            int bitIdx = 0;
+            for (int right = n - 1; right >= 1; right -= 2)
+            {
+                if (right == 6) right = 5;
+                for (int step = 0; step < n; step++)
+                {
+                    bool upward = (((right + 1) & 2) == 0);
+                    int r = upward ? (n - 1 - step) : step;
+                    for (int cOff = 0; cOff < 2; cOff++)
+                    {
+                        int c = right - cOff;
+                        if (!isFunc[r, c])
+                        {
+                            int rawBit = (bitIdx < bits.Length) ? bits[bitIdx++] : 0;
+                            bool flip;
+                            if (maskIdx == 0) flip = ((r + c) % 2 == 0);
+                            else if (maskIdx == 1) flip = (r % 2 == 0);
+                            else if (maskIdx == 2) flip = (c % 3 == 0);
+                            else if (maskIdx == 3) flip = ((r + c) % 3 == 0);
+                            else if (maskIdx == 4) flip = (((r / 2) + (c / 3)) % 2 == 0);
+                            else if (maskIdx == 5) flip = (((r * c) % 2) + ((r * c) % 3) == 0);
+                            else if (maskIdx == 6) flip = ((((r * c) % 2) + ((r * c) % 3)) % 2 == 0);
+                            else flip = ((((r + c) % 2) + ((r * c) % 3)) % 2 == 0);
+                            mat[r, c] = rawBit ^ (flip ? 1 : 0);
+                        }
+                    }
+                }
+            }
+
+            int fmt = ComputeFormatBits(maskIdx);
+            for (int i = 0; i <= 5; i++) mat[8, i] = (fmt >> (14 - i)) & 1;
+            mat[8, 7] = (fmt >> 8) & 1;
+            mat[8, 8] = (fmt >> 7) & 1;
+            mat[7, 8] = (fmt >> 6) & 1;
+            for (int j = 9; j <= 14; j++) mat[14 - j, 8] = (fmt >> (14 - j)) & 1;
+            for (int b = 0; b < 8; b++) mat[8, n - 1 - b] = (fmt >> b) & 1;
+            for (int b2 = 0; b2 < 7; b2++) mat[n - 1 - b2, 8] = (fmt >> (14 - b2)) & 1;
+            mat[n - 8, 8] = 1;
+            return mat;
+        }
+
+        private static int ScorePenalty(int n, int[,] mat)
+        {
+            int penalty = 0;
+            for (int r = 0; r < n; r++)
+            {
+                int run = 1;
+                for (int c = 1; c < n; c++)
+                {
+                    if (mat[r, c] == mat[r, c - 1]) { run++; if (run == 5) penalty += 3; else if (run > 5) penalty++; }
+                    else run = 1;
+                }
+            }
+            for (int c = 0; c < n; c++)
+            {
+                int run = 1;
+                for (int r = 1; r < n; r++)
+                {
+                    if (mat[r, c] == mat[r - 1, c]) { run++; if (run == 5) penalty += 3; else if (run > 5) penalty++; }
+                    else run = 1;
+                }
+            }
+            for (int r = 0; r < n - 1; r++)
+                for (int c = 0; c < n - 1; c++)
+                {
+                    int sum = mat[r, c] + mat[r, c + 1] + mat[r + 1, c] + mat[r + 1, c + 1];
+                    if (sum == 0 || sum == 4) penalty += 3;
+                }
+            return penalty;
+        }
+
+        public static int[,] GenerateMatrix(string text)
+        {
+            QrSpec spec;
+            int[] bits = EncodeDataBits(text, out spec);
+            int[,] baseMat;
+            bool[,] isFunc;
+            CreateBaseGrid(spec, out baseMat, out isFunc);
+            int[,] bestMat = null;
+            int bestScore = int.MaxValue;
+            for (int m = 0; m < 8; m++)
+            {
+                int[,] cand = ApplyFormatAndMask(spec.Size, baseMat, isFunc, bits, m);
+                int s = ScorePenalty(spec.Size, cand);
+                if (s < bestScore) { bestScore = s; bestMat = cand; }
+            }
+            return bestMat;
+        }
+
+        public static Bitmap RenderBitmap(string text, int targetSize)
+        {
+            int[,] mat = GenerateMatrix(text);
+            int n = mat.GetLength(0);
+            int quiet = 4;
+            int totalMods = n + quiet * 2;
+            int modSize = Math.Max(3, targetSize / totalMods);
+            int realPx = totalMods * modSize;
+
+            Bitmap bmp = new Bitmap(realPx, realPx, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                for (int r = 0; r < n; r++)
+                {
+                    for (int c = 0; c < n; c++)
+                    {
+                        if (mat[r, c] != 0)
+                            g.FillRectangle(Brushes.Black, (c + quiet) * modSize, (r + quiet) * modSize, modSize, modSize);
+                    }
+                }
+            }
+            return bmp;
+        }
+
+        private static void PushBits(List<int> bits, int val, int len)
+        {
+            for (int b = len - 1; b >= 0; b--) bits.Add((val >> b) & 1);
+        }
+
+        private static int capCompat(this QrSpec spec) { return spec.Cap; }
+    }
+
     public class MainForm : Form
     {
         private readonly ProjectionHttpServer _server;
@@ -986,7 +1323,11 @@ namespace ProjecaoICMDesktop
         private readonly TextBox _txtWifiUrl;
         private readonly TextBox _txtObsUrl;
         private readonly Button _btnTogglePin;
+        private readonly PictureBox _picQr;
+        private readonly ComboBox _cmbIps;
         private string _currentWifiUrl;
+        private string _lastQrUrl;
+        private bool _updatingIps;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern uint RegisterWindowMessage(string lpString);
@@ -1003,7 +1344,7 @@ namespace ProjecaoICMDesktop
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.ClientSize = new Size(510, 430);
+            this.ClientSize = new Size(740, 430);
             this.BackColor = Color.FromArgb(14, 24, 48);
             this.ForeColor = Color.White;
             this.Font = new Font("Segoe UI", 9.5f);
@@ -1120,6 +1461,53 @@ namespace ProjecaoICMDesktop
 
             this.Controls.AddRange(new Control[] { btnTelao, btnFolder, btnHideTray, btnClose });
 
+            // Painel direito dedicado ao QR Code Wi-Fi
+            Panel qrCard = new Panel();
+            qrCard.Location = new Point(508, 92);
+            qrCard.Size = new Size(214, 314);
+            qrCard.BackColor = Color.FromArgb(24, 38, 72);
+
+            Label lblQrTitle = new Label();
+            lblQrTitle.Text = "QR Code Wi-Fi (Celular)";
+            lblQrTitle.Location = new Point(0, 8);
+            lblQrTitle.Size = new Size(214, 24);
+            lblQrTitle.TextAlign = ContentAlignment.MiddleCenter;
+            lblQrTitle.ForeColor = Color.FromArgb(251, 191, 36);
+            lblQrTitle.Font = new Font("Segoe UI", 9.8f, FontStyle.Bold);
+
+            Panel qrWrap = new Panel();
+            qrWrap.Location = new Point(12, 36);
+            qrWrap.Size = new Size(190, 190);
+            qrWrap.BackColor = Color.White;
+
+            _picQr = new PictureBox();
+            _picQr.Dock = DockStyle.Fill;
+            _picQr.SizeMode = PictureBoxSizeMode.CenterImage;
+            _picQr.BackColor = Color.White;
+            qrWrap.Controls.Add(_picQr);
+
+            _cmbIps = new ComboBox();
+            _cmbIps.Location = new Point(12, 234);
+            _cmbIps.Size = new Size(190, 26);
+            _cmbIps.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cmbIps.BackColor = Color.FromArgb(30, 41, 59);
+            _cmbIps.ForeColor = Color.White;
+            _cmbIps.FlatStyle = FlatStyle.Flat;
+            _cmbIps.SelectedIndexChanged += delegate {
+                if (!_updatingIps) RefreshStatusUi();
+            };
+
+            Label lblQrHint = new Label();
+            lblQrHint.Text = "Conecte o celular na mesma rede Wi-Fi\ne aponte a câmera para controlar ao vivo.";
+            lblQrHint.Location = new Point(8, 266);
+            lblQrHint.Size = new Size(198, 42);
+            lblQrHint.TextAlign = ContentAlignment.TopCenter;
+            lblQrHint.ForeColor = Color.FromArgb(203, 213, 225);
+            lblQrHint.Font = new Font("Segoe UI", 8.2f);
+
+            qrCard.Controls.AddRange(new Control[] { lblQrTitle, qrWrap, _cmbIps, lblQrHint });
+            this.Controls.Add(qrCard);
+
             // Ícone na bandeja do sistema (System Tray) vinculado a Container + TaskbarCreated
             Icon safeTrayIcon = trayIconImg ?? appIcon ?? SystemIcons.Application;
             _trayIcon = new NotifyIcon(_components);
@@ -1159,6 +1547,11 @@ namespace ProjecaoICMDesktop
             this.FormClosing += delegate {
                 _trayIcon.Visible = false;
                 _trayIcon.Dispose();
+                if (_picQr != null && _picQr.Image != null)
+                {
+                    _picQr.Image.Dispose();
+                    _picQr.Image = null;
+                }
                 _components.Dispose();
                 _server.Stop();
             };
@@ -1201,13 +1594,46 @@ namespace ProjecaoICMDesktop
         public void RefreshStatusUi()
         {
             List<string> ips = ProjectionHttpServer.ObterIpsLocais();
-            string ipHost = ips.Count > 0 ? ips[0] : "127.0.0.1";
+            if (ips.Count == 0) ips.Add("127.0.0.1");
+
+            string prevIp = (_cmbIps.SelectedItem != null) ? _cmbIps.SelectedItem.ToString() : "";
+            bool listChanged = _cmbIps.Items.Count != ips.Count;
+            if (!listChanged)
+            {
+                for (int i = 0; i < ips.Count; i++)
+                {
+                    if (!string.Equals(_cmbIps.Items[i].ToString(), ips[i], StringComparison.Ordinal))
+                    {
+                        listChanged = true;
+                        break;
+                    }
+                }
+            }
+            if (listChanged)
+            {
+                _updatingIps = true;
+                _cmbIps.Items.Clear();
+                foreach (string ip in ips) _cmbIps.Items.Add(ip);
+                int selIdx = !string.IsNullOrEmpty(prevIp) ? ips.IndexOf(prevIp) : 0;
+                _cmbIps.SelectedIndex = selIdx >= 0 ? selIdx : 0;
+                _updatingIps = false;
+            }
+
+            string ipHost = (_cmbIps.SelectedItem != null) ? _cmbIps.SelectedItem.ToString() : ips[0];
             bool pinOn = _server.PinEnabled;
             string pin = _server.Pin;
             _currentWifiUrl = pinOn
                 ? string.Format("http://{0}:{1}/controle.html?pin={2}", ipHost, _server.Port, pin)
                 : string.Format("http://{0}:{1}/controle.html", ipHost, _server.Port);
             _txtWifiUrl.Text = _currentWifiUrl;
+
+            if (!string.Equals(_lastQrUrl, _currentWifiUrl, StringComparison.Ordinal))
+            {
+                _lastQrUrl = _currentWifiUrl;
+                Image oldImg = _picQr.Image;
+                _picQr.Image = OfflineQrGenerator.RenderBitmap(_currentWifiUrl, 186);
+                if (oldImg != null) oldImg.Dispose();
+            }
 
             _lblPin.Text = pinOn ? ("PIN Wi-Fi: " + pin) : "PIN Wi-Fi: Desativado";
             _btnTogglePin.Text = pinOn ? "Desativar PIN" : "Ativar PIN";
@@ -1565,6 +1991,18 @@ namespace ProjecaoICMDesktop
                         AssertTrue(rNew.StartsWith("HTTP/1.1 200"), "Novo PIN deveria funcionar");
                     }
                     Console.WriteLine("   PASS: Todas as rotas HTTP/SSE do executável validadas.");
+
+                    Console.WriteLine("4) Testando gerador de QR Code offline nativo do EXE...");
+                    int[,] qMat = OfflineQrGenerator.GenerateMatrix("http://192.168.1.10:3000/controle.html?pin=4242");
+                    int qn = qMat.GetLength(0);
+                    AssertTrue(qn >= 21 && qn == qMat.GetLength(1), "Matriz QR invalida");
+                    AssertTrue(qMat[0, 0] == 1 && qMat[0, qn - 1] == 1 && qMat[qn - 1, 0] == 1 && qMat[3, 3] == 1, "Finder pattern QR invalido");
+                    using (Bitmap qBmp = OfflineQrGenerator.RenderBitmap("http://192.168.1.10:3000/controle.html?pin=4242", 186))
+                    {
+                        AssertTrue(qBmp.Width >= 120 && qBmp.Width == qBmp.Height, "Bitmap QR invalido");
+                        AssertTrue(qBmp.GetPixel(0, 0).R == 255 && qBmp.GetPixel(0, 0).G == 255, "Quiet zone QR deveria ser branca");
+                    }
+                    Console.WriteLine("   PASS: QR Code offline renderizado (" + qn + "x" + qn + " modulos).");
                 }
                 finally
                 {

@@ -10,16 +10,16 @@ Painel do Operador
 
 ## 🚀 Principais Recursos e Novidades (`v2.2`)
 
-### 1. Controle Remoto pelo Celular via Wi-Fi (`server.js` + `controle.html`)
-* **Conexão Rápida via QR Code e PIN:** Botão **Controle Wi-Fi** na barra superior exibe o QR Code offline, o endereço na rede local e um PIN numérico de 4 dígitos para acesso seguro a partir do navegador do celular conectado ao mesmo Wi-Fi.
-* **Comunicação em Tempo Real (SSE):** Atualização instantânea entre o painel (`index.html`) e o dispositivo móvel via Server-Sent Events (`js/modules/remote.js` + `server.js`).
+### 1. Controle Remoto pelo Celular via Wi-Fi (`ProjecaoICM.exe` / `server.js` + `controle.html`)
+* **Conexão Rápida via QR Code e PIN:** Tanto a janela nativa do [`ProjecaoICM.exe`](ProjecaoICM.exe) quanto o botão **Controle Wi-Fi** na barra superior do painel exibem o QR Code offline, o endereço na rede local e um PIN numérico de 4 dígitos para acesso seguro a partir do navegador do celular conectado ao mesmo Wi-Fi.
+* **Comunicação em Tempo Real (SSE):** Atualização instantânea entre o painel (`index.html`) e o dispositivo móvel via Server-Sent Events (`js/modules/remote.js` + servidor embutido em `ProjecaoICM.exe` ou `server.js`).
 * **Controle Completo na Mão:**
   * Visualização do **slide atual**, **próximo slide** e status do Telão.
   * Navegação **Anterior / Próximo** e salto direto para qualquer estrofe da fila ativa.
   * Controles litúrgicos imediatos: **Blackout**, **Congelar** e **Tela Padrão**.
   * **Controle de Vídeos Remoto:** Play/Pause, `-10s`, `+10s`, barra de progresso e minutagem.
   * **Fila & Acervo:** Remoção de itens da fila e busca rápida para adicionar louvores, avisos e mídias direto pelo celular.
-* **Inicialização Simplificada:** Script [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) pronto para Windows utilizando Node.js nativo sem dependências externas.
+* **Execução Direta Sem Dependências:** O executável [`ProjecaoICM.exe`](ProjecaoICM.exe) dispensa instalação do Node.js no Windows.
 
 ### 2. Aba Dedicada de Edição da Bíblia (`ACF` e `NVI`)
 * **Editor Integrado (`js/bible.js`):** Aba **Edição da Bíblia** com seleção rápida por Versão (`ACF` / `NVI`), Livro e Capítulo, sincronizada automaticamente com a aba **Bíblia**.
@@ -77,7 +77,8 @@ Painel do Operador
 * **Google Chrome** (Recomendado)
 * **Microsoft Edge** (Recomendado)
 * **Mozilla Firefox / Opera / Brave**
-* **Node.js LTS** *(necessário apenas ao executar via `Iniciar_Com_Wifi.bat` / `server.js` para Controle Wi-Fi pelo celular)*
+* **Windows 10 / 11 (.NET Framework 4.x nativo):** executável [`ProjecaoICM.exe`](ProjecaoICM.exe) autônomo sem exigir Node.js
+* **Node.js LTS** *(opcional — necessário apenas se optar por rodar `node server.js` manualmente em linha de comando ou Linux/macOS)*
 
 ---
 
@@ -85,19 +86,19 @@ Painel do Operador
 
 ### 1. Executável Desktop Windows (`ProjecaoICM.exe`) — Recomendado
 1. Dê um duplo clique em [`ProjecaoICM.exe`](ProjecaoICM.exe) (com o ícone oficial da Igreja Cristã Maranata).
-2. O aplicativo inicia automaticamente o servidor local embutido *(sem exigir instalação do Node.js)*, abre o Painel de Controle e o **Telão** (`view.html`), exibe o endereço e **PIN** para o Controle Wi-Fi no celular e minimiza para a bandeja do sistema.
+2. O aplicativo inicia automaticamente o servidor local embutido *(sem exigir instalação do Node.js)*, abre o Painel de Controle e o **Telão** (`view.html`), exibe o **QR Code**, o link e o **PIN** do Controle Wi-Fi direto em sua janela e mantém o ícone disponível na barra de tarefas e na bandeja do sistema.
 3. O executável também funciona de forma **portátil e autônoma** caso seja copiado sozinho para outra pasta ou outro computador Windows (extrai automaticamente os recursos em `%LocalAppData%\ProjecaoICM\app`).
 
-### 2. Modo Tradicional via Navegador ou Script Node.js
-1. Abra o arquivo [`index.html`](index.html) no navegador na tela de controle do operador *(ou inicie via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) usando o **[Node.js LTS](https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi)** para habilitar o controle pelo celular)*.
+### 2. Modo Tradicional via Navegador ou Servidor Node.js
+1. Abra o arquivo [`index.html`](index.html) no navegador na tela de controle do operador *(ou execute `node server.js` no terminal caso esteja usando o **[Node.js LTS](https://nodejs.org/dist/v26.13.0/node-v26.13.0-x64.msi)** para habilitar o controle pelo celular sem o `.exe`)*.
 2. O sistema abrirá **automaticamente** a janela do Telão ([`view.html`](view.html)) ao iniciar *(caso o navegador bloqueie o pop-up automático na primeira execução, autorize pop-ups para o endereço ou clique em **Abrir Telão agora** no aviso exibido)*. Arraste a janela para o projetor/TV e pressione **F11** para tela cheia.
 3. Para salvar alterações diretamente no arquivo físico, utilize **Vincular data.json** na barra superior.
 4. No painel esquerdo, dê um **duplo clique** sobre qualquer hino, aviso ou mídia (ou selecione versículos nas abas **Bíblia** / **Edição da Bíblia**) para enviar à fila de projeção.
 5. Na aba **Ao Vivo**, clique nos slides ou utilize as setas do teclado para conduzir o culto.
 
 ### 3. Controle Remoto pelo Celular no Wi-Fi
-1. Inicie o sistema via [`ProjecaoICM.exe`](ProjecaoICM.exe) **ou** via [`Iniciar_Com_Wifi.bat`](Iniciar_Com_Wifi.bat) *(requer Node.js apenas no `.bat`)*.
-2. O painel abrirá em `http://localhost:3000/index.html`. Clique no botão **Controle Wi-Fi** na barra superior (ou consulte a janela do `ProjecaoICM.exe`).
+1. Inicie o sistema via [`ProjecaoICM.exe`](ProjecaoICM.exe) **ou** via `node server.js` no terminal *(caso opte por Node.js)*.
+2. Escaneie o **QR Code** diretamente na janela do [`ProjecaoICM.exe`](ProjecaoICM.exe) **ou** clique em **Controle Wi-Fi** na barra superior do painel (`http://localhost:3000/index.html`).
 3. Conecte o celular na **mesma rede Wi-Fi** do computador e escaneie o **QR Code** (ou acesse a URL exibida e informe o **PIN de 4 dígitos**).
 4. Pelo celular (`controle.html`), acompanhe os slides ao vivo, avance/retroceda estrofes, acione **Blackout**, **Congelar**, **Tela Padrão**, controle vídeos e adicione itens do acervo à fila.
 
