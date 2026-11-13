@@ -627,7 +627,7 @@
               </div> 
             </div> 
             <div class="form-group p-2 mb-0"> 
-              <input class="form-control" id="treesearch" type="text" placeholder="Pesquisar título ou letra..." data-lang-str="search">
+              <input class="form-control" id="treesearch" type="text" placeholder="Pesquisar por título do louvor ou mídia..." data-lang-str="search_title">
             </div>
             <div id="tree_list1">
               <div id="songList"></div> 
@@ -731,6 +731,20 @@
                         <button id="addBibleToProjection" class="btn btn-primary" data-toggle="tooltip" data-placement="bottom" title="Adicionar a lista de projeção" data-lang-str="btn_bible_add"><i class="fas fa-plus fa-fw"></i> Adicionar</button> 
                       </div> 
                     </div>
+                  </div>
+                </div> 
+                <div class="row mt-2 mb-2">
+                  <div class="col-12">
+                    <div class="input-group">
+                      <div class="input-group-prepend">
+                        <span class="input-group-text bg-dark text-light border-secondary"><i class="fas fa-search"></i></span>
+                      </div>
+                      <input type="text" id="inputBibleSearch" class="form-control" placeholder="Buscar texto ou referência bíblica (ex: amor nunca falha, ou ref: Sl 23, João 3:16, 1co 13:4-7)..." autocomplete="off">
+                      <div class="input-group-append">
+                        <button id="btnClearBibleSearch" class="btn btn-outline-secondary" type="button" title="Limpar busca" style="display:none;"><i class="fas fa-times"></i></button>
+                      </div>
+                    </div>
+                    <div id="bibleSearchResults" style="display:none; max-height: 260px; overflow-y: auto; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; margin-top: 6px; padding: 8px;"></div>
                   </div>
                 </div> 
                 <div class="row">

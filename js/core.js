@@ -1099,7 +1099,7 @@ $(document).ready(function() {
         reader.readAsText(file);
     });
 
-    // Atalhos de navegação litúrgica
+    // Atalhos de navegação litúrgica (Setas direcionais). Blackout e Congelar permanecem exclusivamente via botões na interface para evitar conflitos ao digitar.
     $(document).keydown(function(e) {
         if ($('input:focus, textarea:focus, select:focus').length) return;
 
@@ -1116,12 +1116,6 @@ $(document).ready(function() {
                 projecaoAtiva++;
                 mudaProjecaoAtiva();
             }
-        } else if (e.which == 27 || (e.which == 66 && !e.ctrlKey && !e.altKey && !e.metaKey)) { // ESC ou Tecla B (Blackout)
-            e.preventDefault();
-            toggleBlackout();
-        } else if (e.which == 70 && !e.ctrlKey && !e.altKey && !e.metaKey) { // Tecla F (Congelar)
-            e.preventDefault();
-            toggleFreeze();
         }
     });
 

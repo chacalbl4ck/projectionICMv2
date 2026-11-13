@@ -377,9 +377,7 @@ function executarFiltroArvore(ajustarAberturaPastas) {
             if (tipo === 'song' && folderId !== undefined && dados[folderId] && dados[folderId].songs && dados[folderId].songs[id]) {
                 var song = dados[folderId].songs[id];
                 var normTitle = normalizarTextoBusca(song.title);
-                var normContent = normalizarTextoBusca((song.content || "").replace(/<[^>]*>/g, " "));
-                var fullText = normTitle + " " + normContent;
-                isMatch = terms.every(function(t) { return fullText.includes(t); });
+                isMatch = terms.every(function(t) { return normTitle.includes(t); });
             } else if (tipo === 'media' && folderId !== undefined && dados[folderId] && dados[folderId].media && dados[folderId].media[id]) {
                 var media = dados[folderId].media[id];
                 var normName = normalizarTextoBusca((media.name || "") + " " + (media.fileName || ""));

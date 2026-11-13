@@ -32,7 +32,7 @@ Painel do Operador
 * **Controles Inline de Vídeo:** Quando um vídeo está ativo na lista **Ao Vivo**, a própria linha exibe botões de **Play/Pause**, **Reiniciar**, **Retroceder 10s**, **Avançar 10s**, barra de progresso arrastável e minutagem (`MM:SS`).
 * **Áudio Exclusivo no Telão e Sincronia:** A janela externa do Telão (`view.html`) e a pré-visualização permanecem sincronizadas no tempo de reprodução, mantendo a prévia sempre muda para evitar duplicidade ou eco na mesa de som.
 * **Trava de Estado ao Minimizar/Restaurar:** Vídeos pausados pelo operador mantêm o estado de pausa mesmo se a janela do Telão for minimizada e restaurada.
-* **Congelar Real (`[F]`):** Captura o último quadro exibido (imagens ou vídeos, incluindo fundos em movimento) respeitando o *aspect ratio* em tela cheia e **silencia imediatamente qualquer áudio de vídeo** enquanto permite ao operador preparar os próximos itens sem alterar o telão ao público.
+* **Congelar Real:** Captura o último quadro exibido (imagens ou vídeos, incluindo fundos em movimento) respeitando o *aspect ratio* em tela cheia e **silencia imediatamente qualquer áudio de vídeo** enquanto permite ao operador preparar os próximos itens sem alterar o telão ao público.
 * **Palco Fullscreen com Aspect Ratio:** Mídias e vídeos preenchem o telão respeitando proporcionalmente as dimensões da tela (`object-fit: contain`), sem cortes ou distorções.
 
 ### 4. Comunicação Nativa em Tempo Real (`BroadcastChannel`) & Saída OBS (`obs.html`)
@@ -44,8 +44,9 @@ Painel do Operador
 * **Referenciamento Direto (Zero Cópia):** Mídias de vídeo (`.mp4`, `.avi`) e imagem (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`) selecionadas do disco não inflam o JSON do acervo.
 * **Enquadramento 16:9 e Visualizador:** Modal de recorte interativo em `1920x1080` para imagens de fundo (Zoom e Posição X/Y) e pré-visualização de fotos/vídeos antes de enviar ao telão.
 
-### 6. Busca Inteligente, Bíblia Sob Demanda (*Lazy-Loading*) e Auto-Fit
-* **Busca Fonética Normalizada:** Localiza louvores por título, número ou qualquer trecho da letra, além de avisos por título e conteúdo, ignorando acentos, cedilhas e pontuação.
+### 6. Busca por Título de Louvor, Busca Bíblica Avançada e Auto-Fit
+* **Busca Otimizada de Louvores por Título:** Localiza louvores estritamente pelo título ou número (sem misturar com o texto interno da letra), garantindo resultados diretos e precisos no acervo. Mídias e avisos permanecem pesquisáveis por nome e conteúdo.
+* **Mecanismo de Busca na Bíblia (ACF e NVI):** Campo de busca integrado na aba Bíblia que permite localizar instantaneamente qualquer versículo por termos e palavras-chave (ex: `amor nunca falha`, `pastor nada me faltara`) ou por referências abreviadas (ex: `Sl 23`, `João 3:16`, `1co 13:4-7`, `Ap 22:20`), com destaque visual dos termos, navegação automática nas listas e botão de adição direta (`+ Projetar`).
 * **Carga Bíblica Sob Demanda:** Bases `bible/acf.js` e `bible/nvi.js` carregadas somente ao utilizar recursos bíblicos, mantendo abertura ágil do painel.
 * **Auto-Fit & Tipografia Litúrgica Uniforme:** Cálculo dinâmico contra a área útil para evitar cortes de texto e padronização de estrofes com `CORO`, `BIS`, `FINAL` e `REFRÃO`, preservando o slide atual mesmo durante edições no acervo.
 * **Vínculo Direto com `data.json`:** Persistência física no arquivo local via File System Access API com indicadores discretos (`Salvo` / `Alterações não salvas`).
@@ -55,7 +56,7 @@ Painel do Operador
   * [`js/modules/storage.js`](js/modules/storage.js): IndexedDB (`MediaDB`) e File System Access API.
   * [`js/modules/media.js`](js/modules/media.js): Mídias, cache de pastas automáticas, recorte 16:9 e visualizador.
   * [`js/modules/projection.js`](js/modules/projection.js): `BroadcastChannel`, fila Ao Vivo, controles de vídeo, Blackout e Congelar.
-  * [`js/modules/tree.js`](js/modules/tree.js): Árvore nativa de pastas, seleção e busca full-text.
+  * [`js/modules/tree.js`](js/modules/tree.js): Árvore nativa de pastas, seleção e busca de louvores por título.
   * [`js/modules/remote.js`](js/modules/remote.js): Ponte Wi-Fi SSE, catálogo remoto, despacho de comandos e QR Code offline.
 
 ---
@@ -115,11 +116,11 @@ Painel do Operador
 
 Atalho | Ação
 :---:|:---
-`B` ou `ESC` | **Blackout Instantâneo** (escurece/exibe o telão mantendo o slide posicionado)
-`F` | **Congelar (Freeze)** (trava a última imagem/quadro no telão e silencia vídeos)
 `▲` / `◄` | Estrofe ou slide anterior
 `▼` / `►` | Próxima estrofe ou slide
 `Ctrl + S` | Salva o louvor em edição (quando na aba **Editar**)
+
+> **Nota sobre Blackout e Congelar (Freeze):** Para assegurar total estabilidade ao digitar buscas de louvores, textos bíblicos e avisos (eliminando conflitos com as teclas `B` e `F`), o **Blackout** e o **Congelamento** são acionados exclusivamente pelos botões dedicados na interface e no controle remoto mobile.
 
 ---
 

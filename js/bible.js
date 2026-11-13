@@ -62,6 +62,7 @@ function inicializarBibliaLazy() {
       loadBible();
       ajustarListasDaBiblia();
       inicializarEditorBibliaUI();
+      inicializarBuscaBiblicaUI();
       bibleLoaded = true;
       $('#bibleLoadingIndicator').hide();
       $('#bibleContentArea').fadeIn(200);
@@ -92,6 +93,7 @@ $(document).ready(function() {
       sincronizarEditorComSelecaoBiblia();
     });
   });
+  inicializarBuscaBiblicaUI();
 });
 
 var bookNames = [
@@ -210,6 +212,9 @@ $('#selectBibleVersion').change(function() {
   loadBible();
   biblePreView();
   reloadProjectionList();
+  if ($('#inputBibleSearch').length && $('#inputBibleSearch').val().trim()) {
+    executarBuscaBiblia();
+  }
 });
 
 // ==========================================
@@ -402,6 +407,9 @@ function arraysIguaisTexto(a, b) {
 }
 
 function atualizarAbasEProjecaoAposEdicaoBiblia() {
+  if (typeof invalidarCacheBuscaBiblica === 'function') {
+    invalidarCacheBuscaBiblica();
+  }
   loadBible();
   if (bibleLoaded && bookSelected === bibleEditBookIdx && chapterSelected === bibleEditChapterIdx && bibleversion === bibleEditVersion) {
     var base = obterBaseBiblicaPorVersao(bibleversion);
@@ -634,3 +642,412 @@ function inicializarEditorBibliaUI() {
 }
 
 ajustarListasDaBiblia();
+
+// ==========================================
+// SUBSISTEMA DE BUSCA DE TEXTOS E PASSAGENS BÍBLICAS
+// ==========================================
+var bibleSearchIndex = { acf: null, nvi: null };
+var bibleSearchTimeout = null;
+var bibleSearchUIInitialized = false;
+
+var bookAliases = {
+  'gn': 0, 'gen': 0, 'genesis': 0,
+  'ex': 1, 'exo': 1, 'exodo': 1,
+  'lv': 2, 'lev': 2, 'levitico': 2,
+  'nm': 3, 'num': 3, 'numeros': 3,
+  'dt': 4, 'deu': 4, 'deuteronomio': 4,
+  'js': 5, 'jos': 5, 'josue': 5,
+  'jz': 6, 'jui': 6, 'juizes': 6,
+  'rt': 7, 'rut': 7, 'rute': 7,
+  '1sm': 8, '1sam': 8, '1 samuel': 8, '1samuel': 8,
+  '2sm': 9, '2sam': 9, '2 samuel': 9, '2samuel': 9,
+  '1rs': 10, '1reis': 10, '1 reis': 10,
+  '2rs': 11, '2reis': 11, '2 reis': 11,
+  '1cr': 12, '1cro': 12, '1cronicas': 12, '1 cronicas': 12,
+  '2cr': 13, '2cro': 13, '2cronicas': 13, '2 cronicas': 13,
+  'ed': 14, 'esd': 14, 'esdras': 14,
+  'ne': 15, 'neem': 15, 'neemias': 15,
+  'et': 16, 'est': 16, 'ester': 16,
+  'job': 17, 'jo': 17,
+  'sl': 18, 'sal': 18, 'salmo': 18, 'salmos': 18,
+  'pv': 19, 'prv': 19, 'prov': 19, 'proverbios': 19,
+  'ec': 20, 'ecl': 20, 'eclesiastes': 20,
+  'ct': 21, 'cant': 21, 'canticos': 21, 'cantares': 21,
+  'is': 22, 'isa': 22, 'isaias': 22,
+  'jr': 23, 'jer': 23, 'jeremias': 23,
+  'lm': 24, 'lam': 24, 'lamentacoes': 24,
+  'ez': 25, 'eze': 25, 'ezequiel': 25,
+  'dn': 26, 'dan': 26, 'daniel': 26,
+  'os': 27, 'ose': 27, 'oseias': 27,
+  'jl': 28, 'joe': 28, 'joel': 28,
+  'am': 29, 'amo': 29, 'amos': 29,
+  'ob': 30, 'oba': 30, 'obadias': 30,
+  'jon': 31, 'jonas': 31,
+  'mq': 32, 'miq': 32, 'miqueias': 32,
+  'na': 33, 'nau': 33, 'naum': 33,
+  'hc': 34, 'hab': 34, 'habacuque': 34,
+  'sf': 35, 'sof': 35, 'sofonias': 35,
+  'ag': 36, 'age': 36, 'ageu': 36,
+  'zc': 37, 'zac': 37, 'zacarias': 37,
+  'ml': 38, 'mal': 38, 'malaquias': 38,
+  'mt': 39, 'mat': 39, 'mateus': 39,
+  'mc': 40, 'mar': 40, 'marcos': 40,
+  'lc': 41, 'luc': 41, 'lucas': 41,
+  'joao': 42, 'jao': 42, 'jn': 42,
+  'at': 43, 'ato': 43, 'atos': 43,
+  'rm': 44, 'rom': 44, 'romanos': 44,
+  '1co': 45, '1cor': 45, '1corintios': 45, '1 corintios': 45,
+  '2co': 46, '2cor': 46, '2corintios': 46, '2 corintios': 46,
+  'gl': 47, 'gal': 47, 'galatas': 47,
+  'ef': 48, 'efe': 48, 'efesios': 48,
+  'fp': 49, 'fil': 49, 'filipenses': 49,
+  'cl': 50, 'col': 50, 'colossenses': 50,
+  '1ts': 51, '1tes': 51, '1tessalonicenses': 51, '1 tessalonicenses': 51,
+  '2ts': 52, '2tes': 52, '2tessalonicenses': 52, '2 tessalonicenses': 52,
+  '1tm': 53, '1tim': 53, '1timoteo': 53, '1 timoteo': 53,
+  '2tm': 54, '2tim': 54, '2timoteo': 54, '2 timoteo': 54,
+  'tt': 55, 'tit': 55, 'tito': 55,
+  'fm': 56, 'flm': 56, 'filemom': 56,
+  'hb': 57, 'heb': 57, 'hebreus': 57,
+  'tg': 58, 'tia': 58, 'tiago': 58,
+  '1pe': 59, '1ped': 59, '1pedro': 59, '1 pedro': 59,
+  '2pe': 60, '2ped': 60, '2pedro': 60, '2 pedro': 60,
+  '1jo': 61, '1jn': 61, '1joao': 61, '1 joao': 61,
+  '2jo': 62, '2jn': 62, '2joao': 62, '2 joao': 62,
+  '3jo': 63, '3jn': 63, '3joao': 63, '3 joao': 63,
+  'jd': 64, 'jud': 64, 'judas': 64,
+  'ap': 65, 'apo': 65, 'apoc': 65, 'apocalipse': 65
+};
+
+for (var bIdxLoop = 0; bIdxLoop < bookNames.length; bIdxLoop++) {
+  var normBName = normalizarTextoBuscaBiblica(bookNames[bIdxLoop].name);
+  bookAliases[normBName] = bIdxLoop;
+  bookAliases[normBName.replace(/\s+/g, '')] = bIdxLoop;
+}
+
+function normalizarTextoBuscaBiblica(s) {
+  if (!s) return "";
+  return s.toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function invalidarCacheBuscaBiblica(versao) {
+  if (versao) {
+    bibleSearchIndex[versao] = null;
+  } else {
+    bibleSearchIndex.acf = null;
+    bibleSearchIndex.nvi = null;
+  }
+}
+
+function obterIndiceBuscaBiblia(versao) {
+  var v = (versao === 'nvi') ? 'nvi' : 'acf';
+  if (bibleSearchIndex[v]) return bibleSearchIndex[v];
+
+  var base = obterBaseBiblicaPorVersao(v);
+  if (!base || !Array.isArray(base)) return [];
+
+  var index = [];
+  for (var b = 0; b < base.length; b++) {
+    var bName = (bookNames[b] && bookNames[b].name) ? bookNames[b].name : ((base[b] && base[b].name) ? base[b].name : ("Livro " + (b + 1)));
+    var normBName = normalizarTextoBuscaBiblica(bName);
+    var chaps = base[b].chapters || [];
+    for (var c = 0; c < chaps.length; c++) {
+      var verses = chaps[c] || [];
+      for (var vIdx = 0; vIdx < verses.length; vIdx++) {
+        var text = verses[vIdx] || "";
+        var normText = normalizarTextoBuscaBiblica(text);
+        index.push({
+          b: b,
+          c: c,
+          v: vIdx,
+          bookName: bName,
+          chapterNum: c + 1,
+          verseNum: vIdx + 1,
+          text: text,
+          normText: normText,
+          normRef: normBName + " " + (c + 1) + " " + (vIdx + 1)
+        });
+      }
+    }
+  }
+  bibleSearchIndex[v] = index;
+  return index;
+}
+
+function parsearReferenciaBiblica(query, baseBiblica) {
+  if (!query) return null;
+  var clean = query.trim();
+  var m = clean.match(/^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s*(\d+)(?:[:,\.\s]+(\d+))?(?:\s*-\s*(\d+))?$/i);
+  if (!m) return null;
+
+  var bookRaw = normalizarTextoBuscaBiblica(m[1]);
+  var bIdx = (bookAliases[bookRaw] !== undefined) ? bookAliases[bookRaw] : bookAliases[bookRaw.replace(/\s+/g, '')];
+  if (bIdx === undefined || bIdx < 0 || bIdx >= 66) return null;
+
+  var chapNum = parseInt(m[2], 10);
+  if (isNaN(chapNum) || chapNum < 1 || (bookNames[bIdx] && chapNum > bookNames[bIdx].num_chapters)) return null;
+  var cIdx = chapNum - 1;
+
+  var base = baseBiblica || obterBaseBiblicaPorVersao(bibleversion);
+  var totalVersos = (base && base[bIdx] && base[bIdx].chapters && base[bIdx].chapters[cIdx]) ? base[bIdx].chapters[cIdx].length : 0;
+  if (totalVersos === 0) return null;
+
+  var vFromNum = m[3] ? parseInt(m[3], 10) : 1;
+  var vToNum = m[4] ? parseInt(m[4], 10) : (m[3] ? vFromNum : totalVersos);
+
+  if (vFromNum < 1) vFromNum = 1;
+  if (vFromNum > totalVersos) vFromNum = totalVersos;
+  if (vToNum < vFromNum) vToNum = vFromNum;
+  if (vToNum > totalVersos) vToNum = totalVersos;
+
+  return {
+    b: bIdx,
+    c: cIdx,
+    from: vFromNum - 1,
+    to: vToNum - 1,
+    bookName: bookNames[bIdx].name,
+    chapterNum: chapNum,
+    fromVerseNum: vFromNum,
+    toVerseNum: vToNum,
+    isChapterOnly: (!m[3] && !m[4])
+  };
+}
+
+function destacarTermosBuscaBiblia(texto, terms) {
+  if (!texto || !terms || terms.length === 0) return texto || "";
+  try {
+    var patterns = [];
+    for (var i = 0; i < terms.length; i++) {
+      var s = terms[i].toLowerCase();
+      s = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      s = s.replace(/[aáàãâä]/g, '[aáàãâäAÁÀÃÂÄ]');
+      s = s.replace(/[eéèêë]/g, '[eéèêëEÉÈÊË]');
+      s = s.replace(/[iíìîï]/g, '[iíìîïIÍÌÎÏ]');
+      s = s.replace(/[oóòõôö]/g, '[oóòõôöOÓÒÕÔÖ]');
+      s = s.replace(/[uúùûü]/g, '[uúùûüUÚÙÛÜ]');
+      s = s.replace(/[cç]/g, '[cçCÇ]');
+      patterns.push(s);
+    }
+    var reg = new RegExp('(' + patterns.join('|') + ')', 'gi');
+    return (texto + "").replace(reg, function(match) {
+      return '<mark class="bg-warning text-dark font-weight-bold px-1 rounded">' + match + '</mark>';
+    });
+  } catch (e) {
+    return texto;
+  }
+}
+
+function navegarParaPassagemBiblica(bIdx, cIdx, fromIdx, toIdx) {
+  var $bookList = (bIdx < 39) ? $('#listaVelho') : $('#listaNovo');
+  var $otherList = (bIdx < 39) ? $('#listaNovo') : $('#listaVelho');
+  var $bookLi = $bookList.find('li[data-id="' + bIdx + '"]');
+
+  $otherList.find('li.active').removeClass('active');
+  $bookList.find('li.active').removeClass('active');
+  $bookLi.addClass('active');
+
+  if ($bookLi.length && $bookLi.offset() && $bookList.offset()) {
+    var bOffset = $bookLi.offset().top - $bookList.offset().top + $bookList.scrollTop();
+    $bookList.scrollTop(Math.max(0, bOffset - 40));
+  }
+
+  selectBook($bookLi);
+
+  var $chapLi = $('#listaCapitulo').find('li[data-id="' + cIdx + '"]');
+  $('#listaCapitulo > li.active').removeClass('active');
+  $chapLi.addClass('active');
+
+  if ($chapLi.length && $chapLi.offset() && $('#listaCapitulo').offset()) {
+    var cOffset = $chapLi.offset().top - $('#listaCapitulo').offset().top + $('#listaCapitulo').scrollTop();
+    $('#listaCapitulo').scrollTop(Math.max(0, cOffset - 40));
+  }
+
+  selectChapter($chapLi);
+
+  if (typeof fromIdx === 'number' && fromIdx >= 0) {
+    fromSelected = fromIdx;
+    toSelected = (typeof toIdx === 'number' && toIdx >= fromIdx) ? toIdx : fromIdx;
+
+    $('#listaDe > li.active').removeClass('active');
+    var $fromLi = $('#listaDe > li[data-id="' + fromSelected + '"]');
+    $fromLi.addClass('active');
+    if ($fromLi.length && $fromLi.offset() && $('#listaDe').offset()) {
+      var fOffset = $fromLi.offset().top - $('#listaDe').offset().top + $('#listaDe').scrollTop();
+      $('#listaDe').scrollTop(Math.max(0, fOffset - 40));
+    }
+
+    $('#listaAte > li.active').removeClass('active');
+    var $toLi = $('#listaAte > li[data-id="' + toSelected + '"]');
+    $toLi.addClass('active');
+    if ($toLi.length && $toLi.offset() && $('#listaAte').offset()) {
+      var tOffset = $toLi.offset().top - $('#listaAte').offset().top + $('#listaAte').scrollTop();
+      $('#listaAte').scrollTop(Math.max(0, tOffset - 40));
+    }
+
+    biblePreView();
+  }
+}
+window.navegarParaPassagemBiblica = navegarParaPassagemBiblica;
+
+function executarBuscaBiblia() {
+  var query = ($('#inputBibleSearch').val() || "").trim();
+  var $results = $('#bibleSearchResults');
+  var $clearBtn = $('#btnClearBibleSearch');
+
+  if (!query) {
+    $results.hide().html("");
+    $clearBtn.hide();
+    return;
+  }
+
+  $clearBtn.show();
+
+  var base = obterBaseBiblicaPorVersao(bibleversion);
+  if (!base) {
+    $results.show().html('<div class="text-warning p-2"><i class="fas fa-spinner fa-spin"></i> Base bíblica carregando...</div>');
+    return;
+  }
+
+  var html = [];
+  var refMatch = parsearReferenciaBiblica(query, base);
+
+  if (refMatch) {
+    var trechoPassagem = "";
+    if (base[refMatch.b] && base[refMatch.b].chapters && base[refMatch.b].chapters[refMatch.c]) {
+      var vArray = base[refMatch.b].chapters[refMatch.c];
+      var snippets = [];
+      for (var sIdx = refMatch.from; sIdx <= Math.min(refMatch.to, refMatch.from + 2); sIdx++) {
+        if (vArray[sIdx]) snippets.push('<strong>' + (sIdx + 1) + '.</strong> ' + vArray[sIdx]);
+      }
+      if (refMatch.to > refMatch.from + 2) {
+        snippets.push('<span class="text-muted font-italic">... (mais ' + (refMatch.to - refMatch.from - 2) + ' versículos)</span>');
+      }
+      trechoPassagem = snippets.join(' ');
+    }
+
+    var rotuloRef = refMatch.bookName + ' ' + refMatch.chapterNum + (refMatch.isChapterOnly ? ' (Capítulo Completo)' : (':' + refMatch.fromVerseNum + (refMatch.toVerseNum > refMatch.fromVerseNum ? '-' + refMatch.toVerseNum : '')));
+
+    html.push('<div class="card bg-dark border-info text-light mb-2 p-2">');
+    html.push('  <div class="d-flex justify-content-between align-items-center mb-1">');
+    html.push('    <span><i class="fas fa-bookmark text-info mr-1"></i> <strong class="text-light">' + rotuloRef + '</strong> <span class="badge badge-info text-uppercase">' + bibleversion.toUpperCase() + '</span></span>');
+    html.push('    <div>');
+    html.push('      <button class="btn btn-sm btn-info btn-view-verse mr-1" data-b="' + refMatch.b + '" data-c="' + refMatch.c + '" data-from="' + refMatch.from + '" data-to="' + refMatch.to + '"><i class="fas fa-eye"></i> Ver</button>');
+    html.push('      <button class="btn btn-sm btn-success btn-add-verse-direct" data-b="' + refMatch.b + '" data-c="' + refMatch.c + '" data-from="' + refMatch.from + '" data-to="' + refMatch.to + '"><i class="fas fa-plus"></i> Projetar</button>');
+    html.push('    </div>');
+    html.push('  </div>');
+    if (trechoPassagem) {
+      html.push('  <div class="small text-light p-1 rounded" style="background: rgba(0,0,0,0.3);">' + trechoPassagem + '</div>');
+    }
+    html.push('</div>');
+  }
+
+  // Busca textual
+  var terms = normalizarTextoBuscaBiblica(query).split(/\s+/).filter(Boolean);
+  if (terms.length > 0) {
+    var index = obterIndiceBuscaBiblia(bibleversion);
+    var matches = [];
+    for (var i = 0; i < index.length; i++) {
+      var item = index[i];
+      var matchesAll = true;
+      for (var t = 0; t < terms.length; t++) {
+        var term = terms[t];
+        if (!item.normText.includes(term) && !item.normRef.includes(term)) {
+          matchesAll = false;
+          break;
+        }
+      }
+      if (matchesAll) {
+        matches.push(item);
+        if (matches.length >= 100) break;
+      }
+    }
+
+    if (matches.length > 0) {
+      html.push('<div class="d-flex justify-content-between align-items-center text-muted small mb-1 border-bottom border-secondary pb-1">');
+      html.push('  <span><i class="fas fa-list-ul"></i> ' + matches.length + ' versículo(s) encontrado(s) na versão <strong>' + bibleversion.toUpperCase() + '</strong>' + (matches.length >= 100 ? ' (limitado aos 100 primeiros)' : '') + ':</span>');
+      html.push('</div>');
+
+      html.push('<div class="bible-search-list">');
+      for (var mIdx = 0; mIdx < matches.length; mIdx++) {
+        var mItem = matches[mIdx];
+        var highlighted = destacarTermosBuscaBiblia(mItem.text, terms);
+        html.push('<div class="d-flex justify-content-between align-items-center py-1 border-bottom border-secondary text-light" style="font-size: 0.9rem;">');
+        html.push('  <div style="flex: 1; padding-right: 8px;">');
+        html.push('    <strong class="text-info">' + mItem.bookName + ' ' + mItem.chapterNum + ':' + mItem.verseNum + '</strong>: ');
+        html.push('    <span class="text-light">' + highlighted + '</span>');
+        html.push('  </div>');
+        html.push('  <div class="text-nowrap">');
+        html.push('    <button class="btn btn-sm btn-outline-info btn-view-verse mr-1" data-b="' + mItem.b + '" data-c="' + mItem.c + '" data-from="' + mItem.v + '" data-to="' + mItem.v + '" title="Ver e selecionar"><i class="fas fa-eye"></i></button>');
+        html.push('    <button class="btn btn-sm btn-outline-success btn-add-verse-direct" data-b="' + mItem.b + '" data-c="' + mItem.c + '" data-from="' + mItem.v + '" data-to="' + mItem.v + '" title="Adicionar à projeção"><i class="fas fa-plus"></i></button>');
+        html.push('  </div>');
+        html.push('</div>');
+      }
+      html.push('</div>');
+    } else if (!refMatch) {
+      html.push('<div class="text-muted p-3 text-center"><i class="fas fa-search"></i> Nenhum versículo encontrado para "<strong>' + $('<div>').text(query).html() + '</strong>" na versão ' + bibleversion.toUpperCase() + '.</div>');
+    }
+  }
+
+  $results.html(html.join('\n')).show();
+}
+
+function inicializarBuscaBiblicaUI() {
+  if (bibleSearchUIInitialized) return;
+  bibleSearchUIInitialized = true;
+
+  $('#inputBibleSearch').off('input keyup').on('input keyup', function(e) {
+    if (e.which === 27) { // ESC limpa a busca
+      $(this).val("");
+      executarBuscaBiblia();
+      return;
+    }
+    clearTimeout(bibleSearchTimeout);
+    bibleSearchTimeout = setTimeout(function() {
+      executarBuscaBiblia();
+    }, 150);
+  });
+
+  $('#btnClearBibleSearch').off('click').on('click', function() {
+    $('#inputBibleSearch').val("");
+    executarBuscaBiblia();
+    $('#inputBibleSearch').focus();
+  });
+
+  $('#bibleSearchResults').off('click', '.btn-view-verse').on('click', '.btn-view-verse', function(e) {
+    e.preventDefault();
+    var b = parseInt($(this).attr('data-b'), 10);
+    var c = parseInt($(this).attr('data-c'), 10);
+    var from = parseInt($(this).attr('data-from'), 10);
+    var to = parseInt($(this).attr('data-to'), 10);
+    navegarParaPassagemBiblica(b, c, from, to);
+  });
+
+  $('#bibleSearchResults').off('click', '.btn-add-verse-direct').on('click', '.btn-add-verse-direct', function(e) {
+    e.preventDefault();
+    var b = parseInt($(this).attr('data-b'), 10);
+    var c = parseInt($(this).attr('data-c'), 10);
+    var from = parseInt($(this).attr('data-from'), 10);
+    var to = parseInt($(this).attr('data-to'), 10);
+    var $btn = $(this);
+
+    var biblia = { b: b, c: c, from: from, to: to, type: "b" };
+    if (typeof projecao !== 'undefined') {
+      projecao.push(biblia);
+      if (typeof reloadProjectionList === 'function') {
+        reloadProjectionList();
+      }
+    }
+
+    var originalHtml = $btn.html();
+    $btn.removeClass('btn-outline-success btn-success').addClass('btn-light text-dark').html('<i class="fas fa-check text-success"></i>');
+    setTimeout(function() {
+      $btn.removeClass('btn-light text-dark').addClass('btn-outline-success').html(originalHtml);
+    }, 1200);
+  });
+}
