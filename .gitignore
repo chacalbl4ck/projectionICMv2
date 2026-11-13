@@ -1,0 +1,35 @@
+# Documentação técnica interna de Engenharia Reversa (mantida apenas localmente)
+RELATORIO_ENGENHARIA_REVERSA.md
+docs/ENGENHARIA_REVERSA.md
+
+# Pacotes compactados locais (mantendo ProjecaoICM.exe e fontes intactos)
+*.rar
+*.zip
+*.7z
+
+# Mídias pessoais adicionadas localmente na pasta automática de vídeos
+videos/*
+!videos/.gitkeep
+
+# Arquivos temporários, logs, backups e auxiliares de compilação
+*.tmp
+*.temp
+*.bak
+*.log
+*.pdb
+desktop/*.exe
+.active_port
+.bundle_version
+
+# Dependências locais e metadados de sistema/IDE
+node_modules/
+.vscode/
+.idea/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Outros
+desktop/Gerar_Icone_ICM.cs
+desktop/Gerar_Social_Preview.cs

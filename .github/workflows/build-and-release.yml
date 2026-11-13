@@ -1,0 +1,120 @@
+name: CI/CD - Projeção ICM
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publicar / Atualizar Release no GitHub com o executável anexado?'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: 🧪 Testes de Integridade (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Executar Suíte de Testes
+        run: node test/test_suite.js
+
+  build-windows:
+    name: 🪟 Compilação do Executável Windows (ProjecaoICM.exe)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validar Integridade Local
+        run: node test/test_suite.js
+
+      - name: Compilar ProjecaoICM.exe (.NET Framework csc.exe)
+        run: node desktop/Compilar_Exe.js
+
+      - name: Executar Autoteste do Executável (--self-test)
+        shell: powershell
+        run: |
+          Start-Process -FilePath ".\ProjecaoICM.exe" -ArgumentList "--self-test" -NoNewWindow -Wait -RedirectStandardOutput "self_test.log" -RedirectStandardError "self_test_err.log"
+          Get-Content self_test.log
+          if (Test-Path self_test_err.log) {
+            $errs = Get-Content self_test_err.log
+            if ($errs) { Write-Error "Erros no self-test: $errs" }
+          }
+
+      - name: Gerar Checksum SHA-256
+        shell: powershell
+        run: |
+          $hash = (Get-FileHash ProjecaoICM.exe -Algorithm SHA256).Hash
+          "$hash  ProjecaoICM.exe" | Out-File -Encoding utf8 SHA256SUMS.txt
+          Write-Host "Checksum SHA-256: $hash"
+
+      - name: Upload dos Artefatos de Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjecaoICM-Windows
+          path: |
+            ProjecaoICM.exe
+            SHA256SUMS.txt
+          retention-days: 30
+
+  release:
+    name: 🚀 Publicar Release no GitHub
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Identificar Versão e Tag da Release
+        id: get_version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(node -e "const m = require('fs').readFileSync('index.html', 'utf8').match(/v(\d+\.\d+\.\d+)/); console.log(m ? m[1] : '2.2.1');")
+            TAG="v$VER"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag identificada: $TAG"
+
+      - name: Baixar Artefatos Compilados
+        uses: actions/download-artifact@v4
+        with:
+          name: ProjecaoICM-Windows
+
+      - name: Criar ou Atualizar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.tag }}
+          name: "Projeção ICM ${{ steps.get_version.outputs.tag }}"
+          files: |
+            ProjecaoICM.exe
+            SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

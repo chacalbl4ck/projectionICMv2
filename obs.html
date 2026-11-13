@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBS Lower Thirds - Projeção ICM</title>
+  <link rel="stylesheet" href="css/theme/icm.css">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: transparent !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Barra Informativa superior para visualização no navegador */
+    #obsHelperBar {
+      position: fixed;
+      top: 10px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #e2e8f0;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 999999;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.3s;
+    }
+    #obsHelperBar.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      background-color: #10b981;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* Container Principal do Lower Third */
+    #lowerThirdWrapper {
+      position: fixed;
+      bottom: 45px;
+      left: 6%;
+      width: 88%;
+      opacity: 0;
+      transform: translateY(35px);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    #lowerThirdWrapper.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .lower-third-card {
+      background: linear-gradient(135deg, rgba(11, 26, 54, 0.92) 0%, rgba(18, 38, 77, 0.88) 100%);
+      border-left: 7px solid #fbbf24;
+      border-radius: 12px;
+      padding: 16px 28px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2) inset;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Cabeçalho do Lower Third (Identificação do Hino / Bíblia) */
+    .lower-third-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .badge-kind {
+      background: #fbbf24;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+
+    .badge-title {
+      color: #cbd5e1;
+      font-size: 17px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+
+    /* Corpo de Texto (Estrofe / Versículo Bíblico) */
+    .lower-third-text {
+      color: #ffffff;
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1.35;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.7);
+      word-break: break-word;
+    }
+
+    /* Destaques em itálico e cores nas estrofes */
+    .lower-third-text font[color="yellow"],
+    .lower-third-text font[color="#ffff00"],
+    .lower-third-text font[color="#FFFF00"] {
+      color: #fbbf24 !important;
+    }
+    .lower-third-text font[color="#00ff00"],
+    .lower-third-text font[color="#00FF00"] {
+      color: #34d399 !important;
+    }
+    .lower-third-text blockquote {
+      margin: 0;
+      padding: 0;
+      display: inline;
+      background: none;
+      box-shadow: none;
+      font-style: normal;
+    }
+
+    /* Chaves musicais de repetição (BIS / 2x..6x) na saída OBS */
+    .lower-third-text blockquote[class*="chave"] {
+      display: inline-block;
+      position: relative;
+      width: auto;
+      max-width: calc(100% - 140px);
+      margin: 0;
+      padding: 0 14px 0 0;
+      vertical-align: top;
+      font-style: normal;
+      background: none;
+      box-shadow: none;
+    }
+    .lower-third-text blockquote.chave-bis-no-final,
+    .lower-third-text blockquote.chaves-bis-no-final {
+      max-width: calc(100% - 210px);
+    }
+    .lower-third-text blockquote[class*="chave"]:after {
+      content: '';
+      position: absolute;
+      left: 100%;
+      top: 0;
+      bottom: 0;
+      width: 240px;
+      background-repeat: no-repeat;
+      background-position: left center;
+      background-size: auto 100%;
+      pointer-events: none;
+    }
+    .lower-third-text blockquote.chave-bis:after,
+    .lower-third-text blockquote.chaves-bis:after {
+      background-image: url('imagens/chaves-bis.png');
+    }
+    .lower-third-text blockquote.chave-bis-small:after,
+    .lower-third-text blockquote.chaves-bis-small:after {
+      background-image: url('imagens/chaves-bis-small.png');
+    }
+    .lower-third-text blockquote.chave-bis-no-final:after,
+    .lower-third-text blockquote.chaves-bis-no-final:after {
+      background-image: url('imagens/chaves-bis-no-final.png');
+    }
+    .lower-third-text blockquote.chave-2x:after,
+    .lower-third-text blockquote.chaves-2x:after {
+      background-image: url('imagens/chaves-2x.png');
+    }
+    .lower-third-text blockquote.chave-3x:after,
+    .lower-third-text blockquote.chaves-3x:after {
+      background-image: url('imagens/chaves-3x.png');
+    }
+    .lower-third-text blockquote.chave-4x:after,
+    .lower-third-text blockquote.chaves-4x:after {
+      background-image: url('imagens/chaves-4x.png');
+    }
+    .lower-third-text blockquote.chave-5x:after,
+    .lower-third-text blockquote.chaves-5x:after {
+      background-image: url('imagens/chaves-5x.png');
+    }
+    .lower-third-text blockquote.chave-6x:after,
+    .lower-third-text blockquote.chaves-6x:after {
+      background-image: url('imagens/chaves-6x.png');
+    }
+    .lower-third-text blockquote.chave-2x-small:after,
+    .lower-third-text blockquote.chaves-2x-small:after {
+      background-image: url('imagens/chaves-2x-small.png');
+    }
+    .lower-third-text blockquote.chave-3x-small:after,
+    .lower-third-text blockquote.chaves-3x-small:after {
+      background-image: url('imagens/chaves-3x-small.png');
+    }
+    .lower-third-text blockquote.chave-4x-small:after,
+    .lower-third-text blockquote.chaves-4x-small:after {
+      background-image: url('imagens/chaves-4x-small.png');
+    }
+    .lower-third-text blockquote.chave-5x-small:after,
+    .lower-third-text blockquote.chaves-5x-small:after {
+      background-image: url('imagens/chaves-5x-small.png');
+    }
+    .lower-third-text blockquote.chave-6x-small:after,
+    .lower-third-text blockquote.chaves-6x-small:after {
+      background-image: url('imagens/chaves-6x-small.png');
+    }
+
+    /* Camada de Blackout */
+    #obsBlackout {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: transparent;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra de status e instruções (visível no navegador para teste) -->
+  <div id="obsHelperBar">
+    <span class="status-dot"></span>
+    <span id="obsStatusLabel">OBS Studio: Saída Pronta (BroadcastChannel)</span>
+    <button onclick="document.getElementById('obsHelperBar').classList.toggle('hidden')" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 12px; margin-left: 6px;">✕</button>
+  </div>
+
+  <!-- Camada de Blackout -->
+  <div id="obsBlackout"></div>
+
+  <!-- Container do Lower Third -->
+  <div id="lowerThirdWrapper">
+    <div class="lower-third-card">
+      <div class="lower-third-header" id="lowerHeader">
+        <span class="badge-kind" id="obsBadge">LOUVOR</span>
+        <span class="badge-title" id="obsTitle"></span>
+      </div>
+      <div class="lower-third-text" id="obsContent"></div>
+    </div>
+  </div>
+
+  <script src="js/jquery-3.3.1.min.js"></script>
+  <script>
+    (function(){
+      var projectionChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('projecao_icm_channel') : null;
+      var rawSlidesHtml = "";
+      var parsedSlides = [];
+      var activeSlideIndex = 0;
+      var isBlackout = false;
+      var isFrozen = false;
+
+      function parseSlides(payload) {
+        var html = (typeof payload === 'object' && payload !== null && payload.html) ? payload.html : payload;
+        rawSlidesHtml = (typeof html === 'string') ? html : "";
+        parsedSlides = [];
+
+        if (typeof payload === 'object' && payload !== null && typeof payload.currentSlide === 'number') {
+          activeSlideIndex = payload.currentSlide;
+        }
+
+        var tempDiv = document.createElement('div');
+        tempDiv.innerHTML = rawSlidesHtml;
+        var sections = tempDiv.querySelectorAll('section');
+
+        var currentSongTitle = "";
+
+        sections.forEach(function(sec, idx) {
+          var state = sec.getAttribute('data-state') || "";
+          var textDiv = sec.querySelector('.verse-text') || sec.querySelector('div[style*="font-size"]') || sec.querySelector('.verse-container');
+          var scriptureP = sec.querySelector('p');
+          var warningTable = sec.querySelector('.warning-table');
+          var isTelaPadrao = (idx === 0 || sec.innerHTML.indexOf('MARANATA') > -1 || sec.innerHTML.indexOf('Santa Ceia') > -1);
+
+          // Verifica se é slide de título do louvor
+          if (state.indexOf('showtitle') > -1) {
+            var styleTag = sec.querySelector('style');
+            if (styleTag) {
+              var m = styleTag.innerHTML.match(/content:\s*"([^"]+)"/);
+              if (m && m[1]) {
+                currentSongTitle = m[1].replace(/<br>/g, " ").trim();
+              }
+            }
+            parsedSlides.push({
+              index: idx,
+              type: 'title',
+              title: currentSongTitle,
+              content: textDiv ? textDiv.innerHTML.trim() : currentSongTitle,
+              isDefault: false
+            });
+            return;
+          }
+
+          // Slide de estrofe de louvor
+          if (textDiv) {
+            parsedSlides.push({
+              index: idx,
+              type: 'song',
+              title: currentSongTitle,
+              content: textDiv.innerHTML.trim(),
+              isDefault: false
+            });
+            return;
+          }
+
+          // Slide bíblico
+          if (sec.classList.contains('scriptures') || state.indexOf('scriptures') > -1 || scriptureP) {
+            var refTitle = "Texto Bíblico";
+            var styleTag = sec.querySelector('style');
+            if (styleTag) {
+              var mRef = styleTag.innerHTML.match(/content:\s*"([^"]+)"/);
+              if (mRef && mRef[1]) {
+                refTitle = mRef[1].trim();
+              }
+            }
+            parsedSlides.push({
+              index: idx,
+              type: 'bible',
+              title: refTitle,
+              content: scriptureP ? scriptureP.innerHTML.trim() : "",
+              isDefault: false
+            });
+            return;
+          }
+
+          // Slide de aviso
+          if (warningTable) {
+            var warnTitle = warningTable.querySelector('.warning-title');
+            var warnBody = warningTable.querySelector('.warning-body');
+            parsedSlides.push({
+              index: idx,
+              type: 'warning',
+              title: warnTitle ? warnTitle.textContent.trim() : "Aviso",
+              content: warnBody ? warnBody.innerHTML.trim() : "",
+              isDefault: false
+            });
+            return;
+          }
+
+          // Tela padrão ou outro slide sem texto
+          parsedSlides.push({
+            index: idx,
+            type: 'default',
+            title: '',
+            content: '',
+            isDefault: isTelaPadrao
+          });
+        });
+      }
+
+      function updateDisplay() {
+        var wrapper = document.getElementById('lowerThirdWrapper');
+        var badge = document.getElementById('obsBadge');
+        var title = document.getElementById('obsTitle');
+        var content = document.getElementById('obsContent');
+
+        if (isBlackout || !parsedSlides || parsedSlides.length === 0 || activeSlideIndex < 0 || activeSlideIndex >= parsedSlides.length) {
+          wrapper.classList.remove('visible');
+          return;
+        }
+
+        var slide = parsedSlides[activeSlideIndex];
+
+        // Se for tela padrão ou slide sem conteúdo, recolhe o lower third
+        if (!slide || slide.isDefault || !slide.content) {
+          wrapper.classList.remove('visible');
+          return;
+        }
+
+        if (slide.type === 'song' || slide.type === 'title') {
+          badge.textContent = "LOUVOR";
+          badge.style.background = "#fbbf24";
+          badge.style.color = "#0f172a";
+          title.textContent = slide.title || "";
+          content.innerHTML = slide.content;
+        } else if (slide.type === 'bible') {
+          badge.textContent = "BÍBLIA";
+          badge.style.background = "#38bdf8";
+          badge.style.color = "#0f172a";
+          title.textContent = slide.title || "";
+          content.innerHTML = slide.content;
+        } else if (slide.type === 'warning') {
+          badge.textContent = "AVISO";
+          badge.style.background = "#f87171";
+          badge.style.color = "#ffffff";
+          title.textContent = slide.title || "";
+          content.innerHTML = slide.content;
+        } else {
+          wrapper.classList.remove('visible');
+          return;
+        }
+
+        wrapper.classList.add('visible');
+      }
+
+      function enviarAoPainel(action) {
+        var msg = { action: action, timestamp: Date.now() };
+        if (projectionChannel) {
+          try { projectionChannel.postMessage(msg); } catch(e) {}
+        }
+        if (window.opener && !window.opener.closed) {
+          try { window.opener.postMessage(msg, "*"); } catch(e) {}
+        }
+      }
+
+      function processCommand(action, payload) {
+        if (action === 'RELOAD_SLIDES' || action === 'reloadReveal') {
+          parseSlides(payload);
+          updateDisplay();
+        } else if (action === 'SLIDE_CHANGE' || action === 'CHANGE_SLIDE' || action === 'changeSlide') {
+          if (!isFrozen) {
+            activeSlideIndex = (typeof payload === 'number') ? payload : (parseInt(payload, 10) || 0);
+            updateDisplay();
+          }
+        } else if (action === 'BLACKOUT' || action === 'blackout') {
+          isBlackout = !!payload;
+          updateDisplay();
+        } else if (action === 'FREEZE') {
+          isFrozen = !!payload;
+        } else if (action === 'REQUEST_STATUS' || action === 'PING') {
+          enviarAoPainel('OBS_READY');
+        }
+      }
+
+      function carregarSnapshotLocal() {
+        try {
+          var raw = localStorage.getItem('obs_live_sync');
+          if (!raw) return false;
+          var snap = JSON.parse(raw);
+          if (snap && snap.html) {
+            isBlackout = !!snap.isBlackout;
+            isFrozen = !!snap.isFrozen;
+            parseSlides({ html: snap.html, currentSlide: snap.currentSlide || 0 });
+            updateDisplay();
+            return true;
+          }
+        } catch(e) {}
+        return false;
+      }
+
+      if (projectionChannel) {
+        projectionChannel.onmessage = function(event) {
+          if (!event.data) return;
+          processCommand(event.data.action, event.data.payload);
+        };
+      }
+
+      // Suporte a window.postMessage (objeto direto ou string JSON para file:/// e pop-ups)
+      window.addEventListener('message', function(event) {
+        try {
+          var data = (typeof event.data === 'string') ? JSON.parse(event.data) : event.data;
+          if (data && data.host === 'projection-html5') {
+            processCommand(data.function, data.data);
+          } else if (data && data.action) {
+            processCommand(data.action, data.payload);
+          }
+        } catch (e) {}
+      });
+
+      // Fallback via evento de storage caso BroadcastChannel seja bloqueado na origem
+      window.addEventListener('storage', function(event) {
+        if (event.key === 'obs_live_sync') {
+          carregarSnapshotLocal();
+        }
+      });
+
+      // Solicita os slides atuais ao inicializar e tenta sincronizar caso chegue antes do painel responder
+      carregarSnapshotLocal();
+      enviarAoPainel('OBS_READY');
+      enviarAoPainel('REQUEST_SLIDES');
+
+      var obsRetryInterval = setInterval(function() {
+        if (parsedSlides.length > 0) {
+          clearInterval(obsRetryInterval);
+          return;
+        }
+        if (!carregarSnapshotLocal()) {
+          enviarAoPainel('REQUEST_SLIDES');
+        }
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>
