@@ -1,5 +1,10 @@
 # Projeção ICM HTML5 `v2.2.1`
 
+[![CI/CD - Projeção ICM](https://github.com/chacalbl4ck/projectionICMv2/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/chacalbl4ck/projectionICMv2/actions/workflows/build-and-release.yml)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-2.2.1-blue.svg)
+![Plataforma](https://img.shields.io/badge/plataforma-Windows%20%7C%20Web%20%7C%20Mobile-brightgreen)
+![Zero Dependências](https://img.shields.io/badge/depend%C3%AAncias-zero-orange)
+
 Sistema moderno, modular e completo de projeção e transmissão de louvores, textos bíblicos, avisos e mídias para cultos da **Igreja Cristã Maranata**.
 
 > **Aviso Importante:** Este software **não é um software oficial nem é endossado pela Igreja Cristã Maranata (ICM)**. Trata-se de um projeto independente, feito por membros para os membros.
@@ -121,6 +126,33 @@ Atalho | Ação
 `Ctrl + S` | Salva o louvor em edição (quando na aba **Editar**)
 
 > **Nota sobre Blackout e Congelar (Freeze):** Para assegurar total estabilidade ao digitar buscas de louvores, textos bíblicos e avisos (eliminando conflitos com as teclas `B` e `F`), o **Blackout** e o **Congelamento** são acionados exclusivamente pelos botões dedicados na interface e no controle remoto mobile.
+
+---
+
+## 🤖 Integração Contínua e Build Automatizado (GitHub Actions)
+
+O repositório possui pipeline completo de CI/CD configurado em [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
+
+* **🧪 Testes de Integridade (Linux):** A cada *push* ou *pull request*, executa a suíte automatizada ([`test/test_suite.js`](test/test_suite.js)), validando a sintaxe de todos os módulos JavaScript, integridade das páginas HTML, funcionamento do parser de referências bíblicas, índice de busca e estrutura dos louvores em `data/data.json`.
+* **🪟 Compilação do Executável Windows (ProjecaoICM.exe):** Em ambiente Windows (`windows-latest`), compila o executável oficial com o compilador C# nativo (`csc.exe` do .NET Framework 4.8), embutindo o ícone oficial da Igreja Cristã Maranata e o pacote zip com os recursos da aplicação.
+* **🛡️ Autoteste Automatizado (`--self-test`):** Executa em processo os testes de integridade dos ícones Win32, extração portátil, rotas HTTP/SSE e gerador de QR Code.
+* **🔒 Checksum SHA-256 e Artefatos:** Gera automaticamente o hash criptográfico `SHA256SUMS.txt` e disponibiliza o executável compilado para download na aba **Actions** por 30 dias.
+* **🚀 Publicação Automática de Releases:** Ao publicar uma tag de versão (ex: `git tag v2.2.1 && git push origin v2.2.1`) ou acionar manualmente via **Run workflow**, o GitHub Actions cria automaticamente uma nova Release no GitHub com os binários e hashes anexados.
+
+### 🛠️ Comandos Úteis para Desenvolvedores
+
+* **Executar a Suíte de Testes Localmente:**
+  ```bash
+  node test/test_suite.js
+  ```
+* **Compilar o Executável Windows Localmente:**
+  ```bash
+  node desktop/Compilar_Exe.js
+  ```
+* **Executar o Autoteste do Executável:**
+  ```powershell
+  .\ProjecaoICM.exe --self-test
+  ```
 
 ---
 

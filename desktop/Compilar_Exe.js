@@ -7,12 +7,16 @@ const os = require('os');
 const { execFileSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
-const fwDir = 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319';
-const csc = path.join(fwDir, 'csc.exe');
-
-if (!fs.existsSync(csc)) {
-    throw new Error('Compilador csc.exe (.NET Framework 4.x) não encontrado em ' + csc);
+const winDir = process.env.windir || process.env.SystemRoot || 'C:\\Windows';
+const fwCands = [
+    path.join(winDir, 'Microsoft.NET', 'Framework64', 'v4.0.30319'),
+    path.join(winDir, 'Microsoft.NET', 'Framework', 'v4.0.30319')
+];
+const fwDir = fwCands.find(d => fs.existsSync(path.join(d, 'csc.exe')));
+if (!fwDir) {
+    throw new Error('Compilador csc.exe (.NET Framework 4.x) não encontrado em ' + fwCands.join(' ou '));
 }
+const csc = path.join(fwDir, 'csc.exe');
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'icm_build_'));
 try {
