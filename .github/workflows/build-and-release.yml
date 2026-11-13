@@ -9,10 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       create_release:
-        description: 'Publicar Release no GitHub com o executável anexado?'
+        description: 'Publicar / Atualizar Release no GitHub com o executável anexado?'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -81,20 +81,37 @@ jobs:
   release:
     name: 🚀 Publicar Release no GitHub
     needs: build-windows
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout do Repositório
         uses: actions/checkout@v4
+
+      - name: Identificar Versão e Tag da Release
+        id: get_version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(node -e "const m = require('fs').readFileSync('index.html', 'utf8').match(/v(\d+\.\d+\.\d+)/); console.log(m ? m[1] : '2.2.1');")
+            TAG="v$VER"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag identificada: $TAG"
 
       - name: Baixar Artefatos Compilados
         uses: actions/download-artifact@v4
         with:
           name: ProjecaoICM-Windows
 
-      - name: Criar GitHub Release e Anexar Executável
+      - name: Criar ou Atualizar GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.get_version.outputs.tag }}
+          name: "Projeção ICM ${{ steps.get_version.outputs.tag }}"
           files: |
             ProjecaoICM.exe
             SHA256SUMS.txt
