@@ -1,6 +1,12 @@
-body{
+html {
+    height: 100%;
+}
+
+body {
+    min-height: 100%;
     background-color: #262626;
-    /* overflow: hidden; */
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 table {
@@ -296,6 +302,14 @@ a{
 #scrollblock{
     position: relative;
     height: 79vh; 
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.list-projection-card-body {
+    height: 38vh;
+    max-height: 42vh;
+    min-height: 140px;
     overflow-x: hidden !important;
     overflow-y: auto !important;
 }
@@ -701,3 +715,195 @@ input:checked + .slider:before {
     display: block;
     background-color: #000;
 }
+
+/* ========================================================
+   Adaptação Responsiva para Resoluções Menores (até 1360x768)
+   ======================================================== */
+.dashboard-main-row {
+    margin-left: -8px;
+    margin-right: -8px;
+}
+
+.dashboard-main-row > div[class*="col-"] {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.main-app-navbar {
+    flex-wrap: nowrap !important;
+    padding: 0.35rem 0.8rem;
+    min-height: 46px;
+}
+
+.navbar-center-status {
+    flex-wrap: nowrap !important;
+}
+
+.navbar-left-actions,
+.navbar-right-actions {
+    flex-wrap: nowrap !important;
+}
+
+/* Telas Compactas e Notebooks (<= 1600px de largura ou <= 900px de altura) */
+@media (max-width: 1600px) or (max-height: 900px) {
+    html {
+        font-size: 14.5px;
+    }
+    .main-app-navbar {
+        padding: 0.25rem 0.6rem !important;
+        min-height: 42px !important;
+    }
+    #tree_list1 {
+        height: 60vh;
+    }
+    #scrollblock {
+        height: 73vh;
+    }
+}
+
+/* Resoluções Médias e Notebooks Compactos (<= 1440px de largura ou <= 840px de altura) */
+@media (max-width: 1440px) or (max-height: 840px) {
+    html {
+        font-size: 13.5px;
+    }
+    .main-app-navbar {
+        padding: 0.2rem 0.5rem !important;
+        min-height: 38px !important;
+    }
+    .main-app-navbar .btn {
+        padding: 0.2rem 0.45rem !important;
+        font-size: 0.8rem !important;
+    }
+    .main-app-navbar .badge {
+        padding: 0.2rem 0.35rem !important;
+        font-size: 0.72rem !important;
+    }
+    .navbar-brand {
+        font-size: 1.05rem !important;
+        margin-right: 0.4rem !important;
+    }
+    .card-header {
+        padding: 0.35rem 0.7rem !important;
+    }
+    .card-header-tabs .nav-link {
+        padding: 0.3rem 0.6rem !important;
+        font-size: 0.85rem !important;
+    }
+    .dashboard-main-row {
+        padding-top: 0.25rem !important;
+        margin-left: -5px !important;
+        margin-right: -5px !important;
+    }
+    .dashboard-main-row > div[class*="col-"] {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+    .card {
+        margin-bottom: 0.5rem !important;
+    }
+    .btn-toolbar .btn-group .btn {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.8rem !important;
+    }
+    #treesearch {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.82rem !important;
+        height: auto !important;
+    }
+    #tree_list1 {
+        height: calc(100vh - 175px) !important;
+        max-height: calc(100vh - 175px) !important;
+        min-height: 220px !important;
+    }
+    #scrollblock {
+        height: calc(100vh - 148px) !important;
+        max-height: calc(100vh - 148px) !important;
+        min-height: 250px !important;
+    }
+    .list-projection-card-body {
+        height: calc(48vh - 70px) !important;
+        max-height: calc(50vh - 70px) !important;
+        min-height: 110px !important;
+    }
+    .preview-ratio-wrapper {
+        max-height: calc(44vh - 55px) !important;
+    }
+    #content.noresize {
+        height: calc(100vh - 290px) !important;
+        min-height: 160px !important;
+    }
+    .bibleBooks {
+        height: calc(100vh - 280px) !important;
+        max-height: calc(100vh - 280px) !important;
+        min-height: 180px !important;
+    }
+    .bibleNum {
+        height: calc(50vh - 130px) !important;
+        min-height: 90px !important;
+        max-height: 160px !important;
+    }
+    #preViewScripture {
+        height: calc(50vh - 160px) !important;
+        min-height: 60px !important;
+        max-height: 130px !important;
+    }
+    #bibleSearchResults {
+        max-height: calc(100vh - 280px) !important;
+    }
+    #bibleEditVersesContainer {
+        height: calc(100vh - 240px) !important;
+        max-height: calc(100vh - 240px) !important;
+        min-height: 180px !important;
+    }
+}
+
+/* Resolução Mínima Suportada: 1360x768 / 1366x768 */
+@media (max-width: 1366px) or (max-height: 768px) {
+    html {
+        font-size: 13px;
+    }
+    .main-app-navbar {
+        padding: 0.15rem 0.4rem !important;
+        min-height: 36px !important;
+    }
+    .main-app-navbar .btn {
+        padding: 0.18rem 0.38rem !important;
+        font-size: 0.76rem !important;
+    }
+    .main-app-navbar .badge {
+        font-size: 0.68rem !important;
+        padding: 0.15rem 0.3rem !important;
+    }
+    .navbar-brand {
+        font-size: 0.98rem !important;
+        margin-right: 0.3rem !important;
+    }
+    .dashboard-main-row {
+        padding-top: 0.15rem !important;
+        margin-left: -4px !important;
+        margin-right: -4px !important;
+    }
+    .dashboard-main-row > div[class*="col-"] {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+    #tree_list1 {
+        height: calc(100vh - 160px) !important;
+        max-height: calc(100vh - 160px) !important;
+        min-height: 200px !important;
+    }
+    #scrollblock {
+        height: calc(100vh - 135px) !important;
+        max-height: calc(100vh - 135px) !important;
+        min-height: 230px !important;
+    }
+    .list-projection-card-body {
+        height: calc(48vh - 65px) !important;
+        max-height: calc(50vh - 65px) !important;
+        min-height: 100px !important;
+    }
+    .preview-ratio-wrapper {
+        max-height: calc(44vh - 50px) !important;
+    }
+}
+

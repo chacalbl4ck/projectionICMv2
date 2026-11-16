@@ -229,7 +229,8 @@ function ajustarAspectPreview(aspectRatio, isFromTelao) {
 
     if (wrapper) {
         wrapper.style.aspectRatio = cssRatio;
-        var maxHeightPx = (typeof window !== 'undefined' && window.innerHeight) ? (window.innerHeight * 0.38) : 300;
+        var maxFactor = (typeof window !== 'undefined' && window.innerHeight < 820) ? 0.32 : 0.38;
+        var maxHeightPx = (typeof window !== 'undefined' && window.innerHeight) ? (window.innerHeight * maxFactor) : 300;
         var containerWidth = container ? container.clientWidth : (wrapper.parentElement ? wrapper.parentElement.clientWidth : 300);
         if (containerWidth > 0 && maxHeightPx > 0) {
             var expectedHeight = containerWidth / ratio;
