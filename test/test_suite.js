@@ -393,6 +393,156 @@ runTest('Interface do usuário (index.html) possui opções de Importar e Restau
   );
 });
 
+// ----------------------------------------------------
+// 9. Preservação do Slide Ativo na Adição e Remoção da Fila de Projeção
+// ----------------------------------------------------
+console.log('\n9) Validação da Preservação do Slide Ativo na Fila de Projeção (Sem Reset Indevido):');
+
+runTest('Funções globais de rastreamento semântico em js/modules/projection.js', () => {
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+  assert(
+    projCode.includes('function obterInfoSlideAtivo('),
+    'projection.js deve definir obterInfoSlideAtivo'
+  );
+  assert(
+    projCode.includes('function resolverNovoSlideAtivo('),
+    'projection.js deve definir resolverNovoSlideAtivo'
+  );
+  assert(
+    projCode.includes('function removerItemDaProjecao('),
+    'projection.js deve definir removerItemDaProjecao'
+  );
+  assert(
+    projCode.includes('window.obterInfoSlideAtivo = obterInfoSlideAtivo'),
+    'projection.js deve exportar obterInfoSlideAtivo no window'
+  );
+  assert(
+    projCode.includes('window.resolverNovoSlideAtivo = resolverNovoSlideAtivo'),
+    'projection.js deve exportar resolverNovoSlideAtivo no window'
+  );
+  assert(
+    projCode.includes('window.removerItemDaProjecao = removerItemDaProjecao'),
+    'projection.js deve exportar removerItemDaProjecao no window'
+  );
+});
+
+runTest('Sincronização e classes no DOM do Reveal em view.html', () => {
+  const viewHtml = fs.readFileSync(path.join(root, 'view.html'), 'utf8');
+  assert(
+    viewHtml.includes('Reveal.slide(slideNum, 0, 0);'),
+    'view.html deve navegar com Reveal.slide(slideNum, 0, 0)'
+  );
+  assert(
+    viewHtml.includes("sec.classList.add('present');"),
+    'reloadReveal em view.html deve aplicar classe .present ao slide ativo'
+  );
+  assert(
+    viewHtml.includes("sec.removeAttribute('hidden');"),
+    'reloadReveal em view.html deve remover atributo hidden do slide ativo'
+  );
+});
+
+runTest('Rastreamento de slide na adição e exclusão em fila simulada', () => {
+  const vm = require('vm');
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+
+  const noop = () => {};
+  const mockJQueryObj = {
+    on: () => mockJQueryObj,
+    off: () => mockJQueryObj,
+    append: () => mockJQueryObj,
+    html: () => mockJQueryObj,
+    click: () => mockJQueryObj,
+    each: () => mockJQueryObj,
+    addClass: () => mockJQueryObj,
+    removeClass: () => mockJQueryObj,
+    attr: () => '',
+    show: () => mockJQueryObj,
+    hide: () => mockJQueryObj,
+    ready: (fn) => { if (typeof fn === 'function') fn(); return mockJQueryObj; }
+  };
+  const mockJQuery = function() { return mockJQueryObj; };
+  mockJQuery.each = function(arr, fn) { if (Array.isArray(arr)) arr.forEach((item, idx) => fn(idx, item)); };
+
+  const mockWindow = {
+    addEventListener: noop,
+    removeEventListener: noop,
+    location: { protocol: 'http:' }
+  };
+
+  const sandbox = {
+    dados: [
+      {
+        name: "Coletânea",
+        songs: [
+          { title: "01 - Hino 1", content: "Estrofe 1\n\nEstrofe 2\n\nEstrofe 3" },
+          { title: "02 - Hino 2", content: "Estrofe 1\n\nEstrofe 2" },
+          { title: "03 - Hino 3", content: "Estrofe 1\n\nEstrofe 2\n\nEstrofe 3\n\nEstrofe 4" }
+        ]
+      }
+    ],
+    projecao: [],
+    projecaoAtiva: 0,
+    window: mockWindow,
+    document: {
+      querySelectorAll: () => [],
+      getElementById: () => null
+    },
+    $: mockJQuery,
+    jQuery: mockJQuery,
+    console: console,
+    setTimeout: noop,
+    clearTimeout: noop,
+    setInterval: noop,
+    clearInterval: noop,
+    BroadcastChannel: function() { return { postMessage: noop, close: noop }; },
+    localStorage: { setItem: noop, getItem: () => null }
+  };
+  vm.createContext(sandbox);
+
+  // Executa o trecho relevante de projection.js no sandbox
+  vm.runInContext(projCode, sandbox);
+
+  const { obterInfoSlideAtivo, resolverNovoSlideAtivo, removerItemDaProjecao } = sandbox;
+
+  // 1. Fila vazia inicia em 0
+  assert.strictEqual(sandbox.projecaoAtiva, 0);
+
+  // 2. Adiciona Hino 0 (3 estrofes: slides 1, 2, 3; slide 4 é tela padrão intermediária)
+  sandbox.projecao.push({ id: 0, folderId: 0, type: "s" });
+  // Projeta Estrofe 2 (slide 2)
+  sandbox.projecaoAtiva = 2;
+  let info = obterInfoSlideAtivo(sandbox.projecaoAtiva);
+  assert.strictEqual(info.subOffset, 1, 'Slide 2 corresponde à 2ª estrofe (subOffset 1)');
+
+  // 3. Adiciona Hino 1 (2 estrofes) ao fim da fila
+  sandbox.projecao.push({ id: 1, folderId: 0, type: "s" });
+  let novoSlide = resolverNovoSlideAtivo(info);
+  assert.strictEqual(novoSlide, 2, 'Adicionar hino não deve alterar índice do slide ativo anterior');
+
+  // 4. Adiciona passagem Bíblica (3 versículos) ao fim da fila
+  sandbox.projecao.push({ b: 0, c: 0, from: 0, to: 2, type: "b" });
+  novoSlide = resolverNovoSlideAtivo(info);
+  assert.strictEqual(novoSlide, 2, 'Adicionar bíblia não deve alterar índice do slide ativo');
+
+  // 5. Agora o operador projeta o Hino 1, Estrofe 1 (que está no slide 6: hino 0 ocupa 1,2,3,4; hino 1 começa no 5, estrofe 1 é 6)
+  sandbox.projecaoAtiva = 6;
+  info = obterInfoSlideAtivo(sandbox.projecaoAtiva);
+  assert.strictEqual(info.itemRef.id, 1, 'Deve identificar que o slide 6 pertence ao Hino 1');
+
+  // 6. Exclui o item anterior (Hino 0, index 0 na fila)
+  sandbox.projecao.splice(0, 1);
+  novoSlide = resolverNovoSlideAtivo(info);
+  // Agora Hino 1 é o primeiro da fila (slides 1, 2, 3). Estrofe 1 deve ser o slide 2!
+  assert.strictEqual(novoSlide, 2, 'Excluir item anterior deve remapear slide ativo para a mesma estrofe sem resetar para tela padrão');
+
+  // 7. Agora exclui o item que está ativo no momento (Hino 1)
+  info = obterInfoSlideAtivo(novoSlide);
+  sandbox.projecao.splice(0, 1); // remove Hino 1
+  novoSlide = resolverNovoSlideAtivo(info);
+  assert.strictEqual(novoSlide, 0, 'Excluir o próprio item sendo projetado deve resetar limpa e corretamente para a Tela Padrão (0)');
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

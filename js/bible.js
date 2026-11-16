@@ -202,9 +202,10 @@ function biblePreView(){
 }
 
 $('#addBibleToProjection').click(function(){
+  var activeInfo = (typeof obterInfoSlideAtivo === 'function') ? obterInfoSlideAtivo(projecaoAtiva) : null;
   var biblia = { b: bookSelected, c: chapterSelected, from: fromSelected, to: toSelected, type: "b" }
   projecao.push(biblia);
-  reloadProjectionList();
+  reloadProjectionList(activeInfo);
 });  
 
 $('#selectBibleVersion').change(function() {
@@ -1038,9 +1039,10 @@ function inicializarBuscaBiblicaUI() {
 
     var biblia = { b: b, c: c, from: from, to: to, type: "b" };
     if (typeof projecao !== 'undefined') {
+      var activeInfo = (typeof obterInfoSlideAtivo === 'function') ? obterInfoSlideAtivo(projecaoAtiva) : null;
       projecao.push(biblia);
       if (typeof reloadProjectionList === 'function') {
-        reloadProjectionList();
+        reloadProjectionList(activeInfo);
       }
     }
 

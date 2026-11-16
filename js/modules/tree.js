@@ -273,6 +273,7 @@ function renderizarArvoreNativa(dadosLouvores, listaAvisos, listaImagens) {
 
 function adicionarAProjecao(e, elementoLi, item, tipo, itemId) {
     if (e && e.stopPropagation) e.stopPropagation();
+    var activeInfo = (typeof obterInfoSlideAtivo === 'function') ? obterInfoSlideAtivo(projecaoAtiva) : null;
     if (tipo === 'song') {
         const folderId = elementoLi ? elementoLi.closest('details').dataset.folderId : pastaAtiva;
         projecao.push({ id: itemId, folderId: parseInt(folderId), type: "s" });
@@ -295,7 +296,7 @@ function adicionarAProjecao(e, elementoLi, item, tipo, itemId) {
             resolverUrlMidia(item).then(function(u) {
                 if (u && u !== prevSrc) {
                     item.src = u;
-                    if (typeof generateLiveList === 'function') generateLiveList();
+                    if (typeof generateLiveList === 'function') generateLiveList(activeInfo);
                     else if (typeof updateViewSlides === 'function') updateViewSlides();
                 }
             });
@@ -315,7 +316,7 @@ function adicionarAProjecao(e, elementoLi, item, tipo, itemId) {
             warningItem: item 
         });
     }
-    reloadProjectionList();
+    reloadProjectionList(activeInfo);
 }
 
 function selecionarItemDaLista(e, elementoLi, item, tipo, itemId) {
