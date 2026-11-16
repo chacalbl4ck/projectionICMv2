@@ -37,8 +37,10 @@
         <div class="dropdown-menu" aria-labelledby="dropdown_init">
           <button id="linkFile" class="dropdown-item text-primary" title="Salva direto no disco (Apenas Chrome/Edge)"><i class="fas fa-link"></i> Vincular data.json (Auto-Save)</button>
           <div class="dropdown-divider"></div>
-          <button id="import" class="dropdown-item" data-lang-str="btn_menu_import"><i class="fas fa-upload"></i> Importar Tradicional...</button>
-          <button id="export" class="dropdown-item" data-lang-str="btn_menu_export"><i class="fas fa-download"></i> Exportar Tradicional...</button>
+          <button id="import" class="dropdown-item" data-lang-str="btn_menu_import"><i class="fas fa-upload"></i> Importar Acervo de Louvores...</button>
+          <button id="export" class="dropdown-item" data-lang-str="btn_menu_export"><i class="fas fa-download"></i> Exportar Acervo Atual...</button>
+          <div class="dropdown-divider"></div>
+          <button id="btnRestaurarPadrao" class="dropdown-item text-warning" title="Restaura a coletânea original do sistema"><i class="fas fa-undo"></i> Restaurar Coletânea Padrão</button>
         </div>
       </li>
       <li class="nav-item">
@@ -149,12 +151,12 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="load_data">Carregar dados</h5>
+          <h5 class="modal-title" data-lang-str="load_data"><i class="fas fa-folder-open mr-1"></i> Carregar dados</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body" data-lang-str="load_body">
-          Seu navegador impediu o carregamento local. Abra manualmente seu arquivo <strong>(data.json)</strong> que esta em sua pasta <strong>("/data")</strong>.
-          <input type="file" class="mt-3" name="filedata" id="filedata">
+          <p>Abra manualmente seu arquivo de dados <strong>(data.json)</strong>:</p>
+          <input type="file" class="mt-2 form-control-file p-2 bg-light border rounded" name="filedata" id="filedata" accept=".json,application/json">
         </div>
       </div>
     </div>
@@ -164,12 +166,18 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" data-lang-str="btn_menu_import">Importar</h5>
+          <h5 class="modal-title" data-lang-str="btn_menu_import"><i class="fas fa-upload mr-1"></i> Importar Acervo de Louvores</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body">
-          Abra seu arquivo de dados <strong>(data.json)</strong> que esta em sua pasta <strong>("/data")</strong>.
-          <input type="file" class="mt-3" name="fileImport" id="fileImport">
+          <p class="text-muted">Selecione o arquivo de louvores (<strong>.json</strong>) que deseja carregar para o sistema.</p>
+          <div class="custom-file mt-2">
+            <input type="file" class="form-control-file p-2 bg-light border rounded" name="fileImport" id="fileImport" accept=".json,application/json">
+          </div>
+          <small class="form-text text-info mt-2"><i class="fas fa-info-circle mr-1"></i> O acervo importado será carregado imediatamente e salvo de forma permanente.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
         </div>
       </div>
     </div>

@@ -382,7 +382,32 @@ async function carregaLouvores() {
         console.warn("Falha ao recuperar handles do IndexedDB:", e);
     }
 
-    // Se temos handle restaurado, tenta ler direto do disco
+    // 2. Prioridade 1: Acervo de louvores importado ou personalizado salvo no IndexedDB (sem limite de quota)
+    try {
+        var acervoSalvo = await MediaDB.get("app_custom_data_json");
+        if (acervoSalvo) {
+            var acervoNormalizado = (typeof normalizarEstruturaLouvores === 'function') 
+                ? normalizarEstruturaLouvores(acervoSalvo) 
+                : acervoSalvo;
+            if (acervoNormalizado && Array.isArray(acervoNormalizado) && acervoNormalizado.length > 0) {
+                dados = acervoNormalizado;
+                if (localStorage.getItem("warnings") !== null && localStorage.getItem("warnings") !== "") {
+                    try { avisos = JSON.parse(localStorage.getItem("warnings")); } catch(e){ avisos = []; }
+                }
+                if (localStorage.getItem("images") !== null && localStorage.getItem("images") !== "") {
+                    try { imagens = JSON.parse(localStorage.getItem("images")); } catch(e){ imagens = []; }
+                }
+                atualizaListasFromJSON(dados);
+                atualizarIndicadorVinculo();
+                marcarAlteracoesPendentes(false, true);
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Falha ao recuperar acervo personalizado do IndexedDB:", e);
+    }
+
+    // 3. Se temos handle restaurado e nenhum acervo customizado prioritário, tenta ler direto do disco
     if (fileHandle) {
         try {
             var perm = (typeof fileHandle.queryPermission === 'function') 
@@ -403,7 +428,7 @@ async function carregaLouvores() {
         }
     }
 
-    // 2. Tenta carregar do localStorage
+    // 4. Tenta carregar do localStorage (cache de emergência)
     if (localStorage.getItem("data") !== null && localStorage.getItem("data") !== "" && localStorage.getItem("data") !== "[]") {
         try {
             atualizaListaArquivos(localStorage.getItem("data"));
@@ -415,7 +440,7 @@ async function carregaLouvores() {
         }
     }
 
-    // 3. Fallback: carrega via fetch/XMLHttpRequest do arquivo data/data.json
+    // 5. Fallback: carrega via fetch/XMLHttpRequest do arquivo data/data.json do sistema
     try {
         var resp = await fetch('data/data.json');
         if (resp.ok) {
@@ -449,7 +474,10 @@ async function carregaLouvores() {
 
 function atualizaListaArquivos(jsonString) {
     try {
-        dados = JSON.parse(jsonString);
+        var parsed = (typeof jsonString === 'object') ? jsonString : JSON.parse(jsonString);
+        dados = (typeof normalizarEstruturaLouvores === 'function') 
+            ? normalizarEstruturaLouvores(parsed) 
+            : parsed;
     } catch (e) {
         console.error("Erro ao analisar JSON dos louvores:", e);
         return;
@@ -487,13 +515,20 @@ function atualizaListasFromJSON(dadosLouvores) {
 
     renderizarArvoreNativa(dadosLouvores, avisos, imagens);
 
-    var tituloAtual = $('#title').val();
-    if ((!tituloAtual || !dadosLouvores[pastaAtiva]) && dadosLouvores[0] && dadosLouvores[0].songs && dadosLouvores[0].songs.length > 0) {
-        $('#title').val(dadosLouvores[0].songs[0].title);
-        $('#content').val(dadosLouvores[0].songs[0].content);
+    if (!dadosLouvores[pastaAtiva] || !dadosLouvores[pastaAtiva].songs || !dadosLouvores[pastaAtiva].songs[louvorAtivo]) {
         pastaAtiva = 0;
         louvorAtivo = 0;
         ref_selected = "0_0";
+        if (dadosLouvores[0] && dadosLouvores[0].songs && dadosLouvores[0].songs.length > 0) {
+            $('#title').val(dadosLouvores[0].songs[0].title || '');
+            $('#content').val(dadosLouvores[0].songs[0].content || '');
+        } else {
+            $('#title').val('');
+            $('#content').val('');
+        }
+    } else if (!$('#title').val() && dadosLouvores[pastaAtiva].songs[louvorAtivo]) {
+        $('#title').val(dadosLouvores[pastaAtiva].songs[louvorAtivo].title || '');
+        $('#content').val(dadosLouvores[pastaAtiva].songs[louvorAtivo].content || '');
     }
 
     if (typeof window.hidratarMidiasDoMediaDB === 'function') {
@@ -502,6 +537,167 @@ function atualizaListasFromJSON(dadosLouvores) {
 
     generateLiveList();
     hideLoading();
+}
+
+// Processa arquivo ou texto de acervo externo, normaliza, atualiza UI e persiste com prioridade máxima
+async function processarImportacaoLouvores(conteudoTexto, nomeArquivo) {
+    try {
+        if (!conteudoTexto) {
+            alert("O arquivo selecionado está vazio.");
+            return false;
+        }
+
+        var parsed = null;
+        if (typeof conteudoTexto === 'string') {
+            var limpo = conteudoTexto.replace(/^\uFEFF/, '').trim();
+            if (!limpo) {
+                alert("O arquivo selecionado está vazio.");
+                return false;
+            }
+            parsed = JSON.parse(limpo);
+        } else if (typeof conteudoTexto === 'object') {
+            parsed = conteudoTexto;
+        }
+
+        var normalizado = (typeof normalizarEstruturaLouvores === 'function')
+            ? normalizarEstruturaLouvores(parsed)
+            : (Array.isArray(parsed) ? parsed : null);
+
+        if (!normalizado || !normalizado.length) {
+            alert("O arquivo selecionado não contém uma estrutura reconhecível de louvores.\nCertifique-se de que o arquivo JSON contenha pastas e louvores ou uma lista de cânticos.");
+            return false;
+        }
+
+        // Atualiza a variável global do acervo
+        dados = normalizado;
+
+        // Limpa busca e redefine ponteiros litúrgicos
+        $('#treesearch').val('');
+        pastaAtiva = 0;
+        louvorAtivo = 0;
+        ref_selected = "0_0";
+
+        // Atualiza diretamente o editor central para o primeiro louvor do novo acervo
+        if (dados[0] && dados[0].songs && dados[0].songs.length > 0) {
+            $('#title').val(dados[0].songs[0].title || '');
+            $('#content').val(dados[0].songs[0].content || '');
+        } else {
+            $('#title').val('');
+            $('#content').val('');
+        }
+
+        // Limpa a fila ao vivo para evitar inconsistências de índices do acervo antigo
+        projecao = [];
+        projecaoAtiva = 0;
+        $('#livesongs tbody').empty();
+
+        // Renderiza a árvore nativa com o novo acervo
+        renderizarArvoreNativa(dados, avisos, imagens);
+
+        // Abre automaticamente a primeira pasta da árvore
+        setTimeout(function() {
+            var firstFolder = $('.tree-folder[data-folder-id="0"]');
+            if (firstFolder.length && !firstFolder.hasClass('open')) {
+                firstFolder.addClass('open');
+                firstFolder.find('.tree-caret').text('▼');
+                firstFolder.children('.tree-children').show();
+            }
+            var firstSong = $('.tree-song[data-folder-id="0"][data-song-id="0"]');
+            if (firstSong.length) {
+                $('.tree-song').removeClass('active');
+                firstSong.addClass('active');
+            }
+        }, 80);
+
+        // Salva com máxima persistência em todos os canais (IndexedDB, Servidor Local, Disco e localStorage)
+        if (typeof salvarAcervoCompleto === 'function') {
+            await salvarAcervoCompleto(dados);
+        } else {
+            try { localStorage.setItem('data', JSON.stringify(sanitizarDadosParaJson(dados))); } catch(e){}
+            try { await MediaDB.save("app_custom_data_json", sanitizarDadosParaJson(dados)); } catch(e){}
+            salvarDiretoNoDisco();
+        }
+
+        // Notifica catálogo remoto se ativo
+        window.catalogoLouvoresRemoto = dados;
+        if (typeof window.wsTransmitirAtualizacao === 'function') {
+            try {
+                window.wsTransmitirAtualizacao({ tipo: 'catalogo', dados: dados });
+            } catch(e){}
+        }
+
+        // Fecha modais de importação
+        $('#importModal').modal('hide');
+        $('#carregarModal').modal('hide');
+        $('#loadModal').modal('hide');
+
+        var totalPastas = dados.length;
+        var totalLouvores = dados.reduce(function(acc, pasta) {
+            return acc + (pasta && pasta.songs ? pasta.songs.length : 0);
+        }, 0);
+
+        var msgSucesso = "Acervo de louvores importado e carregado com sucesso!\n\n" +
+                         "Pastas carregadas: " + totalPastas + "\n" +
+                         "Total de louvores: " + totalLouvores + "\n\n" +
+                         "O acervo foi salvo e permanecerá ativo mesmo ao reiniciar o sistema.";
+        alert(msgSucesso);
+        return true;
+    } catch (err) {
+        console.error("Erro ao importar acervo de louvores:", err);
+        alert("Erro ao ler e carregar o arquivo JSON de louvores:\n" + (err.message || err));
+        return false;
+    }
+}
+
+// Restaura a coletânea original do sistema de data/data.json
+async function restaurarColetaneaPadrao() {
+    if (!confirm("Deseja realmente restaurar a coletânea de louvores padrão do sistema?\n\nQualquer acervo importado ou modificação salva será substituída pelos louvores originais do software.")) {
+        return;
+    }
+
+    try {
+        showLoading();
+        // 1. Remove acervo customizado do IndexedDB e localStorage
+        await MediaDB.init();
+        await MediaDB.remove("app_custom_data_json");
+        try { localStorage.removeItem("data"); } catch(e){}
+
+        // 2. Carrega a coletânea padrão de data/data.json via fetch
+        var resp = await fetch('data/data.json?t=' + Date.now());
+        if (resp.ok) {
+            var jsonText = await resp.text();
+            var parsed = JSON.parse(jsonText);
+            dados = (typeof normalizarEstruturaLouvores === 'function') 
+                ? normalizarEstruturaLouvores(parsed) 
+                : parsed;
+            pastaAtiva = 0;
+            louvorAtivo = 0;
+            ref_selected = "0_0";
+            $('#treesearch').val('');
+            if (dados[0] && dados[0].songs && dados[0].songs.length > 0) {
+                $('#title').val(dados[0].songs[0].title || '');
+                $('#content').val(dados[0].songs[0].content || '');
+            }
+            projecao = [];
+            projecaoAtiva = 0;
+            $('#livesongs tbody').empty();
+            renderizarArvoreNativa(dados, avisos, imagens);
+            marcarAlteracoesPendentes(false, false);
+            alert("Coletânea padrão do sistema restaurada com sucesso!");
+        } else {
+            throw new Error("Não foi possível carregar data/data.json (HTTP " + resp.status + ")");
+        }
+    } catch(err) {
+        console.error("Erro ao restaurar coletânea padrão:", err);
+        alert("Erro ao restaurar a coletânea padrão: " + (err.message || err));
+    } finally {
+        hideLoading();
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.processarImportacaoLouvores = processarImportacaoLouvores;
+    window.restaurarColetaneaPadrao = restaurarColetaneaPadrao;
 }
 
 // ==========================================
@@ -533,10 +729,14 @@ $(document).ready(function() {
         dados[pastaAtiva].songs[louvorAtivo].content = newContent;
         ref_selected = pastaAtiva + "_" + louvorAtivo;
 
-        try { localStorage.setItem('data', JSON.stringify(sanitizarDadosParaJson(dados))); } catch(err){}
-        
-        var gravado = await salvarDiretoNoDisco();
-        marcarAlteracoesPendentes(false);
+        var gravado = false;
+        if (typeof salvarAcervoCompleto === 'function') {
+            gravado = await salvarAcervoCompleto(dados);
+        } else {
+            try { localStorage.setItem('data', JSON.stringify(sanitizarDadosParaJson(dados))); } catch(err){}
+            gravado = await salvarDiretoNoDisco();
+        }
+        marcarAlteracoesPendentes(false, gravado);
         renderizarArvoreNativa(dados, avisos, imagens);
         reloadProjectionList();
 
@@ -836,15 +1036,22 @@ $(document).ready(function() {
         $('#importModal').modal('show');
     });
 
-    $("#filedata").off('change').on('change', function() {
-        var file = this.files[0];
+    $("#filedata").off('change').on('change', function(e) {
+        var file = (e.target.files && e.target.files[0]) || (this.files && this.files[0]);
         if (!file) return;
+        var inputEl = this;
         var reader = new FileReader();
-        reader.onload = function(event) {
-            atualizaListaArquivos(event.target.result);
+        reader.onload = async function(event) {
+            await processarImportacaoLouvores(event.target.result, file.name);
+            inputEl.value = '';
+        };
+        reader.onerror = function() {
+            alert("Erro ao ler o arquivo selecionado.");
+            inputEl.value = '';
         };
         reader.readAsText(file);
         $('#loadModal').modal('hide');
+        $('#carregarModal').modal('hide');
     });
 
     // ==========================================
@@ -1103,28 +1310,26 @@ $(document).ready(function() {
         currentCropImage = null;
     });
 
-    $("#fileImport").on('change', function(e) {
-        var file = e.target.files[0];
+    $("#fileImport").off('change').on('change', function(e) {
+        var file = (e.target.files && e.target.files[0]) || (this.files && this.files[0]);
         if (!file) return;
+        var inputEl = this;
         var reader = new FileReader();
-        reader.onload = function(evt) {
-            try {
-                var imported = JSON.parse(evt.target.result);
-                if (Array.isArray(imported)) {
-                    dados = imported;
-                    try { localStorage.setItem('data', JSON.stringify(sanitizarDadosParaJson(dados))); } catch(err){}
-                    salvarDiretoNoDisco();
-                    atualizaListasFromJSON(dados);
-                    $('#importModal').modal('hide');
-                    alert("Acervo de louvores importado com sucesso!");
-                } else {
-                    alert("O arquivo selecionado não contém uma estrutura válida de dados.");
-                }
-            } catch(err) {
-                alert("Erro ao ler o arquivo JSON: " + err.message);
-            }
+        reader.onload = async function(evt) {
+            await processarImportacaoLouvores(evt.target.result, file.name);
+            inputEl.value = '';
+        };
+        reader.onerror = function() {
+            alert("Erro ao ler o arquivo selecionado no disco.");
+            inputEl.value = '';
         };
         reader.readAsText(file);
+    });
+
+    // Botão para restaurar a coletânea de louvores padrão de fábrica
+    $("#btnRestaurarPadrao").off('click').on('click', function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        restaurarColetaneaPadrao();
     });
 
     // Atalhos de navegação litúrgica (Setas direcionais). Blackout e Congelar permanecem exclusivamente via botões na interface para evitar conflitos ao digitar.

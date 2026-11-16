@@ -684,6 +684,9 @@ function generateLiveList(){
     
     $.each(projecao, function(i, item) { 
         if(item.type == "s"){
+            if (!dados || !dados[item.folderId] || !dados[item.folderId].songs || !dados[item.folderId].songs[item.id]) {
+                return; // Ignora item órfão ou inválido
+            }
             var parsed = dados[item.folderId].songs[item.id].content.split("\n\n");
             $.each(parsed, function(j, estrofe) { 
                 var estrofeEsp = estrofe.replace(/\n/g, "<br>");
