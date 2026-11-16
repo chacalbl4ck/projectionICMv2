@@ -633,6 +633,29 @@ $(document).ready(function() {
     // ==========================================
     // 3. EDITOR DE AVISOS
     // ==========================================
+    var normAvisoFn = function(h) {
+        if (typeof normalizarTextoAviso === 'function') return normalizarTextoAviso(h);
+        if (typeof window !== 'undefined' && typeof window.normalizarTextoAviso === 'function') return window.normalizarTextoAviso(h);
+        return (h || '').replace(/<br\s*\/?>/gi, '\n');
+    };
+
+    var convAvisoHtmlFn = function(t) {
+        if (typeof converterTextoParaHtmlAviso === 'function') return converterTextoParaHtmlAviso(t);
+        if (typeof window !== 'undefined' && typeof window.converterTextoParaHtmlAviso === 'function') return window.converterTextoParaHtmlAviso(t);
+        return (t || '').replace(/\n/g, '<br>');
+    };
+
+    // Limpeza inteligente de placeholder no editor de avisos
+    $('#newWarningModal .warning-body').on('focus', function() {
+        if ($(this).text().trim() === 'Digite o conteúdo do aviso aqui...') {
+            $(this).text('');
+        }
+    }).on('blur', function() {
+        if (!$(this).text().trim()) {
+            $(this).text('Digite o conteúdo do aviso aqui...');
+        }
+    });
+
     $('#newWarning, #btnCreateWarn').click(function() {
         $('#warningModalTitle').html('<i class="fas fa-exclamation-triangle mr-1"></i> Novo Aviso');
         $('#editingWarningIndex').val('-1');
@@ -668,17 +691,22 @@ $(document).ready(function() {
         var body = (aviso.warning && aviso.warning.content) ? aviso.warning.content.body : (aviso.body || '');
 
         $('#newWarningModal .warning-title').text(title);
-        $('#newWarningModal .warning-body').html(body.replace(/\n/g, '<br>'));
+        $('#newWarningModal .warning-body').html(convAvisoHtmlFn(body));
         $('#newWarningModal').modal('show');
     });
 
     $('#confirmCreateWarning').click(function() {
         var name = $('#warningName').val().trim();
         var title = $('#newWarningModal .warning-title').text().trim();
-        var body = $('#newWarningModal .warning-body').html().trim();
+        var rawBody = $('#newWarningModal .warning-body').html();
+        var body = normAvisoFn(rawBody);
         var targetFolderId = parseInt($('#selectWarningFolder').val());
         var editIndex = parseInt($('#editingWarningIndex').val());
         var editFolderId = parseInt($('#editingWarningFolderId').val());
+
+        if (body === 'Digite o conteúdo do aviso aqui...') {
+            body = '';
+        }
 
         if (!name) {
             name = title || "Aviso";
@@ -687,11 +715,11 @@ $(document).ready(function() {
         var avisoObj = {
             name: name,
             title: title,
-            body: body.replace(/<br\s*\/?>/gi, '\n'),
+            body: body,
             warning: {
                 content: {
                     title: title,
-                    body: body.replace(/<br\s*\/?>/gi, '\n')
+                    body: body
                 }
             }
         };
@@ -1101,7 +1129,7 @@ $(document).ready(function() {
 
     // Atalhos de navegação litúrgica (Setas direcionais). Blackout e Congelar permanecem exclusivamente via botões na interface para evitar conflitos ao digitar.
     $(document).keydown(function(e) {
-        if ($('input:focus, textarea:focus, select:focus').length) return;
+        if ($('input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus').length) return;
 
         if (e.which == 38 || e.which == 37) { // Seta para Cima ou Esquerda
             e.preventDefault();

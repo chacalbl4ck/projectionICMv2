@@ -181,6 +181,89 @@ runTest('Estrutura de dados válida e não corrompida', () => {
   assert(totalLouvores > 500, `Esperado acervo com mais de 500 louvores (encontrados: ${totalLouvores})`);
 });
 
+// 7. Validação do Módulo de Avisos e Quebras de Linha (Issue #1)
+console.log('\n7) Validação do Módulo de Avisos (Issue #1 - Preservação de ENTER e Linhas Vazias):');
+
+// Simulação de ambiente mínimo para carregar projection.js no Node
+global.window = global.window || {};
+global.window.addEventListener = global.window.addEventListener || (() => {});
+global.window.removeEventListener = global.window.removeEventListener || (() => {});
+global.document = global.document || {};
+global.document.querySelectorAll = global.document.querySelectorAll || (() => []);
+global.document.getElementById = global.document.getElementById || (() => null);
+global.document.addEventListener = global.document.addEventListener || (() => {});
+
+const projectionModule = require(path.join(root, 'js', 'modules', 'projection.js'));
+const normFn = projectionModule.normalizarTextoAviso;
+const convFn = projectionModule.converterTextoParaHtmlAviso;
+
+runTest('Normalização de HTML contenteditable para texto limpo (ENTER simples e salto de linhas)', () => {
+  assert(typeof normFn === 'function', 'normalizarTextoAviso deve ser uma função');
+  assert(typeof convFn === 'function', 'converterTextoParaHtmlAviso deve ser uma função');
+
+  // Caso 1: Quebra simples de linha gerada por ENTER
+  const t1 = normFn('Linha 1<div>Linha 2</div>');
+  assert.strictEqual(t1, 'Linha 1\nLinha 2', 'ENTER simples deve gerar exatamente 1 quebra de linha');
+
+  // Caso 2: Pressionar ENTER para saltar uma linha dando espaço entre linhas (<div><br></div>)
+  const t2 = normFn('Linha 1<div>Linha 2</div><div><br></div><div>Linha 3</div>');
+  assert.strictEqual(t2, 'Linha 1\nLinha 2\n\nLinha 3', 'Salto de linha com ENTER deve produzir 2 quebras seguidas');
+
+  // Caso 3: Múltiplos saltos de linha consecutivos (2 linhas vazias)
+  const t3 = normFn('Linha 1<div><br></div><div><br></div><div>Linha 2</div>');
+  assert.strictEqual(t3, 'Linha 1\n\n\nLinha 2', 'Múltiplos saltos de linha devem preservar todas as linhas vazias');
+
+  // Caso 4: Estrutura baseada em parágrafos (<p>...</p>)
+  const t4 = normFn('<p>Culto Especial</p><p><br></p><p>Quinta-feira às 19:30</p>');
+  assert.strictEqual(t4, 'Culto Especial\n\nQuinta-feira às 19:30', 'Formato com tag p deve preservar espaçamento');
+
+  // Caso 5: Quebras tradicionais <br>
+  const t5 = normFn('Linha 1<br>Linha 2<br><br>Linha 3');
+  assert.strictEqual(t5, 'Linha 1\nLinha 2\n\nLinha 3', 'Tags <br> e <br><br> devem ser convertidas corretamente');
+});
+
+runTest('Conversão de texto para HTML de projeção (viewSlides e livesongs)', () => {
+  // Teste de conversão para projeção: newlines devem virar tags <br> reais
+  const htmlResult = convFn('Aviso Importante\n\nReunião de Jovens\nSábado às 16:00');
+  assert.strictEqual(
+    htmlResult,
+    'Aviso Importante<br><br>Reunião de Jovens<br>Sábado às 16:00',
+    'HTML de projeção deve conter <br><br> para o espaço vertical de linha vazia'
+  );
+
+  // Sanitização de tags perigosas e escape de entidades
+  const safeHtml = convFn('Aviso com <script>alert(1)</script> & "aspas"');
+  assert(!safeHtml.includes('<script>'), 'Tags de script não devem ser injetadas');
+  assert(safeHtml.includes('&amp;'), 'Caractere & deve ser escapado para &amp;');
+  assert(safeHtml.includes('&quot;'), 'Aspas devem ser escapadas para &quot;');
+});
+
+runTest('Resiliência de CSS (white-space: pre-wrap) em view.css, style.css e obs.html', () => {
+  const viewCss = fs.readFileSync(path.join(root, 'css', 'view.css'), 'utf8');
+  const styleCss = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+  const obsHtml = fs.readFileSync(path.join(root, 'obs.html'), 'utf8');
+
+  assert(viewCss.includes('white-space: pre-wrap;'), 'css/view.css deve conter white-space: pre-wrap para .warning-body');
+  assert(styleCss.includes('white-space: pre-wrap;'), 'css/style.css deve conter white-space: pre-wrap para .warning-body');
+  assert(obsHtml.includes('white-space: pre-wrap;'), 'obs.html deve conter white-space: pre-wrap para .lower-third-text');
+});
+
+runTest('Proteção de digitação em contenteditable no keydown de js/core.js', () => {
+  const coreCode = fs.readFileSync(path.join(root, 'js', 'core.js'), 'utf8');
+  assert(
+    coreCode.includes('[contenteditable="true"]:focus'),
+    'keydown deve ignorar atalhos quando elemento contenteditable estiver focado'
+  );
+  assert(
+    coreCode.includes('convAvisoHtmlFn'),
+    'js/core.js deve carregar avisos no modal usando conversor de HTML com <br>'
+  );
+  assert(
+    coreCode.includes('normAvisoFn'),
+    'js/core.js deve normalizar conteúdo do aviso ao salvar'
+  );
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');
