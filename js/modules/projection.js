@@ -22,6 +22,43 @@ var projecaoAtiva = 0;
 var viewSlides = "";
 var telaPadrao = "";
 
+// ==========================================
+// FUNÇÕES UTILITÁRIAS PARA AVISOS (Issue #1)
+// Normalização e conversão de quebras de linha e espaçamentos
+// ==========================================
+function normalizarTextoAviso(html) {
+    if (!html) return '';
+    var s = String(html).replace(/&nbsp;/gi, ' ');
+    // Linha vazia gerada por ENTER no contenteditable do Chrome/Edge: <div><br></div> ou <p><br></p>
+    s = s.replace(/<(div|p)[^>]*>\s*<br\s*\/?>\s*<\/\1>/gi, '\n');
+    // Abertura de div ou p adiciona quebra de linha
+    s = s.replace(/<(div|p)[^>]*>/gi, '\n');
+    // Fechamento de div e p
+    s = s.replace(/<\/(div|p)>/gi, '');
+    // <br> restante vira \n
+    s = s.replace(/<br\s*\/?>/gi, '\n');
+    // Remove quaisquer outras tags HTML
+    s = s.replace(/<[^>]+>/g, '');
+    // Decodifica entidades comuns (&lt;, &gt;, &amp;, &quot;)
+    s = s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    // Normaliza quebras de linha Windows/Mac para Unix
+    s = s.replace(/\r\n|\r/g, '\n');
+    // Remove quebras apenas no início e fim
+    s = s.replace(/^\n+|\n+$/g, '');
+    return s;
+}
+
+function converterTextoParaHtmlAviso(texto) {
+    if (!texto) return '';
+    var limpo = normalizarTextoAviso(texto);
+    var escapado = limpo
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    return escapado.replace(/\n/g, '<br>');
+}
+
 // Envia comandos sincronizados em tempo real via BroadcastChannel, postMessage direto e localStorage
 function broadcastCommand(action, payload) {
     if (projectionBroadcast) {
@@ -767,10 +804,11 @@ function generateLiveList(){
             var avisoName = aviso ? (aviso.name || "Aviso") : "Aviso";
             var avisoTitle = (aviso && aviso.warning && aviso.warning.content) ? aviso.warning.content.title : (aviso ? aviso.title : "Aviso");
             var avisoBody = (aviso && aviso.warning && aviso.warning.content) ? aviso.warning.content.body : (aviso ? aviso.body : "");
+            var avisoBodyHtml = converterTextoParaHtmlAviso(avisoBody);
 
             $("#projections tbody tr[data-id='"+i+"'] td:first-child").attr("data-goto", f);
-            $('#livesongs tbody').append('<tr data-id="'+f+'"><td><i class="fas fa-exclamation-triangle text-warning"></i>&nbsp;'+avisoName+'</td><td><strong>'+avisoTitle+'</strong><br>'+avisoBody+'</td></tr>');
-            viewSlides+="<section data-background=\"imagens/madeira_bg.jpg\">\n<table class=\"reveal warning-table\">\n<tr height=\"10vh\">\n<td class=\"warning-title\" width=\"80%\">"+avisoTitle+"</td>\n<td width=\"20%\"><div id=\"fancypart\" class=\"warning-logo\"><i class=\"icon-logo_bold\"></i></div></td>\n</tr>\n<tr>\n<td colspan=\"2\">\n<div style=\"display: table;\">\n<div class=\"warning-body\">"+avisoBody+"</div>\n</div>\n</td>\n</tr>\n</table>\n</section>\n";
+            $('#livesongs tbody').append('<tr data-id="'+f+'"><td><i class="fas fa-exclamation-triangle text-warning"></i>&nbsp;'+avisoName+'</td><td><strong>'+avisoTitle+'</strong><br>'+avisoBodyHtml+'</td></tr>');
+            viewSlides+="<section data-background=\"imagens/madeira_bg.jpg\">\n<table class=\"reveal warning-table\">\n<tr height=\"10vh\">\n<td class=\"warning-title\" width=\"80%\">"+avisoTitle+"</td>\n<td width=\"20%\"><div id=\"fancypart\" class=\"warning-logo\"><i class=\"icon-logo_bold\"></i></div></td>\n</tr>\n<tr>\n<td colspan=\"2\">\n<div style=\"display: table;\">\n<div class=\"warning-body\">"+avisoBodyHtml+"</div>\n</div>\n</td>\n</tr>\n</table>\n</section>\n";
             f++;
             $('#livesongs tbody').append('<tr data-id="'+f+'">'+telaPadraoPainel+'</tr>');
             f++;
@@ -1003,3 +1041,12 @@ $(document).ready(function() {
         e.stopPropagation();
     });
 });
+
+if (typeof window !== 'undefined') {
+    window.normalizarTextoAviso = normalizarTextoAviso;
+    window.converterTextoParaHtmlAviso = converterTextoParaHtmlAviso;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports.normalizarTextoAviso = normalizarTextoAviso;
+    module.exports.converterTextoParaHtmlAviso = converterTextoParaHtmlAviso;
+}

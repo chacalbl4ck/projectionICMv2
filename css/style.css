@@ -358,6 +358,11 @@ a{
   -webkit-box-shadow: 22px 22px 0px -2px rgba(154,49,50,1);
   -moz-box-shadow: 22px 22px 0px -2px rgba(154,49,50,1);
   box-shadow: 22px 22px 0px -2px rgba(154,49,50,1);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+  padding: 10px;
 }
 
 .warning-table{
