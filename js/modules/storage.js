@@ -5,6 +5,107 @@
 var fileHandle = null; // Handle nativo do arquivo data.json no disco
 var alteracoesPendentes = false; // Flag de alterações não salvas
 
+// Normaliza qualquer estrutura de arquivo de louvores importado (JSON) para a matriz oficial de pastas e canções
+function normalizarEstruturaLouvores(parsed) {
+    if (!parsed) return null;
+
+    function normalizarListaCancoes(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(function(s, sIdx) {
+            if (typeof s === 'string') {
+                return { title: "Louvor " + (sIdx + 1), content: s };
+            }
+            var t = (s && (s.title !== undefined ? s.title : (s.nome !== undefined ? s.nome : s.titulo)));
+            var c = (s && (s.content !== undefined ? s.content : (s.letra !== undefined ? s.letra : s.texto)));
+            return {
+                title: (t !== undefined && t !== null && String(t).trim().length > 0) ? String(t).trim() : ("Louvor " + (sIdx + 1)),
+                content: (c !== undefined && c !== null) ? String(c) : ""
+            };
+        });
+    }
+
+    function normalizarPasta(item, idx) {
+        var nome = (item && (item.name || item.title || item.nome || item.categoria))
+            ? String(item.name || item.title || item.nome || item.categoria).trim()
+            : ("Pasta " + (idx + 1));
+        var rawSongs = (item && (item.songs || item.louvores || item.canticos || item.hinos)) || [];
+        return {
+            name: nome,
+            type: (item && item.type) || "s",
+            lang: (item && item.lang) || "pt",
+            songs: normalizarListaCancoes(rawSongs),
+            media: (item && Array.isArray(item.media)) ? item.media : [],
+            warnings: (item && Array.isArray(item.warnings)) ? item.warnings : []
+        };
+    }
+
+    // Caso 1: Array
+    if (Array.isArray(parsed)) {
+        if (parsed.length === 0) return [];
+        var primeiro = parsed[0];
+        if (!primeiro || typeof primeiro !== 'object') return null;
+
+        // Subcaso 1A: Array de pastas / categorias
+        var temEstruturaPasta = primeiro.songs !== undefined || primeiro.louvores !== undefined ||
+                                primeiro.canticos !== undefined || primeiro.hinos !== undefined ||
+                                (primeiro.name !== undefined && !primeiro.content && !primeiro.letra);
+
+        if (temEstruturaPasta) {
+            return parsed.map(function(item, idx) {
+                return normalizarPasta(item, idx);
+            });
+        }
+
+        // Subcaso 1B: Array direto de canções / louvores soltos
+        var temEstruturaCancao = primeiro.title !== undefined || primeiro.content !== undefined ||
+                                 primeiro.nome !== undefined || primeiro.letra !== undefined ||
+                                 primeiro.texto !== undefined;
+
+        if (temEstruturaCancao) {
+            return [{
+                name: "Louvores Importados",
+                type: "s",
+                lang: "pt",
+                songs: normalizarListaCancoes(parsed),
+                media: [],
+                warnings: []
+            }];
+        }
+        return null;
+    }
+
+    // Caso 2: Objeto contendo array em propriedade conhecida
+    if (typeof parsed === 'object') {
+        var chavesArray = ['data', 'dados', 'categories', 'pastas', 'acervo', 'coletanea', 'folders'];
+        for (var i = 0; i < chavesArray.length; i++) {
+            var k = chavesArray[i];
+            if (Array.isArray(parsed[k])) {
+                return normalizarEstruturaLouvores(parsed[k]);
+            }
+        }
+
+        // Caso 3: Objeto com lista de songs ou louvores: { name?: "...", songs: [...] }
+        var rawLista = parsed.songs || parsed.louvores || parsed.canticos || parsed.hinos;
+        if (Array.isArray(rawLista)) {
+            return [normalizarPasta(parsed, 0)];
+        }
+
+        // Caso 4: Um único objeto de louvor: { title: "...", content: "..." }
+        if (parsed.title !== undefined || parsed.content !== undefined || parsed.letra !== undefined) {
+            return [{
+                name: "Louvores Importados",
+                type: "s",
+                lang: "pt",
+                songs: normalizarListaCancoes([parsed]),
+                media: [],
+                warnings: []
+            }];
+        }
+    }
+
+    return null;
+}
+
 // Banco de dados local IndexedDB para arquivos pesados e handles
 const MediaDB = {
     db: null,
@@ -66,6 +167,9 @@ const MediaDB = {
                 tx.onerror = function() { resolve(false); };
             } catch(e) { resolve(false); }
         });
+    },
+    delete: function(id) {
+        return this.remove(id);
     }
 };
 
@@ -196,6 +300,51 @@ async function salvarDiretoNoDisco() {
     }
 }
 
+// Salva o acervo completo de dados em todos os canais de persistência (IndexedDB, Servidor/Disco, fileHandle e localStorage)
+async function salvarAcervoCompleto(dadosParaSalvar) {
+    if (!dadosParaSalvar) return false;
+    var sanitizados = sanitizarDadosParaJson(dadosParaSalvar);
+
+    // 1. IndexedDB (MediaDB) - Alta capacidade permanente sem limite de quota
+    try {
+        await MediaDB.init();
+        await MediaDB.save("app_custom_data_json", sanitizados);
+    } catch(e) {
+        console.warn("Falha ao salvar no IndexedDB:", e);
+    }
+
+    // 2. localStorage - Cache rápido de sessão
+    try {
+        localStorage.setItem('data', JSON.stringify(sanitizados));
+    } catch(e) {
+        console.warn("localStorage quota excedida, mantido seguro no IndexedDB:", e);
+    }
+
+    // 3. Servidor Local HTTP (ProjecaoICM.exe / server.js) - Grava direto em data/data.json
+    if (typeof location !== 'undefined' && (location.protocol === 'http:' || location.protocol === 'https:')) {
+        try {
+            fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(sanitizados, null, 2)
+            }).then(function(r) {
+                if (r.ok) {
+                    marcarAlteracoesPendentes(false, true);
+                }
+            }).catch(function() {});
+        } catch(e) {}
+    }
+
+    // 4. File System Access API (fileHandle se vinculado e com permissão)
+    var gravadoDisco = false;
+    if (fileHandle) {
+        gravadoDisco = await salvarDiretoNoDisco();
+    }
+
+    marcarAlteracoesPendentes(false, gravadoDisco || (typeof location !== 'undefined' && location.protocol.startsWith('http')));
+    return true;
+}
+
 // Abre janela para o usuário vincular o arquivo data.json
 async function vincularDataJson() {
     if (!window.showOpenFilePicker) {
@@ -218,7 +367,12 @@ async function vincularDataJson() {
             var file = await fileHandle.getFile();
             var contents = await file.text();
             if (contents && contents.trim().length > 0) {
-                atualizaListaArquivos(contents);
+                if (typeof window.processarImportacaoLouvores === 'function') {
+                    await window.processarImportacaoLouvores(contents);
+                } else {
+                    atualizaListaArquivos(contents);
+                    await salvarAcervoCompleto(dados);
+                }
             }
             atualizarIndicadorVinculo();
             marcarAlteracoesPendentes(false, true);
@@ -226,4 +380,14 @@ async function vincularDataJson() {
     } catch(err) {
         console.warn("Seleção do arquivo data.json cancelada ou falhou:", err);
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.normalizarEstruturaLouvores = normalizarEstruturaLouvores;
+    window.salvarAcervoCompleto = salvarAcervoCompleto;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports.normalizarEstruturaLouvores = normalizarEstruturaLouvores;
+    module.exports.sanitizarDadosParaJson = sanitizarDadosParaJson;
+    module.exports.MediaDB = MediaDB;
 }

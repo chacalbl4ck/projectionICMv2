@@ -568,6 +568,45 @@ namespace ProjecaoICMDesktop
                 }
             }
 
+            if (pathName == "/api/data" && req.Method == "POST")
+            {
+                if (!isLocalHost)
+                {
+                    SendJson(stream, 403, new Dictionary<string, object> {
+                        { "ok", false }, { "error", "Apenas o painel local pode gravar data.json." }
+                    });
+                    return;
+                }
+                try
+                {
+                    if (req.BodyBytes == null || req.BodyBytes.Length == 0)
+                    {
+                        SendJson(stream, 400, new Dictionary<string, object> {
+                            { "ok", false }, { "error", "Corpo da requisição vazio." }
+                        });
+                        return;
+                    }
+                    string rawJson = Encoding.UTF8.GetString(req.BodyBytes);
+                    string dataFilePath = Path.Combine(_rootDir, "data", "data.json");
+                    string dataDir = Path.GetDirectoryName(dataFilePath);
+                    if (!Directory.Exists(dataDir))
+                    {
+                        Directory.CreateDirectory(dataDir);
+                    }
+                    File.WriteAllText(dataFilePath, rawJson, Encoding.UTF8);
+                    SendJson(stream, 200, new Dictionary<string, object> {
+                        { "ok", true }, { "message", "Arquivo data.json atualizado no disco com sucesso." }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    SendJson(stream, 500, new Dictionary<string, object> {
+                        { "ok", false }, { "error", ex.Message }
+                    });
+                }
+                return;
+            }
+
             if (pathName == "/api/command" && req.Method == "POST")
             {
                 if (!isLocalHost && !IsRemoteAuthorized(req))
@@ -2138,6 +2177,10 @@ namespace ProjecaoICMDesktop
                         AssertTrue(rLib.StartsWith("HTTP/1.1 200"), "POST /api/library falhou");
                         string rLibGet = DispatchMockHttp(srv, "GET", "/api/library?pin=4242", "192.168.1.50", null, null, false);
                         AssertTrue(rLibGet.StartsWith("HTTP/1.1 200") && rLibGet.Contains("Hino 1"), "GET /api/library falhou");
+
+                        string rDataPost = DispatchMockHttp(srv, "POST", "/api/data", "127.0.0.1", null, "[{\"name\":\"Louvores Teste\",\"songs\":[]}]", false);
+                        AssertTrue(rDataPost.StartsWith("HTTP/1.1 200"), "POST /api/data falhou");
+                        AssertTrue(File.Exists(Path.Combine(tempRoot, "data", "data.json")), "Arquivo data.json deveria existir apos POST /api/data");
 
                         string rPin = DispatchMockHttp(srv, "POST", "/api/pin", "127.0.0.1", null, "{\"pin\":\"9191\",\"pinEnabled\":true}", false);
                         AssertTrue(rPin.StartsWith("HTTP/1.1 200") && rPin.Contains("9191"), "POST /api/pin falhou");

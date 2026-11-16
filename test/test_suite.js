@@ -264,6 +264,135 @@ runTest('Proteção de digitação em contenteditable no keydown de js/core.js',
   );
 });
 
+// 8. Validação da Importação e Persistência do Acervo de Louvores
+console.log('\n8) Validação da Importação e Persistência do Acervo de Louvores:');
+const storageModule = require(path.join(root, 'js', 'modules', 'storage.js'));
+const normalizarFn = storageModule.normalizarEstruturaLouvores;
+
+runTest('Normalização de acervo nativo [ { name, songs } ]', () => {
+  const input = [
+    { name: 'Pasta A', songs: [{ title: 'Hino 1', content: 'Letra 1' }] },
+    { name: 'Pasta B', songs: [{ title: 'Hino 2', content: 'Letra 2' }] }
+  ];
+  const res = normalizarFn(input);
+  assert(Array.isArray(res) && res.length === 2, 'Deve manter as duas pastas');
+  assert.strictEqual(res[0].name, 'Pasta A');
+  assert.strictEqual(res[0].songs[0].title, 'Hino 1');
+  assert.strictEqual(res[1].songs[0].title, 'Hino 2');
+});
+
+runTest('Normalização de objeto envelopado { data: [...] } ou { dados: [...] }', () => {
+  const inputData = {
+    data: [
+      { name: 'Coletânea Jovem', songs: [{ title: 'Louvor 10', content: 'Texto 10' }] }
+    ]
+  };
+  const res1 = normalizarFn(inputData);
+  assert(Array.isArray(res1) && res1.length === 1, 'Deve extrair array de .data');
+  assert.strictEqual(res1[0].name, 'Coletânea Jovem');
+
+  const inputDados = {
+    dados: [
+      { name: 'Coletânea Crianças', songs: [{ title: 'Louvor C', content: 'Texto C' }] }
+    ]
+  };
+  const res2 = normalizarFn(inputDados);
+  assert(Array.isArray(res2) && res2.length === 1, 'Deve extrair array de .dados');
+  assert.strictEqual(res2[0].name, 'Coletânea Crianças');
+});
+
+runTest('Normalização de objeto com categorias { categories: [...] }', () => {
+  const input = {
+    categories: [
+      { title: 'Culto Especial', louvores: [{ nome: 'Hino da Vitória', letra: 'Glória a Deus' }] }
+    ]
+  };
+  const res = normalizarFn(input);
+  assert(Array.isArray(res) && res.length === 1, 'Deve converter categories para pastas');
+  assert.strictEqual(res[0].name, 'Culto Especial');
+  assert.strictEqual(res[0].songs[0].title, 'Hino da Vitória');
+  assert.strictEqual(res[0].songs[0].content, 'Glória a Deus');
+});
+
+runTest('Normalização de lista plana de canções { songs: [...] } ou array [ { title, content } ]', () => {
+  const inputSongs = {
+    songs: [
+      { title: 'Cantai ao Senhor', content: 'Um cântico novo' },
+      { title: 'Grande é o Senhor', content: 'Digno de louvor' }
+    ]
+  };
+  const res1 = normalizarFn(inputSongs);
+  assert(Array.isArray(res1) && res1.length === 1, 'Deve encapsular songs soltos em uma pasta padrão');
+  assert.strictEqual(res1[0].songs.length, 2);
+  assert.strictEqual(res1[0].songs[0].title, 'Cantai ao Senhor');
+
+  const inputArray = [
+    { title: 'Cântico 1', content: 'Verso 1' },
+    { title: 'Cântico 2', content: 'Verso 2' }
+  ];
+  const res2 = normalizarFn(inputArray);
+  assert(Array.isArray(res2) && res2.length === 1, 'Deve encapsular array de canções em uma pasta padrão');
+  assert.strictEqual(res2[0].songs.length, 2);
+  assert.strictEqual(res2[0].songs[1].title, 'Cântico 2');
+});
+
+runTest('Tratamento resiliente de entradas nulas, inválidas ou vazias', () => {
+  assert.strictEqual(normalizarFn(null), null, 'null deve retornar null');
+  assert.strictEqual(normalizarFn(undefined), null, 'undefined deve retornar null');
+  assert.strictEqual(normalizarFn(''), null, 'string vazia deve retornar null');
+  assert.strictEqual(normalizarFn(12345), null, 'número deve retornar null');
+  assert.strictEqual(normalizarFn({}), null, 'objeto sem chaves válidas deve retornar null');
+});
+
+runTest('Prioridade do IndexedDB (app_custom_data_json) no carregamento de js/core.js', () => {
+  const coreCode = fs.readFileSync(path.join(root, 'js', 'core.js'), 'utf8');
+  assert(
+    coreCode.includes('app_custom_data_json'),
+    'carregaLouvores deve consultar "app_custom_data_json" no MediaDB'
+  );
+  assert(
+    coreCode.includes('processarImportacaoLouvores'),
+    'js/core.js deve exportar a função global processarImportacaoLouvores'
+  );
+  assert(
+    coreCode.includes('restaurarColetaneaPadrao'),
+    'js/core.js deve exportar a função global restaurarColetaneaPadrao'
+  );
+  assert(
+    coreCode.includes('salvarAcervoCompleto'),
+    'salvamento do editor e importação devem usar salvarAcervoCompleto'
+  );
+});
+
+runTest('Endpoint HTTP POST /api/data em server.js e ProjecaoICM.cs', () => {
+  const serverCode = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  const csCode = fs.readFileSync(path.join(root, 'desktop', 'ProjecaoICM.cs'), 'utf8');
+  assert(
+    serverCode.includes("pathname === '/api/data' && req.method === 'POST'"),
+    'server.js deve implementar POST /api/data para persistir data/data.json'
+  );
+  assert(
+    csCode.includes('pathName == "/api/data" && req.Method == "POST"'),
+    'ProjecaoICM.cs deve implementar POST /api/data para persistir data/data.json'
+  );
+});
+
+runTest('Interface do usuário (index.html) possui opções de Importar e Restaurar Padrão', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert(
+    indexHtml.includes('id="btnRestaurarPadrao"'),
+    'index.html deve conter botão #btnRestaurarPadrao'
+  );
+  assert(
+    indexHtml.includes('id="import"'),
+    'index.html deve conter botão #import para abrir modal de importação'
+  );
+  assert(
+    indexHtml.includes('id="fileImport"'),
+    'index.html deve conter input #fileImport'
+  );
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

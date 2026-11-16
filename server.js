@@ -364,6 +364,28 @@ function createAppServer(options) {
             }
         }
 
+        // Grava data/data.json diretamente no disco (persistência permanente de acervo de louvores)
+        if (pathname === '/api/data' && req.method === 'POST') {
+            if (!isLocalHost) {
+                return sendJson(res, 403, { ok: false, error: 'Apenas o painel local pode gravar data.json.' });
+            }
+            try {
+                const body = await readJsonBody(req, 20 * 1024 * 1024);
+                if (!body || (!Array.isArray(body) && !body.data && !body.pastas && !body.songs)) {
+                    return sendJson(res, 400, { ok: false, error: 'Estrutura de dados inválida.' });
+                }
+                const dataFilePath = path.join(rootDir, 'data', 'data.json');
+                const dataDir = path.dirname(dataFilePath);
+                if (!fs.existsSync(dataDir)) {
+                    fs.mkdirSync(dataDir, { recursive: true });
+                }
+                fs.writeFileSync(dataFilePath, JSON.stringify(body, null, 2), 'utf8');
+                return sendJson(res, 200, { ok: true, message: 'Arquivo data.json atualizado no disco com sucesso.' });
+            } catch (err) {
+                return sendJson(res, 500, { ok: false, error: err.message || 'Erro ao gravar arquivo data.json.' });
+            }
+        }
+
         // Recebe comandos remotos do celular e repassa ao Painel (PC)
         if (pathname === '/api/command' && req.method === 'POST') {
             if (!isLocalHost && !isRemoteAuthorized(req, parsedUrl)) {
