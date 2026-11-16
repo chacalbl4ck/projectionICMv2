@@ -181,11 +181,19 @@ kbd {
 #livesongs{
     margin-bottom: 0;
     border: none;
+    table-layout: fixed;
+    width: 100%;
 }
-
 
 #livesongs td{
     border: none;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: clip !important;
+    line-height: 1.45;
+    vertical-align: top;
+    padding: 8px 10px;
 }
 
 #livesongs tbody>tr:hover {
@@ -197,11 +205,63 @@ kbd {
     color: #dfbd68;
 }
 
-#livesongs tbody td { width: 50%; max-width: 23.6vw; }
+#livesongs tbody td:first-child {
+    width: 28%;
+    max-width: 14vw;
+    font-weight: 600;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: clip !important;
+    vertical-align: top;
+}
+
+#livesongs tbody td:last-child {
+    width: 72%;
+    max-width: 36vw;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: clip !important;
+    vertical-align: top;
+}
 
 #livesongs tbody { 
     display: table; 
     width: 100%;
+}
+
+/* Quebra de linha automática e exibição integral dos versículos bíblicos na fila */
+#livesongs tr.row-scripture td.scripture-text,
+#livesongs .scripture-text,
+.scripture-text {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    text-overflow: clip !important;
+    line-height: 1.5 !important;
+    font-size: 0.95rem;
+}
+
+#livesongs tr.row-scripture td.scripture-label,
+#livesongs .scripture-label,
+.scripture-label {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.35 !important;
+    font-weight: 700;
+    color: #6a98ba;
+}
+
+#projections td {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: clip !important;
+    line-height: 1.35;
+    vertical-align: middle;
 }
 
 a{

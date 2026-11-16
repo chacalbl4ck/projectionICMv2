@@ -993,12 +993,12 @@ function generateLiveList(activeInfoPreset){
                     var label = bible[item.b].name+" "+(item.c+1)+":"+(vIdx+1);
                     var scripture = bible[item.b].chapters[item.c][vIdx];
                     var refverse = "b"+item.b+"c"+item.c+"v"+vIdx;
-                    $('#livesongs tbody').append('<tr data-id="'+f+'"><td>'+label+'</td><td>'+scripture+'</td></tr>');
+                    $('#livesongs tbody').append('<tr data-id="'+f+'" class="row-scripture"><td class="scripture-label">'+label+'</td><td class="scripture-text">'+scripture+'</td></tr>');
                     viewSlides+="<section"+getBackgroundForSection(3)+" data-state=\"scriptures "+refverse+"\" data-background-transition=\"none\">\n<style>\n."+refverse+" footer.scripturetitle small:after{ content: \""+label+"\"; }\n."+refverse+" footer.scripturetitle{ display: block; }\n</style>\n<p>"+scripture+"</p>\n</section>\n";
                     f++;
                 }
             } else {
-                $('#livesongs tbody').append('<tr data-id="'+f+'"><td>Texto Bíblico</td><td>Carregando Bíblia...</td></tr>');
+                $('#livesongs tbody').append('<tr data-id="'+f+'" class="row-scripture"><td class="scripture-label">Texto Bíblico</td><td class="scripture-text">Carregando Bíblia...</td></tr>');
                 viewSlides+="<section"+getBackgroundForSection(3)+">\n<p>Carregando Texto Bíblico...</p>\n</section>\n";
                 f++;
             }
