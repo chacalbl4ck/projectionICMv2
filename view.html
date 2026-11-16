@@ -104,6 +104,18 @@
       }
     }
 
+    var telaoLocalBlobUrls = {};
+    var retriedWithBuffer = {};
+
+    function armazenarTelaoBlobUrl(chave, novaUrl) {
+      if (!chave || !novaUrl) return;
+      var antiga = telaoLocalBlobUrls[chave];
+      if (antiga && antiga !== novaUrl && typeof antiga === 'string' && antiga.startsWith('blob:')) {
+        try { window.URL.revokeObjectURL(antiga); } catch(e) {}
+      }
+      telaoLocalBlobUrls[chave] = novaUrl;
+    }
+
     function processCommand(funcName, payload) {
       // Nunca descartar entrega de mídia por deduplicação de assinatura
       if (funcName === 'RESPONSE_MEDIA_BLOB' && payload) {
@@ -121,8 +133,8 @@
         }
 
         if (localUrl) {
-          if (mid) telaoLocalBlobUrls[mid] = localUrl;
-          if (fName) telaoLocalBlobUrls['file:' + fName] = localUrl;
+          if (mid) armazenarTelaoBlobUrl(mid, localUrl);
+          if (fName) armazenarTelaoBlobUrl('file:' + fName, localUrl);
 
           var sImg = document.getElementById('telaoStageImg');
           var sVid = document.getElementById('telaoStageVideo');
@@ -301,6 +313,16 @@
 
       lastLoadedSlidesHtml = htmlContent;
       activeStageMediaKey = "";
+
+      // Libera decodificadores de hardware e buffers de vídeo/áudio anteriores antes de substituir o DOM
+      document.querySelectorAll('.slides video, .slides audio').forEach(function(mEl) {
+        try {
+          mEl.pause();
+          mEl.removeAttribute('src');
+          mEl.load();
+        } catch(e) {}
+      });
+
       $('.slides').html(htmlContent);
 
       var allSections = document.querySelectorAll('.slides > section');
@@ -327,9 +349,6 @@
       changeSlide(targetSlide);
       setTimeout(verificarEResolverMidias, 100);
     }
-
-    var telaoLocalBlobUrls = {};
-    var retriedWithBuffer = {};
 
     function obterBlobDoIndexedDB(mediaId) {
       return new Promise(function(resolve) {
@@ -408,6 +427,8 @@
         try {
           var ctx = canvas.getContext('2d');
           if (ctx) ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+          canvas.width = 0;
+          canvas.height = 0;
         } catch(e) {}
       }
     }
@@ -564,22 +585,24 @@
     var videoSyncSeq = 0;
     var pendingVideoSync = null;
 
-    function obterVideoAtivoParaSync() {
+    function obterVideoAtivoParaSync(somenteSeTocando) {
       var stage = document.getElementById('telaoMediaStage');
       var sVid = document.getElementById('telaoStageVideo');
       if (stage && stage.style.display !== 'none' && sVid && sVid.style.display !== 'none' && activeStageMediaKey) {
+        if (somenteSeTocando && (sVid.paused || sVid.ended || sVid.readyState < 2)) return null;
         return { el: sVid, key: activeStageMediaKey };
       }
       var bgVid = document.querySelector('.slide-background.present video');
       if (bgVid) {
+        if (somenteSeTocando && (bgVid.paused || bgVid.ended || bgVid.readyState < 2)) return null;
         var idx = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
         return { el: bgVid, key: 'BG_VIDEO_' + idx };
       }
       return null;
     }
 
-    function coletarEstadoVideoAtivo() {
-      var ativo = obterVideoAtivoParaSync();
+    function coletarEstadoVideoAtivo(somenteSeTocando) {
+      var ativo = obterVideoAtivoParaSync(somenteSeTocando);
       if (!ativo || !ativo.el) return null;
       var slideIdx = (typeof Reveal.getIndices === 'function') ? (Reveal.getIndices().h || 0) : 0;
       var curSlide = (typeof Reveal.getCurrentSlide === 'function') ? Reveal.getCurrentSlide() : null;
@@ -597,16 +620,16 @@
       };
     }
 
-    function emitirSyncVideoTelao() {
+    function emitirSyncVideoTelao(forcar) {
       if (!isExternalTelao) return;
-      var st = coletarEstadoVideoAtivo();
+      var st = coletarEstadoVideoAtivo(!forcar);
       if (!st) return;
       enviarMensagemParaPainel({ action: 'VIDEO_SYNC', payload: st });
     }
 
-    function emitirEstadoPreviewParaPainel() {
+    function emitirEstadoPreviewParaPainel(forcar) {
       if (isExternalTelao) return;
-      var st = coletarEstadoVideoAtivo();
+      var st = coletarEstadoVideoAtivo(!forcar);
       if (!st) return;
       enviarMensagemParaPainel({ action: 'PREVIEW_VIDEO_STATE', payload: st });
     }
@@ -771,9 +794,9 @@
           if (isTelaoFrozen) capturarQuadroVideoParaCanvas(sVid);
         });
         ['loadedmetadata', 'play', 'playing', 'pause', 'seeked'].forEach(function(evt) {
-          sVid.addEventListener(evt, emitirSyncVideoTelao);
+          sVid.addEventListener(evt, function() { emitirSyncVideoTelao(true); });
         });
-        setInterval(emitirSyncVideoTelao, 400);
+        setInterval(function() { emitirSyncVideoTelao(false); }, 400);
       } else {
         // Garante silêncio permanente na pré-visualização para evitar duplicidade de áudio com o Telão
         sVid.muted = true;
@@ -782,13 +805,13 @@
         ['loadedmetadata', 'canplay'].forEach(function(evt) {
           sVid.addEventListener(evt, function() {
             if (pendingVideoSync) aplicarSyncVideoPreview(pendingVideoSync);
-            emitirEstadoPreviewParaPainel();
+            emitirEstadoPreviewParaPainel(true);
           });
         });
         ['play', 'playing', 'pause', 'seeked'].forEach(function(evt) {
-          sVid.addEventListener(evt, emitirEstadoPreviewParaPainel);
+          sVid.addEventListener(evt, function() { emitirEstadoPreviewParaPainel(true); });
         });
-        setInterval(emitirEstadoPreviewParaPainel, 400);
+        setInterval(function() { emitirEstadoPreviewParaPainel(false); }, 400);
       }
     }
 
@@ -866,8 +889,8 @@
 
       if (blobOrUrl) {
         var resolvedUrl = (typeof blobOrUrl === 'string') ? blobOrUrl : window.URL.createObjectURL(blobOrUrl);
-        if (mediaId) telaoLocalBlobUrls[mediaId] = resolvedUrl;
-        if (fileName) telaoLocalBlobUrls['file:' + fileName] = resolvedUrl;
+        if (mediaId) armazenarTelaoBlobUrl(mediaId, resolvedUrl);
+        if (fileName) armazenarTelaoBlobUrl('file:' + fileName, resolvedUrl);
         return resolvedUrl;
       }
 

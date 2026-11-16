@@ -358,63 +358,92 @@
         return str.replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
     }
 
+    var cachedLiveSlides = null;
+    var cachedLiveQueue = null;
+    var lastCachedSlidesVersion = -1;
+
     function construirSnapshotRemoto() {
+        var curVer = (typeof window.slidesVersion === 'number') ? window.slidesVersion : 0;
         var slides = [];
-        var rows = document.querySelectorAll('#livesongs > tbody > tr');
-        rows.forEach(function(row, idx) {
-            var rId = parseInt(row.getAttribute('data-id'), 10);
-            var slideIdx = isNaN(rId) ? idx : rId;
-            var cells = row.querySelectorAll('td');
-            var colTitle = cells[0] ? stripHtmlToPlain(cells[0].innerHTML) : ('Slide ' + (slideIdx + 1));
-            var isVideo = row.getAttribute('data-video-row') === 'true';
-            var hasImg = !!(cells[1] && cells[1].querySelector('img'));
-            var colBody = '';
-
-            if (isVideo) {
-                var labelEl = row.querySelector('.vid-time-label');
-                colBody = labelEl ? ('Vídeo (' + labelEl.textContent + ')') : 'Vídeo';
-            } else if (hasImg) {
-                colBody = 'Imagem em tela cheia';
-            } else if (cells[1]) {
-                colBody = stripHtmlToPlain(cells[1].innerHTML);
-            }
-
-            var isTelaPadrao = (colTitle === 'Tela Padrão' && !colBody);
-            var vidTelemetry = null;
-            if (isVideo) {
-                var slider = row.querySelector('.vid-progress-slider');
-                var btnToggle = row.querySelector('.btn-vid-toggle');
-                var isPaused = !btnToggle || !btnToggle.innerHTML || btnToggle.innerHTML.indexOf('fa-pause') === -1;
-                vidTelemetry = {
-                    currentTime: slider ? (parseFloat(slider.value) || 0) : 0,
-                    duration: slider ? (parseFloat(slider.max) || 0) : 0,
-                    paused: isPaused
-                };
-            }
-
-            slides.push({
-                index: slideIdx,
-                title: colTitle || (isTelaPadrao ? 'Tela Padrão' : 'Slide'),
-                text: colBody || (isTelaPadrao ? 'Tela Padrão ICM' : ''),
-                isVideo: isVideo,
-                isImage: hasImg,
-                isTelaPadrao: isTelaPadrao,
-                video: vidTelemetry
-            });
-        });
-
         var queue = [];
-        var qRows = document.querySelectorAll('#projections > tbody > tr');
-        qRows.forEach(function(qRow, qIdx) {
-            var td = qRow.querySelector('td');
-            var gotoIdx = td ? parseInt(td.getAttribute('data-goto'), 10) : 0;
-            var labelText = td ? stripHtmlToPlain(td.innerHTML) : ('Item ' + (qIdx + 1));
-            queue.push({
-                index: qIdx,
-                label: labelText,
-                gotoSlide: isNaN(gotoIdx) ? 0 : gotoIdx
+
+        if (cachedLiveSlides !== null && cachedLiveQueue !== null && lastCachedSlidesVersion === curVer) {
+            // Reutiliza slides e fila estruturais cacheados, apenas sincronizando telemetria do vídeo ativo
+            slides = cachedLiveSlides;
+            queue = cachedLiveQueue;
+            var activeSlideObj = slides[projecaoAtiva];
+            if (activeSlideObj && activeSlideObj.isVideo) {
+                var activeRow = document.querySelector('#livesongs tr[data-video-row="true"][data-id="' + projecaoAtiva + '"]');
+                if (activeRow) {
+                    var s = activeRow.querySelector('.vid-progress-slider');
+                    var b = activeRow.querySelector('.btn-vid-toggle');
+                    activeSlideObj.video = {
+                        currentTime: s ? (parseFloat(s.value) || 0) : 0,
+                        duration: s ? (parseFloat(s.max) || 0) : 0,
+                        paused: !b || !b.innerHTML || b.innerHTML.indexOf('fa-pause') === -1
+                    };
+                }
+            }
+        } else {
+            var rows = document.querySelectorAll('#livesongs > tbody > tr');
+            rows.forEach(function(row, idx) {
+                var rId = parseInt(row.getAttribute('data-id'), 10);
+                var slideIdx = isNaN(rId) ? idx : rId;
+                var cells = row.querySelectorAll('td');
+                var colTitle = cells[0] ? stripHtmlToPlain(cells[0].innerHTML) : ('Slide ' + (slideIdx + 1));
+                var isVideo = row.getAttribute('data-video-row') === 'true';
+                var hasImg = !!(cells[1] && cells[1].querySelector('img'));
+                var colBody = '';
+
+                if (isVideo) {
+                    var labelEl = row.querySelector('.vid-time-label');
+                    colBody = labelEl ? ('Vídeo (' + labelEl.textContent + ')') : 'Vídeo';
+                } else if (hasImg) {
+                    colBody = 'Imagem em tela cheia';
+                } else if (cells[1]) {
+                    colBody = stripHtmlToPlain(cells[1].innerHTML);
+                }
+
+                var isTelaPadrao = (colTitle === 'Tela Padrão' && !colBody);
+                var vidTelemetry = null;
+                if (isVideo) {
+                    var slider = row.querySelector('.vid-progress-slider');
+                    var btnToggle = row.querySelector('.btn-vid-toggle');
+                    var isPaused = !btnToggle || !btnToggle.innerHTML || btnToggle.innerHTML.indexOf('fa-pause') === -1;
+                    vidTelemetry = {
+                        currentTime: slider ? (parseFloat(slider.value) || 0) : 0,
+                        duration: slider ? (parseFloat(slider.max) || 0) : 0,
+                        paused: isPaused
+                    };
+                }
+
+                slides.push({
+                    index: slideIdx,
+                    title: colTitle || (isTelaPadrao ? 'Tela Padrão' : 'Slide'),
+                    text: colBody || (isTelaPadrao ? 'Tela Padrão ICM' : ''),
+                    isVideo: isVideo,
+                    isImage: hasImg,
+                    isTelaPadrao: isTelaPadrao,
+                    video: vidTelemetry
+                });
             });
-        });
+
+            var qRows = document.querySelectorAll('#projections > tbody > tr');
+            qRows.forEach(function(qRow, qIdx) {
+                var td = qRow.querySelector('td');
+                var gotoIdx = td ? parseInt(td.getAttribute('data-goto'), 10) : 0;
+                var labelText = td ? stripHtmlToPlain(td.innerHTML) : ('Item ' + (qIdx + 1));
+                queue.push({
+                    index: qIdx,
+                    label: labelText,
+                    gotoSlide: isNaN(gotoIdx) ? 0 : gotoIdx
+                });
+            });
+
+            cachedLiveSlides = slides;
+            cachedLiveQueue = queue;
+            lastCachedSlidesVersion = curVer;
+        }
 
         return {
             activeSlide: (typeof projecaoAtiva === 'number') ? projecaoAtiva : 0,
@@ -535,7 +564,7 @@
         return { songs: songs, warnings: warnings, media: media };
     }
 
-    function enviarEstadoRemoto(imediato) {
+    function enviarEstadoRemoto(imediato, isVideoTickOnly) {
         if (!isHttpServerMode()) return;
 
         function disparar() {
@@ -558,11 +587,12 @@
             return;
         }
 
+        var minThrottle = isVideoTickOnly ? 1000 : 350;
         var elapsed = Date.now() - lastStateSentAt;
-        if (elapsed >= 350) {
+        if (elapsed >= minThrottle) {
             disparar();
         } else if (!pendingStateTimer) {
-            pendingStateTimer = setTimeout(disparar, 350 - elapsed);
+            pendingStateTimer = setTimeout(disparar, minThrottle - elapsed);
         }
     }
 
@@ -570,16 +600,17 @@
         if (!isHttpServerMode()) return;
         if (isVideoTickOnly) {
             var activeRow = document.querySelector('#livesongs tr[data-video-row="true"][data-id="' + projecaoAtiva + '"]');
-            if (activeRow) {
-                var slider = activeRow.querySelector('.vid-progress-slider');
-                var btnT = activeRow.querySelector('.btn-vid-toggle');
-                var sig = projecaoAtiva + '|' + (slider ? Math.floor(parseFloat(slider.value) || 0) : 0) + '|' + (btnT && btnT.innerHTML.indexOf('fa-pause') !== -1);
-                if (sig === lastVideoSignature) return;
-                lastVideoSignature = sig;
-            }
-            enviarEstadoRemoto(false);
+            if (!activeRow) return; // Se não há linha de vídeo ativa no slide atual, aborta imediatamente
+            var slider = activeRow.querySelector('.vid-progress-slider');
+            var btnT = activeRow.querySelector('.btn-vid-toggle');
+            var isPlaying = btnT && btnT.innerHTML && btnT.innerHTML.indexOf('fa-pause') !== -1;
+            var curSec = slider ? Math.floor(parseFloat(slider.value) || 0) : 0;
+            var sig = projecaoAtiva + '|' + curSec + '|' + isPlaying;
+            if (sig === lastVideoSignature) return;
+            lastVideoSignature = sig;
+            enviarEstadoRemoto(false, true);
         } else {
-            enviarEstadoRemoto(true);
+            enviarEstadoRemoto(true, false);
         }
     }
     window.notificarEstadoRemoto = notificarEstadoRemoto;

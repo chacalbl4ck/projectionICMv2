@@ -753,6 +753,9 @@ function removerItemDaProjecao(index) {
         projecaoAtiva = 0;
     }
     reloadProjectionList(activeInfo);
+    if (typeof window.limparCacheMidiasInativas === 'function') {
+        window.limparCacheMidiasInativas();
+    }
 }
 
 if (typeof window !== 'undefined') {
@@ -765,6 +768,7 @@ if (typeof window !== 'undefined') {
 // MOTOR DE CONSTRUÇÃO DE SLIDES LITÚRGICOS
 // ==========================================
 function generateLiveList(activeInfoPreset){ 
+    window.slidesVersion = (window.slidesVersion || 0) + 1;
     var activeInfo = activeInfoPreset || (typeof obterInfoSlideAtivo === 'function' ? obterInfoSlideAtivo(projecaoAtiva) : null);
     var telaPadraoPainel = '<td>Tela Padrão</td><td></td>';
     $("#livesongs tbody").html(""); 
