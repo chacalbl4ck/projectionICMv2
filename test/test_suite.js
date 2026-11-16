@@ -794,6 +794,44 @@ runTest('Lógica de Cálculo e Sincronização de Aspect Ratio em js/modules/pro
   assert.strictEqual(badgeEl.className.includes('badge-secondary'), true);
 });
 
+// 12. Validação da Quebra de Linha Automática de Versículos na Fila de Projeção
+console.log('12) Validação da Quebra de Linha Automática de Versículos na Fila de Projeção:');
+
+runTest('Regras CSS de quebra automática em css/style.css e controle.html', () => {
+  const styleCss = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+  const controleHtml = fs.readFileSync(path.join(root, 'controle.html'), 'utf8');
+
+  assert(
+    styleCss.includes('#livesongs td') && styleCss.includes('white-space: normal !important;'),
+    '#livesongs td deve definir white-space: normal !important para permitir quebra de linha'
+  );
+  assert(
+    styleCss.includes('.scripture-text') && styleCss.includes('word-wrap: break-word !important;'),
+    '.scripture-text deve definir word-wrap: break-word !important'
+  );
+  assert(
+    styleCss.includes('#projections td') && styleCss.includes('white-space: normal !important;'),
+    '#projections td deve permitir quebra de linha para títulos e referências longas'
+  );
+  assert(
+    controleHtml.includes('.slide-list-item .s-body') && controleHtml.includes('white-space: normal;'),
+    'controle.html deve permitir quebra de linha em .slide-list-item .s-body'
+  );
+});
+
+runTest('Estrutura de classes semânticas de versículos em js/modules/projection.js', () => {
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+
+  assert(
+    projCode.includes('class="row-scripture"'),
+    'Linhas de versículos bíblicos em #livesongs devem conter a classe row-scripture'
+  );
+  assert(
+    projCode.includes('class="scripture-label"') && projCode.includes('class="scripture-text"'),
+    'Células de versículos devem conter classes scripture-label e scripture-text'
+  );
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');
