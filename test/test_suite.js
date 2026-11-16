@@ -832,6 +832,7 @@ runTest('Estrutura de classes semânticas de versículos em js/modules/projectio
   );
 });
 
+<<<<<<< HEAD
 // 13. Validação da Responsividade do Painel Principal (Resolução Mínima 1360x768)
 console.log('13) Validação da Responsividade do Painel Principal (Resolução Mínima 1360x768):');
 
@@ -859,6 +860,8 @@ runTest('Fator Dinâmico de Escala da Pré-visualização em js/modules/projecti
   );
 });
 
+=======
+>>>>>>> main
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');
