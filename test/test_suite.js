@@ -832,6 +832,69 @@ runTest('Estrutura de classes semânticas de versículos em js/modules/projectio
   );
 });
 
+// 13. Validação da Versão 2.2.2 do Sistema em Todos os Componentes
+console.log('\n13) Validação da Versão 2.2.2 em Todos os Componentes:');
+
+runTest('Versão 2.2.2 em index.html, js/core.js, server.js e C#', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert(indexHtml.includes('v2.2.2'), 'index.html deve conter versão v2.2.2');
+  assert(!indexHtml.includes('v2.2.1'), 'index.html não deve conter versão v2.2.1 residual');
+
+  const coreJs = fs.readFileSync(path.join(root, 'js', 'core.js'), 'utf8');
+  assert(coreJs.includes('v2.2.2'), 'js/core.js deve conter v2.2.2');
+  assert(!coreJs.includes('v2.2.1'), 'js/core.js não deve conter v2.2.1 residual');
+
+  const serverJs = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert(serverJs.includes('v2.2.2'), 'server.js deve conter v2.2.2');
+  assert(!serverJs.includes('v2.2.1'), 'server.js não deve conter v2.2.1 residual');
+
+  const csCode = fs.readFileSync(path.join(root, 'desktop', 'ProjecaoICM.cs'), 'utf8');
+  assert(csCode.includes('[assembly: AssemblyVersion("2.2.2.0")]'), 'ProjecaoICM.cs AssemblyVersion deve ser 2.2.2.0');
+  assert(csCode.includes('[assembly: AssemblyFileVersion("2.2.2.0")]'), 'ProjecaoICM.cs AssemblyFileVersion deve ser 2.2.2.0');
+  assert(csCode.includes('BundleVersion = "2.2.2"'), 'ProjecaoICM.cs BundleVersion deve ser 2.2.2');
+  assert(!csCode.includes('2.2.1'), 'ProjecaoICM.cs não deve conter 2.2.1');
+
+  const previewCs = fs.readFileSync(path.join(root, 'desktop', 'Gerar_Social_Preview.cs'), 'utf8');
+  assert(previewCs.includes('2.2.2'), 'Gerar_Social_Preview.cs deve conter 2.2.2');
+  assert(!previewCs.includes('2.2.1'), 'Gerar_Social_Preview.cs não deve conter 2.2.1');
+
+  const workflowYml = fs.readFileSync(path.join(root, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+  assert(workflowYml.includes("'2.2.2'"), 'build-and-release.yml deve ter fallback 2.2.2');
+  assert(!workflowYml.includes("'2.2.1'"), 'build-and-release.yml não deve ter fallback 2.2.1');
+});
+
+// 14. Validação da Remoção de Dependências Não Usadas e Otimização de Memória
+console.log('\n14) Validação da Remoção de Dependências Não Usadas e Otimizações de Memória:');
+
+runTest('Remoção de dependências não usadas (scss, grid e reboot duplicados)', () => {
+  assert(!fs.existsSync(path.join(root, 'css', 'bootstrap-grid.min.css')), 'bootstrap-grid.min.css deve ter sido removido');
+  assert(!fs.existsSync(path.join(root, 'css', 'bootstrap-reboot.min.css')), 'bootstrap-reboot.min.css deve ter sido removido');
+  assert(!fs.existsSync(path.join(root, 'css', 'theme', 'source')), 'css/theme/source não deve existir');
+  assert(!fs.existsSync(path.join(root, 'css', 'theme', 'template')), 'css/theme/template não deve existir');
+
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert(!indexHtml.includes('bootstrap-grid.min.css'), 'index.html não deve importar bootstrap-grid.min.css');
+  assert(!indexHtml.includes('bootstrap-reboot.min.css'), 'index.html não deve importar bootstrap-reboot.min.css');
+});
+
+runTest('Otimizações anti-vazamento de memória em JavaScript e C#', () => {
+  const mediaJs = fs.readFileSync(path.join(root, 'js', 'modules', 'media.js'), 'utf8');
+  assert(mediaJs.includes('while (blobAccessOrder.length >= MAX_ACTIVE_BLOBS)'), 'purgarCacheExcedenteSeNecessario deve usar loop while completo');
+  assert(!mediaJs.includes('file: file,'), 'processarArquivo e adicionarMidiaAvulsa não devem reter objetos File em memória RAM');
+
+  const storageJs = fs.readFileSync(path.join(root, 'js', 'modules', 'storage.js'), 'utf8');
+  assert(storageJs.includes('delete mediaClean.file;'), 'sanitizarDadosParaJson deve limpar propriedades de File');
+  assert(storageJs.includes('delete mediaClean.fileHandle;'), 'sanitizarDadosParaJson deve limpar propriedades de FileHandle');
+
+  const viewHtml = fs.readFileSync(path.join(root, 'view.html'), 'utf8');
+  assert(viewHtml.includes('viewIndexedDbInstance'), 'view.html deve reutilizar instância de conexão do IndexedDB');
+
+  const csCode = fs.readFileSync(path.join(root, 'desktop', 'ProjecaoICM.cs'), 'utf8').replace(/\r\n/g, '\n');
+  assert(csCode.includes('finally\n                    {\n                        lock (_sync) { _hostClients.Remove(stream); }'), 'ProjecaoICM.cs deve ter finally guard para hostClients');
+  assert(csCode.includes('finally\n                {\n                    lock (_sync) { _remoteClients.Remove(stream); }'), 'ProjecaoICM.cs deve ter finally guard para remoteClients');
+  assert(csCode.includes('_picLogo.Image.Dispose()'), 'ProjecaoICM.cs deve descartar explicitamente imagem do logo em FormClosing');
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

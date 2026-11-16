@@ -66,14 +66,18 @@ function limparCacheMidiasInativas(forcarTodos) {
 window.limparCacheMidiasInativas = limparCacheMidiasInativas;
 
 function purgarCacheExcedenteSeNecessario() {
-    if (blobAccessOrder.length < MAX_ACTIVE_BLOBS) return;
-    var inUse = obterIdsMidiasEmUso();
-    for (var i = 0; i < blobAccessOrder.length; i++) {
-        var candid = blobAccessOrder[i];
-        if (!inUse.has(candid)) {
-            revogarBlobMidia(candid);
-            break;
+    while (blobAccessOrder.length >= MAX_ACTIVE_BLOBS) {
+        var inUse = obterIdsMidiasEmUso();
+        var evicted = false;
+        for (var i = 0; i < blobAccessOrder.length; i++) {
+            var candid = blobAccessOrder[i];
+            if (!inUse.has(candid)) {
+                revogarBlobMidia(candid);
+                evicted = true;
+                break;
+            }
         }
+        if (!evicted) break; // Todas as mídias ativas estão em uso no momento
     }
 }
 
@@ -846,7 +850,6 @@ async function escanearPastasAutomaticas() {
                     modTime: modTime,
                     type: "video",
                     fileHandle: entry,
-                    file: file,
                     folder: pastaOrigem || "videos",
                     isAutoFolder: true,
                     src: mediaBlobUrls[idVid] || ""
@@ -863,7 +866,6 @@ async function escanearPastasAutomaticas() {
                     modTime: modTime,
                     type: "image",
                     fileHandle: entry,
-                    file: file,
                     folder: pastaOrigem || "imagens",
                     isAutoFolder: true,
                     src: mediaBlobUrls[idImg] || ""
@@ -1288,10 +1290,12 @@ $(document).ready(function() {
 
         var isVid = isVideoFile(file.name) || (file.type && file.type.startsWith("video/"));
         var mediaId = "media_" + Date.now();
+        purgarCacheExcedenteSeNecessario();
         var typedBlob = garantirBlobComMimeType(file, file.name);
         rawBlobsCache[mediaId] = typedBlob;
         var blobUrl = URL.createObjectURL(typedBlob);
         mediaBlobUrls[mediaId] = blobUrl;
+        registrarUsoBlob(mediaId);
 
         // Salva Blob no IndexedDB para persistência e compartilhamento imediato com o telão
         try {
@@ -1309,8 +1313,7 @@ $(document).ready(function() {
             type: isVid ? "video" : "image",
             isLocalRef: true,
             src: blobUrl,
-            image: blobUrl,
-            file: file
+            image: blobUrl
         };
 
         if (targetFolderId >= 0 && dados[targetFolderId]) {

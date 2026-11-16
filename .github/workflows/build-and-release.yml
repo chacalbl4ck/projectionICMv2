@@ -96,7 +96,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${{ github.ref_name }}"
           else
-            VER=$(node -e "const m = require('fs').readFileSync('index.html', 'utf8').match(/v(\d+\.\d+\.\d+)/); console.log(m ? m[1] : '2.2.1');")
+            VER=$(node -e "const m = require('fs').readFileSync('index.html', 'utf8').match(/v(\d+\.\d+\.\d+)/); console.log(m ? m[1] : '2.2.2');")
             TAG="v$VER"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT

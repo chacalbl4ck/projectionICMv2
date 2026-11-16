@@ -643,13 +643,19 @@ async function salvarFundosPersonalizados() {
             try {
                 var duracao = await new Promise((resolve) => {
                     var vTest = document.createElement('video');
-                    vTest.preload = 'metadata';
-                    vTest.onloadedmetadata = function() {
-                        window.URL.revokeObjectURL(vTest.src);
-                        resolve(vTest.duration);
+                    var tUrl = URL.createObjectURL(file);
+                    var cleanUp = function(dur) {
+                        try { window.URL.revokeObjectURL(tUrl); } catch(e) {}
+                        vTest.onloadedmetadata = null;
+                        vTest.onerror = null;
+                        vTest.removeAttribute('src');
+                        try { vTest.load(); } catch(e) {}
+                        resolve(dur);
                     };
-                    vTest.onerror = function() { resolve(0); };
-                    vTest.src = URL.createObjectURL(file);
+                    vTest.preload = 'metadata';
+                    vTest.onloadedmetadata = function() { cleanUp(vTest.duration); };
+                    vTest.onerror = function() { cleanUp(0); };
+                    vTest.src = tUrl;
                 });
                 if (duracao > 30) {
                     alert("O vídeo de fundo (" + file.name + ") possui " + Math.round(duracao) + "s, excedendo o limite de 30 segundos permitido para planos de fundo.");
@@ -659,10 +665,12 @@ async function salvarFundosPersonalizados() {
         }
 
         var fid = "fundo_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        if (typeof purgarCacheExcedenteSeNecessario === 'function') purgarCacheExcedenteSeNecessario();
         var typedBlob = garantirBlobComMimeType(file, file.name);
         rawBlobsCache[fid] = typedBlob;
         var blobUrl = URL.createObjectURL(typedBlob);
         mediaBlobUrls[fid] = blobUrl;
+        if (typeof registrarUsoBlob === 'function') registrarUsoBlob(fid);
 
         try {
             await MediaDB.init();

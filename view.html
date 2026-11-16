@@ -371,37 +371,53 @@
       setTimeout(verificarEResolverMidias, 100);
     }
 
+    var viewIndexedDbInstance = null;
     function obterBlobDoIndexedDB(mediaId) {
       return new Promise(function(resolve) {
         if (!window.indexedDB || !mediaId) return resolve(null);
         try {
-          var req = indexedDB.open("ProjecaoICM_DB", 1);
-          req.onsuccess = function(e) {
-            var db = e.target.result;
-            if (!db.objectStoreNames.contains("media")) return resolve(null);
-            var tx = db.transaction("media", "readonly");
-            var store = tx.objectStore("media");
-            var getReq = store.get(mediaId);
-            getReq.onsuccess = function() {
-              var res = getReq.result;
-              if (res && res.data) {
-                var fileOrBlob = res.data;
-                if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
-                  resolve(fileOrBlob);
-                } else if (typeof fileOrBlob.getFile === 'function') {
-                  fileOrBlob.getFile().then(resolve).catch(function() { resolve(null); });
-                } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
-                  resolve(fileOrBlob);
+          function executarConsulta(db) {
+            try {
+              if (!db.objectStoreNames.contains("media")) return resolve(null);
+              var tx = db.transaction("media", "readonly");
+              var store = tx.objectStore("media");
+              var getReq = store.get(mediaId);
+              getReq.onsuccess = function() {
+                var res = getReq.result;
+                if (res && res.data) {
+                  var fileOrBlob = res.data;
+                  if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
+                    resolve(fileOrBlob);
+                  } else if (typeof fileOrBlob.getFile === 'function') {
+                    fileOrBlob.getFile().then(resolve).catch(function() { resolve(null); });
+                  } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+                    resolve(fileOrBlob);
+                  } else {
+                    resolve(null);
+                  }
                 } else {
                   resolve(null);
                 }
-              } else {
-                resolve(null);
-              }
+              };
+              getReq.onerror = function() { resolve(null); };
+            } catch(e) { resolve(null); }
+          }
+
+          if (viewIndexedDbInstance) {
+            executarConsulta(viewIndexedDbInstance);
+          } else {
+            var req = indexedDB.open("ProjecaoICM_DB", 1);
+            req.onsuccess = function(e) {
+              viewIndexedDbInstance = e.target.result;
+              viewIndexedDbInstance.onclose = function() { viewIndexedDbInstance = null; };
+              viewIndexedDbInstance.onversionchange = function() {
+                try { viewIndexedDbInstance.close(); } catch(err) {}
+                viewIndexedDbInstance = null;
+              };
+              executarConsulta(viewIndexedDbInstance);
             };
-            getReq.onerror = function() { resolve(null); };
-          };
-          req.onerror = function() { resolve(null); };
+            req.onerror = function() { resolve(null); };
+          }
         } catch(err) { resolve(null); }
       });
     }

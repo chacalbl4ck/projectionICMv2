@@ -190,6 +190,8 @@ function sanitizarDadosParaJson(dadosArray) {
                 if (mediaClean.image && (mediaClean.image.startsWith('blob:') || mediaClean.image.startsWith('data:'))) {
                     mediaClean.image = "";
                 }
+                delete mediaClean.file;
+                delete mediaClean.fileHandle;
                 return mediaClean;
             });
         }

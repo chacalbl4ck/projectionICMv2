@@ -1,7 +1,7 @@
-# Projeção ICM HTML5 `v2.2.1`
+# Projeção ICM HTML5 `v2.2.2`
 
 [![CI/CD - Projeção ICM](https://github.com/chacalbl4ck/projectionICMv2/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/chacalbl4ck/projectionICMv2/actions/workflows/build-and-release.yml)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-2.2.1-blue.svg)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-2.2.2-blue.svg)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows%20%7C%20Web%20%7C%20Mobile-brightgreen)
 ![Zero Dependências](https://img.shields.io/badge/depend%C3%AAncias-zero-orange)
 
@@ -15,9 +15,19 @@ Painel do Operador
 
 ---
 
-## 🚀 Principais Recursos e Novidades (`v2.2.1`)
+## 🚀 Principais Recursos e Novidades (`v2.2.2`)
 
-### 1. Controle Remoto pelo Celular via Wi-Fi (`ProjecaoICM.exe` / `server.js` + `controle.html`)
+### 1. Sincronização Inteligente de Aspect Ratio e Responsividade Compacta (1360x768)
+* **Aspect Ratio Automático da Pré-visualização:** O painel de prévia no console do operador sincroniza automaticamente com as dimensões e proporção exatas do telão físico externo (`16:9`, `4:3`, `16:10`, etc.) através de telemetria bidirecional via `BroadcastChannel` e `postMessage`. O operador também pode alternar manualmente a proporção a qualquer momento clicando no badge de aspect ratio.
+* **Layout Fluido para Telas Menores (1360x768):** O painel de controle ajusta seus elementos proporcionalmente para atender com perfeição monitores e notebooks a partir de 1360x768 (ou 1280x720 com barra oculta), garantindo que listas de acervo, fila de projeção e prévia caibam na tela sem transbordar nem cortar controles essenciais.
+* **Quebra Automática de Linhas em Textos Bíblicos e Títulos Longos:** A fila de projeção (`#livesongs` e `#projections`) e a interface móvel quebram automaticamente o texto de versículos grandes (`word-wrap: break-word`, `white-space: normal !important`), exibindo a totalidade das passagens litúrgicas sem truncamento.
+
+### 2. Otimização de Memória, Processador e Eliminação de Dependências Redundantes
+* **Auditoria Profunda de Memória:** Correção de retenção de objetos `File` em memória durante o escaneamento de pastas automáticas, desalocação de buffers ao regenerar filas de slides, loop `while` determinístico para evicção de Blobs no cache LRU (`MAX_ACTIVE_BLOBS`) e reutilização de conexões IndexedDB.
+* **Resiliência e Descarte de Streams SSE:** Proteção com blocos `try ... finally` no servidor nativo em C# (`ProjecaoICM.cs`) e no Node.js (`server.js`), garantindo que conexões fechadas de hosts ou celulares sejam removidas instantaneamente sem vazamento de handles ou timers.
+* **Limpeza de Pacote:** Remoção de arquivos SCSS não compilados e folhas de estilo duplicadas (`bootstrap-grid.min.css` e `bootstrap-reboot.min.css`, já embutidas no `bootstrap.min.css`), reduzindo o tamanho do executável e agilizando a inicialização.
+
+### 3. Controle Remoto pelo Celular via Wi-Fi (`ProjecaoICM.exe` / `server.js` + `controle.html`)
 * **Conexão Rápida via QR Code e PIN:** Tanto a janela nativa do [`ProjecaoICM.exe`](ProjecaoICM.exe) quanto o botão **Controle Wi-Fi** na barra superior do painel exibem o QR Code offline, o endereço na rede local e um PIN numérico de 4 dígitos para acesso seguro a partir do navegador do celular conectado ao mesmo Wi-Fi.
 * **Comunicação em Tempo Real (SSE):** Atualização instantânea entre o painel (`index.html`) e o dispositivo móvel via Server-Sent Events (`js/modules/remote.js` + servidor embutido em `ProjecaoICM.exe` ou `server.js`).
 * **Controle Completo na Mão:**
@@ -28,39 +38,39 @@ Painel do Operador
   * **Fila & Acervo:** Remoção de itens da fila e busca rápida para adicionar louvores, avisos e mídias direto pelo celular.
 * **Execução Direta Sem Dependências:** O executável [`ProjecaoICM.exe`](ProjecaoICM.exe) dispensa instalação do Node.js no Windows.
 
-### 2. Aba Dedicada de Edição da Bíblia (`ACF` e `NVI`)
+### 4. Aba Dedicada de Edição da Bíblia (`ACF` e `NVI`)
 * **Editor Integrado (`js/bible.js`):** Aba **Edição da Bíblia** com seleção rápida por Versão (`ACF` / `NVI`), Livro e Capítulo, sincronizada automaticamente com a aba **Bíblia**.
 * **Busca e Controle Granular:** Filtro instantâneo por número ou trecho do versículo (preservando versículos ocultos ao salvar), inserção de novo versículo e restauração individual ou de todo o capítulo para o texto original.
 * **Persistência Leve e Exportação:** Salva somente as alterações em armazenamento local (`localStorage` + `MediaDB`), atualiza projeções bíblicas abertas em tempo real e permite exportar a base modificada em `.js`.
 
-### 3. Controles de Vídeo ao Vivo, Sincronia e Congelamento Inteligente
+### 5. Controles de Vídeo ao Vivo, Sincronia e Congelamento Inteligente
 * **Controles Inline de Vídeo:** Quando um vídeo está ativo na lista **Ao Vivo**, a própria linha exibe botões de **Play/Pause**, **Reiniciar**, **Retroceder 10s**, **Avançar 10s**, barra de progresso arrastável e minutagem (`MM:SS`).
 * **Áudio Exclusivo no Telão e Sincronia:** A janela externa do Telão (`view.html`) e a pré-visualização permanecem sincronizadas no tempo de reprodução, mantendo a prévia sempre muda para evitar duplicidade ou eco na mesa de som.
 * **Trava de Estado ao Minimizar/Restaurar:** Vídeos pausados pelo operador mantêm o estado de pausa mesmo se a janela do Telão for minimizada e restaurada.
 * **Congelar Real:** Captura o último quadro exibido (imagens ou vídeos, incluindo fundos em movimento) respeitando o *aspect ratio* em tela cheia e **silencia imediatamente qualquer áudio de vídeo** enquanto permite ao operador preparar os próximos itens sem alterar o telão ao público.
 * **Palco Fullscreen com Aspect Ratio:** Mídias e vídeos preenchem o telão respeitando proporcionalmente as dimensões da tela (`object-fit: contain`), sem cortes ou distorções.
 
-### 4. Comunicação Nativa em Tempo Real (`BroadcastChannel`) & Saída OBS (`obs.html`)
+### 6. Comunicação Nativa em Tempo Real (`BroadcastChannel`) & Saída OBS (`obs.html`)
 * O painel (`index.html`), o telão externo (`view.html`), a saída transparente do OBS (`obs.html`) e a miniatura interna comunicam-se via `BroadcastChannel('projecao_icm_channel')` com monitor contínuo de conexão do Telão.
 * **Saída OBS Lower Thirds:** Fundo 100% transparente em *glassmorphism* azul e dourado com badges contextuais (`LOUVOR`, `BÍBLIA`, `AVISO`), ocultamento automático em telas padrão/mídias e sincronia completa com **Blackout** e **Congelar**.
 
-### 5. Pastas Automáticas (`videos/` e `imagens/`), Cache Offline e Mídias Sem Cópia
+### 7. Pastas Automáticas (`videos/` e `imagens/`), Cache Offline e Mídias Sem Cópia
 * **Pastas Automáticas Inteligentes:** Monitora pastas locais de vídeos e imagens com ordenação determinística, deduplicação por tipo e nome, preservação da seleção durante varreduras, cache offline em `IndexedDB` e reaproveitamento automático de permissões já concedidas.
 * **Referenciamento Direto (Zero Cópia):** Mídias de vídeo (`.mp4`, `.avi`) e imagem (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`) selecionadas do disco não inflam o JSON do acervo.
 * **Enquadramento 16:9 e Visualizador:** Modal de recorte interativo em `1920x1080` para imagens de fundo (Zoom e Posição X/Y) e pré-visualização de fotos/vídeos antes de enviar ao telão.
 
-### 6. Busca por Título de Louvor, Busca Bíblica Avançada e Auto-Fit
+### 8. Busca por Título de Louvor, Busca Bíblica Avançada e Auto-Fit
 * **Busca Otimizada de Louvores por Título:** Localiza louvores estritamente pelo título ou número (sem misturar com o texto interno da letra), garantindo resultados diretos e precisos no acervo. Mídias e avisos permanecem pesquisáveis por nome e conteúdo.
 * **Mecanismo de Busca na Bíblia (ACF e NVI):** Campo de busca integrado na aba Bíblia que permite localizar instantaneamente qualquer versículo por termos e palavras-chave (ex: `amor nunca falha`, `pastor nada me faltara`) ou por referências abreviadas (ex: `Sl 23`, `João 3:16`, `1co 13:4-7`, `Ap 22:20`), com destaque visual dos termos, navegação automática nas listas e botão de adição direta (`+ Projetar`).
 * **Carga Bíblica Sob Demanda:** Bases `bible/acf.js` e `bible/nvi.js` carregadas somente ao utilizar recursos bíblicos, mantendo abertura ágil do painel.
 * **Auto-Fit & Tipografia Litúrgica Uniforme:** Cálculo dinâmico contra a área útil para evitar cortes de texto e padronização de estrofes com `CORO`, `BIS`, `FINAL` e `REFRÃO`, preservando o slide atual mesmo durante edições no acervo.
 * **Vínculo Direto com `data.json`:** Persistência física no arquivo local via File System Access API com indicadores discretos (`Salvo` / `Alterações não salvas`).
 
-### 7. Arquitetura Modular (`js/modules/`)
+### 9. Arquitetura Modular (`js/modules/`)
 * Código organizado em módulos especializados:
   * [`js/modules/storage.js`](js/modules/storage.js): IndexedDB (`MediaDB`) e File System Access API.
   * [`js/modules/media.js`](js/modules/media.js): Mídias, cache de pastas automáticas, recorte 16:9 e visualizador.
-  * [`js/modules/projection.js`](js/modules/projection.js): `BroadcastChannel`, fila Ao Vivo, controles de vídeo, Blackout e Congelar.
+  * [`js/modules/projection.js`](js/modules/projection.js): `BroadcastChannel`, fila Ao Vivo, controles de vídeo, Blackout, Congelar e Aspect Ratio.
   * [`js/modules/tree.js`](js/modules/tree.js): Árvore nativa de pastas, seleção e busca de louvores por título.
   * [`js/modules/remote.js`](js/modules/remote.js): Ponte Wi-Fi SSE, catálogo remoto, despacho de comandos e QR Code offline.
 
@@ -137,28 +147,46 @@ O repositório possui pipeline completo de CI/CD configurado em [`.github/workfl
 * **🪟 Compilação do Executável Windows (ProjecaoICM.exe):** Em ambiente Windows (`windows-latest`), compila o executável oficial com o compilador C# nativo (`csc.exe` do .NET Framework 4.8), embutindo o ícone oficial da Igreja Cristã Maranata e o pacote zip com os recursos da aplicação.
 * **🛡️ Autoteste Automatizado (`--self-test`):** Executa em processo os testes de integridade dos ícones Win32, extração portátil, rotas HTTP/SSE e gerador de QR Code.
 * **🔒 Checksum SHA-256 e Artefatos:** Gera automaticamente o hash criptográfico `SHA256SUMS.txt` e disponibiliza o executável compilado para download na aba **Actions** por 30 dias.
-* **🚀 Publicação Automática de Releases:** Ao publicar uma tag de versão (ex: `git tag v2.2.1 && git push origin v2.2.1`) ou acionar manualmente via **Run workflow**, o GitHub Actions cria automaticamente uma nova Release no GitHub com os binários e hashes anexados.
+* **🚀 Publicação Automática de Releases:** Ao publicar uma tag de versão (ex: `git tag v2.2.2 && git push origin v2.2.2`) ou acionar manualmente via **Run workflow**, o GitHub Actions cria automaticamente uma nova Release no GitHub com os binários e hashes anexados.
 
-### 🛠️ Comandos Úteis para Desenvolvedores
+### 🛠️ Comandos Úteis e Compilação Manual
 
-* **Executar a Suíte de Testes Localmente:**
-  ```bash
-  node test/test_suite.js
-  ```
-* **Compilar o Executável Windows Localmente:**
+#### 1. Executar a Suíte de Testes Localmente:
+```bash
+node test/test_suite.js
+```
+
+#### 2. Compilar o Executável Windows Manualmente:
+A compilação do executável [`ProjecaoICM.exe`](ProjecaoICM.exe) utiliza o compilador C# padrão nativo do Windows (`csc.exe` do .NET Framework 4.x), dispensando dependências externas como Visual Studio ou MSBuild pesado.
+
+* **Via script Node.js (Mais rápido e automatizado):**
   ```bash
   node desktop/Compilar_Exe.js
   ```
-* **Executar o Autoteste do Executável:**
+  O script executa os seguintes passos automáticos:
+  1. Compila o gerador de ícones `Gerar_Icone_ICM.cs` e gera o `imagens/ProjecaoICM.ico` multicamada (16x16, 32x32, 48x48, 64x64, 128x128 e 256x256).
+  2. Compacta a aplicação web (`index.html`, `view.html`, `obs.html`, `controle.html`, `bible`, `css`, `data`, `fontes`, `imagens`, `js`) em `app_bundle.zip`.
+  3. Compila `desktop/ProjecaoICM.cs` em `ProjecaoICM.exe` com ícone Win32 e bundle embutido como `resource`.
+
+* **Via PowerShell puro (sem Node.js instalado):**
   ```powershell
-  .\ProjecaoICM.exe --self-test
+  # Localiza o csc.exe do .NET Framework 4.0/4.8
+  $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+  
+  # Compilação direta usando o script desktop/Compilar_Exe.js ou csc nativo
+  node desktop/Compilar_Exe.js
   ```
+
+#### 3. Executar o Autoteste do Executável:
+```powershell
+cmd /c "ProjecaoICM.exe --self-test"
+```
 
 ---
 
 ## 👤 Autoria e Manutenção
 
-### Manutenedores do Projeto (`v2.2.1`)
+### Manutenedores do Projeto (`v2.2.2`)
 * **ICM — Leopoldina / MG**
   * **Caio Monteiro**
     * **E-mail:** [caiormleo@outlook.com.br](mailto:caiormleo@outlook.com.br)

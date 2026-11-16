@@ -118,7 +118,10 @@ function createAppServer(options) {
     function enviarSse(res, eventName, dataObj) {
         try {
             res.write('event: ' + eventName + '\ndata: ' + JSON.stringify(dataObj) + '\n\n');
-        } catch (e) {}
+        } catch (e) {
+            hostClients.delete(res);
+            remoteClients.delete(res);
+        }
     }
 
     function broadcastRemotes(eventName, dataObj) {
@@ -276,13 +279,22 @@ function createAppServer(options) {
                 hostClients.add(res);
                 notificarStatusParaHost();
                 const pingTimer = setInterval(() => {
-                    try { res.write(': ping\n\n'); } catch (e) {}
+                    try { res.write(': ping\n\n'); } catch (e) {
+                        cleanupHost();
+                    }
                 }, 20000);
-                req.on('close', () => {
+                let hostCleaned = false;
+                const cleanupHost = () => {
+                    if (hostCleaned) return;
+                    hostCleaned = true;
                     clearInterval(pingTimer);
                     hostClients.delete(res);
                     broadcastRemotes('host_status', { hostConnected: hostClients.size > 0 });
-                });
+                };
+                req.on('close', cleanupHost);
+                req.on('error', cleanupHost);
+                res.on('close', cleanupHost);
+                res.on('error', cleanupHost);
                 broadcastRemotes('host_status', { hostConnected: true });
                 return;
             }
@@ -302,14 +314,23 @@ function createAppServer(options) {
             notificarStatusParaHost();
 
             const pingTimer = setInterval(() => {
-                try { res.write(': ping\n\n'); } catch (e) {}
+                try { res.write(': ping\n\n'); } catch (e) {
+                    cleanupRemote();
+                }
             }, 20000);
 
-            req.on('close', () => {
+            let remoteCleaned = false;
+            const cleanupRemote = () => {
+                if (remoteCleaned) return;
+                remoteCleaned = true;
                 clearInterval(pingTimer);
                 remoteClients.delete(res);
                 notificarStatusParaHost();
-            });
+            };
+            req.on('close', cleanupRemote);
+            req.on('error', cleanupRemote);
+            res.on('close', cleanupRemote);
+            res.on('error', cleanupRemote);
             return;
         }
 
@@ -438,7 +459,7 @@ function startCliServer(preferredPort) {
             const info = srv.getRemotePin();
             console.log('');
             console.log('==========================================================');
-            console.log(' PROJECAO ICM v2.2.1 - SERVIDOR DE CONTROLE WI-FI ATIVO');
+            console.log(' PROJECAO ICM v2.2.2 - SERVIDOR DE CONTROLE WI-FI ATIVO');
             console.log('==========================================================');
             console.log(' Painel no PC:       http://localhost:' + currentPort + '/index.html');
             if (ips.length > 0) {
