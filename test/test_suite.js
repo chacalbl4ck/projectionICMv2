@@ -794,6 +794,71 @@ runTest('Lógica de Cálculo e Sincronização de Aspect Ratio em js/modules/pro
   assert.strictEqual(badgeEl.className.includes('badge-secondary'), true);
 });
 
+// 12. Validação da Quebra de Linha Automática de Versículos na Fila de Projeção
+console.log('12) Validação da Quebra de Linha Automática de Versículos na Fila de Projeção:');
+
+runTest('Regras CSS de quebra automática em css/style.css e controle.html', () => {
+  const styleCss = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+  const controleHtml = fs.readFileSync(path.join(root, 'controle.html'), 'utf8');
+
+  assert(
+    styleCss.includes('#livesongs td') && styleCss.includes('white-space: normal !important;'),
+    '#livesongs td deve definir white-space: normal !important para permitir quebra de linha'
+  );
+  assert(
+    styleCss.includes('.scripture-text') && styleCss.includes('word-wrap: break-word !important;'),
+    '.scripture-text deve definir word-wrap: break-word !important'
+  );
+  assert(
+    styleCss.includes('#projections td') && styleCss.includes('white-space: normal !important;'),
+    '#projections td deve permitir quebra de linha para títulos e referências longas'
+  );
+  assert(
+    controleHtml.includes('.slide-list-item .s-body') && controleHtml.includes('white-space: normal;'),
+    'controle.html deve permitir quebra de linha em .slide-list-item .s-body'
+  );
+});
+
+runTest('Estrutura de classes semânticas de versículos em js/modules/projection.js', () => {
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+
+  assert(
+    projCode.includes('class="row-scripture"'),
+    'Linhas de versículos bíblicos em #livesongs devem conter a classe row-scripture'
+  );
+  assert(
+    projCode.includes('class="scripture-label"') && projCode.includes('class="scripture-text"'),
+    'Células de versículos devem conter classes scripture-label e scripture-text'
+  );
+});
+
+// 13. Validação da Responsividade do Painel Principal (Resolução Mínima 1360x768)
+console.log('13) Validação da Responsividade do Painel Principal (Resolução Mínima 1360x768):');
+
+runTest('Classes e Elementos Responsivos em index.html e css/style.css', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const styleCss = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+
+  assert(indexHtml.includes('main-app-navbar'), 'index.html deve conter a classe main-app-navbar no navbar');
+  assert(indexHtml.includes('dashboard-main-row'), 'index.html deve conter a classe dashboard-main-row na linha principal');
+  assert(indexHtml.includes('list-projection-card-body'), 'index.html deve conter a classe list-projection-card-body');
+  assert(!indexHtml.includes('style="width:49.5vw;"'), 'index.html não deve fixar largura 49.5vw no input #title');
+  
+  assert(styleCss.includes('@media (max-width: 1366px) or (max-height: 768px)'), 'style.css deve conter media query específica para 1360x768/1366x768');
+  assert(styleCss.includes('font-size: 13px;'), 'style.css deve reduzir proporcionalmente font-size em 1360x768');
+  assert(styleCss.includes('.list-projection-card-body'), 'style.css deve definir regras responsivas para .list-projection-card-body');
+  assert(styleCss.includes('overflow-x: hidden;') && styleCss.includes('overflow-y: auto;'), 'style.css deve configurar overflow do body para evitar clipping');
+});
+
+runTest('Fator Dinâmico de Escala da Pré-visualização em js/modules/projection.js', () => {
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+
+  assert(
+    projCode.includes('window.innerHeight < 820') && projCode.includes('0.32'),
+    'projection.js deve adaptar o fator de altura máxima para 0.32 em telas menores que 820px'
+  );
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

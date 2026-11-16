@@ -22,10 +22,10 @@
     </div> 
   </div> 
 
-  <nav class="navbar navbar-expand-md navbar-dark bg-dark justify-content-between">
+  <nav class="navbar navbar-expand-md navbar-dark bg-dark justify-content-between main-app-navbar">
     <a class="navbar-brand font-weight-bold" href="#" data-lang-str="navbrand">Projeção ICM</a>
     
-    <ul class="navbar-nav mr-2">
+    <ul class="navbar-nav mr-2 navbar-left-actions flex-nowrap">
       <li class="nav-item">
         <button id="btnAbrirConf" class="btn btn-dark" title="Configurações"><i class="fas fa-wrench"></i></button>
       </li>
@@ -49,7 +49,7 @@
     </ul>
 
     <!-- Controles de Culto em Tempo Real (Blackout & Freeze) -->
-    <div class="d-flex align-items-center mx-auto">
+    <div class="d-flex align-items-center mx-auto navbar-center-status flex-nowrap">
       <div class="btn-group mr-2" role="group" aria-label="Controles de Culto">
         <button id="btnBlackout" type="button" class="btn btn-outline-danger btn-sm font-weight-bold" title="Blackout - Apaga o telão instantaneamente sem mudar o slide">
           <i class="fas fa-eye-slash"></i> Blackout
@@ -83,7 +83,7 @@
       </span>
     </div>
 
-    <ul class="navbar-nav align-items-center">
+    <ul class="navbar-nav align-items-center navbar-right-actions flex-nowrap">
       <li class="nav-item">
         <button id="btnLaunchView" class="btn btn-primary font-weight-bold" title="Abrir tela de projeção (Telão)"><i class="fas fa-tv"></i> Abrir Telão</button>
       </li>
@@ -611,7 +611,7 @@
   </div>
 
   <main class="container-fluid">
-    <div class="row pt-2">
+    <div class="row pt-2 dashboard-main-row">
       <div class="col-3"> 
         <div class="card"> 
           <div class="card-header text-light bg-dark" data-lang-str="files">Arquivos</div>
@@ -673,9 +673,9 @@
             
             <div class="tab-pane fade" id="edit" role="tabpanel" aria-labelledby="edit-tab">
               <form class="p-2">
-                <div class="form-group form-inline">
-                  <label for="title" data-lang-str="title">Título:&nbsp;&nbsp;</label>
-                  <input class="form-control" id="title" type="text" name="title" style="width:49.5vw;">
+                <div class="form-group form-inline d-flex align-items-center mb-2">
+                  <label for="title" data-lang-str="title" class="mr-2 mb-0">Título:</label>
+                  <input class="form-control" id="title" type="text" name="title" style="flex: 1; min-width: 150px;">
                 </div>
                 
                 <!-- Barra de Ferramentas Avançada WYSIWYG Base -->
@@ -848,7 +848,7 @@
           <div class="card-header text-light bg-dark" data-lang-str="list_projection">
             Lista para projeção
           </div>
-          <div class="card-block" style="height: 38vh; max-height: 42vh; min-height: 140px; overflow-x: hidden !important; overflow-y: auto !important;">
+          <div class="card-block list-projection-card-body" id="listProjectionContainer" style="overflow-x: hidden !important; overflow-y: auto !important;">
             <table id="projections" class="table table-sm table-bordered">
               <tbody></tbody>
             </table>
