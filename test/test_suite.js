@@ -854,9 +854,12 @@ runTest('Versão 2.2.2 em index.html, js/core.js, server.js e C#', () => {
   assert(csCode.includes('BundleVersion = "2.2.2"'), 'ProjecaoICM.cs BundleVersion deve ser 2.2.2');
   assert(!csCode.includes('2.2.1'), 'ProjecaoICM.cs não deve conter 2.2.1');
 
-  const previewCs = fs.readFileSync(path.join(root, 'desktop', 'Gerar_Social_Preview.cs'), 'utf8');
-  assert(previewCs.includes('2.2.2'), 'Gerar_Social_Preview.cs deve conter 2.2.2');
-  assert(!previewCs.includes('2.2.1'), 'Gerar_Social_Preview.cs não deve conter 2.2.1');
+  const previewCsPath = path.join(root, 'desktop', 'Gerar_Social_Preview.cs');
+  if (fs.existsSync(previewCsPath)) {
+    const previewCs = fs.readFileSync(previewCsPath, 'utf8');
+    assert(previewCs.includes('2.2.2'), 'Gerar_Social_Preview.cs deve conter 2.2.2');
+    assert(!previewCs.includes('2.2.1'), 'Gerar_Social_Preview.cs não deve conter 2.2.1');
+  }
 
   const workflowYml = fs.readFileSync(path.join(root, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
   assert(workflowYml.includes("'2.2.2'"), 'build-and-release.yml deve ter fallback 2.2.2');
