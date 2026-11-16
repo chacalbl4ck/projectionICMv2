@@ -23,6 +23,29 @@
   <!-- Canvas de captura visual do último frame ao congelar vídeos -->
   <canvas id="telaoFreezeCanvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 800; pointer-events: none; display: none; background-color: #000000;"></canvas>
 
+  <!-- Camada de Contagem Regressiva Pré-Culto (Overlay z-index 900) -->
+  <div id="countdownOverlay" class="countdown-overlay theme-icm" style="display: none;">
+    <div class="countdown-logo-wrap">
+      <img src="imagens/fundo-comunicado.png" alt="ICM" class="countdown-logo-img">
+    </div>
+    <div id="countdownTitle" class="countdown-title">O CULTO INICIARÁ EM</div>
+    <div id="countdownSubtitle" class="countdown-subtitle">Igreja Cristã Maranata</div>
+
+    <div id="countdownClockBox" class="countdown-clock-container">
+      <div class="countdown-digits">
+        <span id="countdownMin">05</span><span id="countdownColon" class="countdown-colon">:</span><span id="countdownSec">00</span>
+      </div>
+    </div>
+
+    <div id="countdownProgressWrap" class="countdown-progress-wrap">
+      <div id="countdownProgressBar" class="countdown-progress-bar" style="width: 100%;"></div>
+    </div>
+
+    <div id="countdownFinalBox" class="countdown-final-box">
+      <div id="countdownFinalText" class="countdown-final-text">O CULTO ESTÁ INICIANDO<br><span style="font-size: 0.65em; color: #fff;">Deus seja louvado!</span></div>
+    </div>
+  </div>
+
   <!-- 2. Create hidden header/footer <div> -->
   <div class="reveal">
     <!-- Headers Padrão ICM -->
@@ -212,6 +235,8 @@
         toggleBlackout(payload);
       } else if (funcName === 'freeze' || funcName === 'FREEZE') {
         toggleFreezeScreen(payload);
+      } else if (funcName === 'COUNTDOWN' || funcName === 'COUNTDOWN_STATE') {
+        atualizarCountdownOverlay(payload);
       } else if (funcName === 'PING') {
         if (isExternalTelao) {
           enviarMensagemParaPainel({ action: 'PONG', isExternal: true, timestamp: Date.now() });
@@ -254,6 +279,116 @@
       var overlay = document.getElementById('blackoutOverlay');
       if (overlay) {
         overlay.style.opacity = status ? "1" : "0";
+      }
+    }
+
+    // ==========================================================================
+    // SINCRONIZAÇÃO E RENDERIZAÇÃO DA CONTAGEM REGRESSIVA (PRE-SERVICE TIMER)
+    // ==========================================================================
+    var localCountdownState = null;
+    var localCountdownTimer = null;
+
+    function atualizarCountdownOverlay(st) {
+      var el = document.getElementById('countdownOverlay');
+      if (!st || !st.active) {
+        if (localCountdownTimer) {
+          clearInterval(localCountdownTimer);
+          localCountdownTimer = null;
+        }
+        localCountdownState = null;
+        if (el) {
+          el.classList.remove('active');
+          setTimeout(function() {
+            if (!localCountdownState || !localCountdownState.active) {
+              el.style.display = 'none';
+            }
+          }, 450);
+        }
+        return;
+      }
+
+      localCountdownState = Object.assign({}, st);
+      if (!el) return;
+
+      var themeClass = localCountdownState.theme ? ('theme-' + localCountdownState.theme) : 'theme-icm';
+      el.className = 'countdown-overlay active ' + themeClass;
+      el.style.display = 'flex';
+
+      var titleEl = document.getElementById('countdownTitle');
+      if (titleEl && localCountdownState.title !== undefined) {
+        titleEl.textContent = localCountdownState.title;
+      }
+
+      var subtitleEl = document.getElementById('countdownSubtitle');
+      if (subtitleEl && localCountdownState.subtitle !== undefined) {
+        subtitleEl.textContent = localCountdownState.subtitle;
+      }
+
+      var finalTextEl = document.getElementById('countdownFinalText');
+      if (localCountdownState.finalMessage && finalTextEl) {
+        finalTextEl.innerHTML = localCountdownState.finalMessage.replace(/\n/g, '<br>');
+      }
+
+      renderizarQuadroCountdown();
+
+      if (!localCountdownTimer) {
+        localCountdownTimer = setInterval(renderizarQuadroCountdown, 200);
+      }
+    }
+
+    function renderizarQuadroCountdown() {
+      if (!localCountdownState || !localCountdownState.active) {
+        if (localCountdownTimer) {
+          clearInterval(localCountdownTimer);
+          localCountdownTimer = null;
+        }
+        return;
+      }
+
+      var remaining = 0;
+      if (localCountdownState.paused) {
+        remaining = Math.max(0, localCountdownState.remainingSec || 0);
+      } else if (localCountdownState.targetEndTime) {
+        var msRestantes = localCountdownState.targetEndTime - Date.now();
+        remaining = Math.max(0, Math.ceil(msRestantes / 1000));
+      } else {
+        remaining = Math.max(0, localCountdownState.remainingSec || 0);
+      }
+
+      var colonEl = document.getElementById('countdownColon');
+      if (colonEl) {
+        if (localCountdownState.paused) colonEl.classList.add('paused');
+        else colonEl.classList.remove('paused');
+      }
+
+      var clockBox = document.getElementById('countdownClockBox');
+      var progressWrap = document.getElementById('countdownProgressWrap');
+      var finalBox = document.getElementById('countdownFinalBox');
+      var minEl = document.getElementById('countdownMin');
+      var secEl = document.getElementById('countdownSec');
+      var barEl = document.getElementById('countdownProgressBar');
+
+      if (remaining <= 0 || localCountdownState.isComplete) {
+        if (clockBox) clockBox.style.display = 'none';
+        if (progressWrap) progressWrap.style.display = 'none';
+        if (finalBox) finalBox.classList.add('visible');
+      } else {
+        if (clockBox) clockBox.style.display = 'inline-flex';
+        if (progressWrap) progressWrap.style.display = 'block';
+        if (finalBox) finalBox.classList.remove('visible');
+
+        var m = Math.floor(remaining / 60);
+        var s = remaining % 60;
+        var mStr = (m < 10 ? '0' : '') + m;
+        var sStr = (s < 10 ? '0' : '') + s;
+
+        if (minEl) minEl.textContent = mStr;
+        if (secEl) secEl.textContent = sStr;
+
+        if (barEl && localCountdownState.totalSec > 0) {
+          var pct = Math.max(0, Math.min(100, (remaining / localCountdownState.totalSec) * 100));
+          barEl.style.width = pct + '%';
+        }
       }
     }
 

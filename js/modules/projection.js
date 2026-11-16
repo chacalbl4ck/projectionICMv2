@@ -101,13 +101,14 @@ function broadcastCommand(action, payload) {
     }
 
     // 4. Snapshot leve para OBS / janelas da mesma origem via localStorage
-    if (action === 'RELOAD_SLIDES' || action === 'CHANGE_SLIDE' || action === 'BLACKOUT' || action === 'FREEZE') {
+    if (action === 'RELOAD_SLIDES' || action === 'CHANGE_SLIDE' || action === 'BLACKOUT' || action === 'FREEZE' || action === 'COUNTDOWN_STATE') {
         try {
             localStorage.setItem('obs_live_sync', JSON.stringify({
                 html: viewSlides,
                 currentSlide: projecaoAtiva,
                 isBlackout: isBlackout,
                 isFrozen: isFrozen,
+                countdown: countdownState,
                 ts: Date.now()
             }));
         } catch (e) {}
@@ -332,6 +333,7 @@ function processarMensagemJanela(data) {
             updateViewSlides(projecaoAtiva);
             if (isBlackout) broadcastCommand('BLACKOUT', true);
             if (isFrozen) broadcastCommand('FREEZE', true);
+            if (countdownState && countdownState.active) broadcastCommand('COUNTDOWN_STATE', countdownState);
         }
     } else if (action === 'OBS_READY' || action === 'REQUEST_SLIDES') {
         if (action === 'OBS_READY' && windowObs && !windowObs.closed) {
@@ -344,14 +346,21 @@ function processarMensagemJanela(data) {
                 }), "*");
                 if (isBlackout) windowObs.postMessage(JSON.stringify({ host: 'projection-html5', function: 'BLACKOUT', data: true, timestamp: Date.now() }), "*");
                 if (isFrozen) windowObs.postMessage(JSON.stringify({ host: 'projection-html5', function: 'FREEZE', data: true, timestamp: Date.now() }), "*");
+                if (countdownState && countdownState.active) {
+                    windowObs.postMessage(JSON.stringify({ host: 'projection-html5', function: 'COUNTDOWN_STATE', data: countdownState, timestamp: Date.now() }), "*");
+                }
             } catch(e) {}
             if (projectionBroadcast) {
                 try { projectionBroadcast.postMessage({ action: 'RELOAD_SLIDES', payload: { html: viewSlides, currentSlide: projecaoAtiva }, timestamp: Date.now() }); } catch(e) {}
+                if (countdownState && countdownState.active) {
+                    try { projectionBroadcast.postMessage({ action: 'COUNTDOWN_STATE', payload: countdownState, timestamp: Date.now() }); } catch(e) {}
+                }
             }
         } else {
             updateViewSlides(projecaoAtiva);
             if (isBlackout) broadcastCommand('BLACKOUT', true);
             if (isFrozen) broadcastCommand('FREEZE', true);
+            if (countdownState && countdownState.active) broadcastCommand('COUNTDOWN_STATE', countdownState);
         }
     } else if (action === 'PONG') {
         telaoConnected = true;
@@ -507,6 +516,259 @@ function toggleFreeze(forceState) {
     }
     if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
+
+// ==========================================================================
+// CONTAGEM REGRESSIVA PRÉ-CULTO (PRE-SERVICE COUNTDOWN TIMER)
+// ==========================================================================
+var countdownState = {
+    active: false,
+    paused: false,
+    targetEndTime: 0,
+    remainingSec: 300,
+    totalSec: 300,
+    title: 'O CULTO INICIARÁ EM',
+    subtitle: 'Igreja Cristã Maranata',
+    finalMessage: 'O CULTO ESTÁ INICIANDO - Deus seja louvado!',
+    theme: 'icm',
+    autoDismissSec: 5,
+    isComplete: false,
+    startedAt: 0
+};
+
+var countdownInterval = null;
+var countdownAutoDismissTimeout = null;
+
+function obterEstadoCountdown() {
+    return Object.assign({}, countdownState);
+}
+
+function sincronizarCountdownTelao(forcar) {
+    broadcastCommand('COUNTDOWN_STATE', countdownState);
+    atualizarUiCountdown();
+    if (typeof window.enviarEstadoRemoto === 'function') {
+        window.enviarEstadoRemoto(!!forcar);
+    }
+}
+
+function iniciarCountdown(duracaoSegundos, options) {
+    if (countdownAutoDismissTimeout) {
+        clearTimeout(countdownAutoDismissTimeout);
+        countdownAutoDismissTimeout = null;
+    }
+
+    var dur = parseInt(duracaoSegundos, 10);
+    if (isNaN(dur) || dur <= 0) {
+        var min = parseInt($('#cdInputMinutos').val(), 10) || 0;
+        var sec = parseInt($('#cdInputSegundos').val(), 10) || 0;
+        dur = (min * 60) + sec;
+    }
+    if (dur <= 0) dur = 300; // Padrão 5 min
+
+    countdownState.totalSec = dur;
+    countdownState.remainingSec = dur;
+    countdownState.active = true;
+    countdownState.paused = false;
+    countdownState.isComplete = false;
+    countdownState.startedAt = Date.now();
+    countdownState.targetEndTime = Date.now() + (dur * 1000);
+
+    if (options && typeof options === 'object') {
+        if (options.title !== undefined) countdownState.title = options.title;
+        if (options.subtitle !== undefined) countdownState.subtitle = options.subtitle;
+        if (options.finalMessage !== undefined) countdownState.finalMessage = options.finalMessage;
+        if (options.theme !== undefined) countdownState.theme = options.theme;
+        if (options.autoDismissSec !== undefined) countdownState.autoDismissSec = parseInt(options.autoDismissSec, 10) || 0;
+    } else {
+        var titleVal = $('#cdInputTitulo').val();
+        var subtitleVal = $('#cdInputSubtitulo').val();
+        var finalMsgVal = $('#cdInputFinalMsg').val();
+        var themeVal = $('#cdSelectTheme').val();
+        var dismissVal = $('#cdAutoDismissSec').val();
+
+        if (titleVal) countdownState.title = titleVal;
+        if (subtitleVal) countdownState.subtitle = subtitleVal;
+        if (finalMsgVal) countdownState.finalMessage = finalMsgVal;
+        if (themeVal) countdownState.theme = themeVal;
+        if (dismissVal !== undefined && dismissVal !== null) {
+            countdownState.autoDismissSec = parseInt(dismissVal, 10) || 0;
+        }
+    }
+
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(tickCountdown, 250);
+
+    sincronizarCountdownTelao(true);
+}
+
+function pausarRetomarCountdown() {
+    if (!countdownState.active) return;
+
+    if (countdownState.paused) {
+        // Retomar contagem
+        countdownState.paused = false;
+        countdownState.targetEndTime = Date.now() + (countdownState.remainingSec * 1000);
+    } else {
+        // Pausar contagem
+        var remaining = Math.max(0, Math.ceil((countdownState.targetEndTime - Date.now()) / 1000));
+        countdownState.remainingSec = remaining;
+        countdownState.targetEndTime = 0;
+        countdownState.paused = true;
+    }
+
+    sincronizarCountdownTelao(true);
+}
+
+function ajustarTempoCountdown(deltaSegundos) {
+    if (!countdownState.active) return;
+    var delta = parseInt(deltaSegundos, 10) || 0;
+    if (delta === 0) return;
+
+    if (countdownAutoDismissTimeout) {
+        clearTimeout(countdownAutoDismissTimeout);
+        countdownAutoDismissTimeout = null;
+    }
+
+    if (countdownState.paused) {
+        countdownState.remainingSec = Math.max(0, countdownState.remainingSec + delta);
+        countdownState.totalSec = Math.max(countdownState.totalSec, countdownState.remainingSec);
+        if (countdownState.remainingSec > 0) countdownState.isComplete = false;
+    } else {
+        var now = Date.now();
+        var currentRemaining = Math.max(0, Math.ceil((countdownState.targetEndTime - now) / 1000));
+        var newRemaining = Math.max(0, currentRemaining + delta);
+        countdownState.remainingSec = newRemaining;
+        countdownState.totalSec = Math.max(countdownState.totalSec, newRemaining);
+        countdownState.targetEndTime = now + (newRemaining * 1000);
+        if (newRemaining > 0) countdownState.isComplete = false;
+    }
+
+    sincronizarCountdownTelao(true);
+}
+
+function pararCountdown() {
+    if (countdownAutoDismissTimeout) {
+        clearTimeout(countdownAutoDismissTimeout);
+        countdownAutoDismissTimeout = null;
+    }
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+
+    countdownState.active = false;
+    countdownState.paused = false;
+    countdownState.isComplete = false;
+    countdownState.targetEndTime = 0;
+
+    sincronizarCountdownTelao(true);
+}
+
+function tickCountdown() {
+    if (!countdownState.active) {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        atualizarUiCountdown();
+        return;
+    }
+
+    if (!countdownState.paused) {
+        var msRestantes = countdownState.targetEndTime - Date.now();
+        var secRestantes = Math.max(0, Math.ceil(msRestantes / 1000));
+        countdownState.remainingSec = secRestantes;
+
+        if (secRestantes <= 0 && !countdownState.isComplete) {
+            countdownState.isComplete = true;
+            countdownState.remainingSec = 0;
+            sincronizarCountdownTelao(true);
+
+            if (countdownState.autoDismissSec > 0 && !countdownAutoDismissTimeout) {
+                countdownAutoDismissTimeout = setTimeout(function() {
+                    countdownAutoDismissTimeout = null;
+                    if (countdownState.active && countdownState.isComplete) {
+                        pararCountdown();
+                    }
+                }, countdownState.autoDismissSec * 1000);
+            }
+            return;
+        }
+    }
+
+    atualizarUiCountdown();
+}
+
+function formatarTempoMmSs(totalSegundos) {
+    var s = Math.max(0, totalSegundos);
+    var m = Math.floor(s / 60);
+    var seg = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (seg < 10 ? '0' : '') + seg;
+}
+
+function atualizarUiCountdown() {
+    var btn = $('#btnCountdown');
+    var badgeNav = $('#countdownNavBadge');
+    var alertBadge = $('#alertCountdownActive');
+    var alertTimer = $('#alertCountdownTimer');
+
+    var modalDigits = $('#modalCountdownDigits');
+    var modalStatus = $('#modalCountdownStatusBadge');
+    var modalSubtext = $('#modalCountdownSubtext');
+    var btnStart = $('#cdBtnStart');
+    var btnPause = $('#cdBtnPause');
+    var btnStop = $('#cdBtnStop');
+
+    var timeStr = formatarTempoMmSs(countdownState.remainingSec);
+
+    if (countdownState.active) {
+        if (btn.addClass) btn.addClass('active btn-warning text-dark').removeClass('btn-outline-warning');
+        if (badgeNav.text) badgeNav.text(timeStr);
+        if (badgeNav.show) badgeNav.show();
+        if (alertTimer.text) alertTimer.text(timeStr + (countdownState.paused ? ' (PAUSADO)' : ''));
+        if (alertBadge.show) alertBadge.show();
+
+        if (modalDigits.text) modalDigits.text(timeStr);
+        if (modalStatus.text) {
+            if (countdownState.isComplete) {
+                modalStatus.removeClass('badge-secondary badge-success badge-warning').addClass('badge-danger').text('ZERADO / FINALIZANDO');
+            } else if (countdownState.paused) {
+                modalStatus.removeClass('badge-secondary badge-success badge-danger').addClass('badge-warning').text('PAUSADO');
+            } else {
+                modalStatus.removeClass('badge-secondary badge-warning badge-danger').addClass('badge-success').text('EM EXECUÇÃO');
+            }
+        }
+
+        if (btnStart.hide) btnStart.hide();
+        if (btnPause.show) btnPause.show().html(countdownState.paused ? '<i class="fas fa-play"></i> Retomar' : '<i class="fas fa-pause"></i> Pausar');
+        if (btnStop.show) btnStop.show();
+    } else {
+        if (btn.removeClass) btn.removeClass('active btn-warning text-dark').addClass('btn-outline-warning');
+        if (badgeNav.hide) badgeNav.hide();
+        if (alertBadge.hide) alertBadge.hide();
+
+        var inputMin = (typeof $('#cdInputMinutos').val === 'function' ? parseInt($('#cdInputMinutos').val(), 10) : 0) || 0;
+        var inputSec = (typeof $('#cdInputSegundos').val === 'function' ? parseInt($('#cdInputSegundos').val(), 10) : 0) || 0;
+        var previewTime = formatarTempoMmSs((inputMin * 60) + inputSec);
+        if (modalDigits.text) modalDigits.text(previewTime);
+        if (modalStatus.text) modalStatus.removeClass('badge-success badge-warning badge-danger').addClass('badge-secondary').text('PARADO');
+
+        if (btnStart.show) btnStart.show();
+        if (btnPause.hide) btnPause.hide();
+        if (btnStop.hide) btnStop.hide();
+    }
+
+    if (modalSubtext.length && countdownState.title && modalSubtext.text) {
+        modalSubtext.text(countdownState.title);
+    }
+}
+
+// Exposição global para chamadas remotas e testes
+window.iniciarCountdown = iniciarCountdown;
+window.pausarRetomarCountdown = pausarRetomarCountdown;
+window.ajustarTempoCountdown = ajustarTempoCountdown;
+window.pararCountdown = pararCountdown;
+window.obterEstadoCountdown = obterEstadoCountdown;
+window.sincronizarCountdownTelao = sincronizarCountdownTelao;
 
 function mostrarAvisoPopUpTelao() {
     var banner = $('#bannerTelaoAuto');
@@ -1237,6 +1499,60 @@ $(document).ready(function() {
         toggleFreeze();
     });
 
+    $('#btnCountdown, #alertCountdownActive').off('click').on('click', function() {
+        atualizarUiCountdown();
+        $('#modalCountdown').modal('show');
+    });
+
+    $('.btn-cd-preset').off('click').on('click', function() {
+        $('.btn-cd-preset').removeClass('active');
+        $(this).addClass('active');
+        var min = parseInt($(this).data('min'), 10) || 5;
+        $('#cdInputMinutos').val(min);
+        $('#cdInputSegundos').val(0);
+        if (!countdownState.active) {
+            atualizarUiCountdown();
+        }
+    });
+
+    $('#cdInputMinutos, #cdInputSegundos').off('input change').on('input change', function() {
+        if (!countdownState.active) {
+            atualizarUiCountdown();
+        }
+    });
+
+    $('#cdBtnStart').off('click').on('click', function() {
+        iniciarCountdown();
+    });
+
+    $('#cdBtnPause').off('click').on('click', function() {
+        pausarRetomarCountdown();
+    });
+
+    $('#cdBtnStop').off('click').on('click', function() {
+        pararCountdown();
+    });
+
+    $('#cdBtnAdd1Min').off('click').on('click', function() {
+        if (countdownState.active) {
+            ajustarTempoCountdown(60);
+        } else {
+            var m = parseInt($('#cdInputMinutos').val(), 10) || 0;
+            $('#cdInputMinutos').val(m + 1);
+            atualizarUiCountdown();
+        }
+    });
+
+    $('#cdBtnSub1Min').off('click').on('click', function() {
+        if (countdownState.active) {
+            ajustarTempoCountdown(-60);
+        } else {
+            var m = parseInt($('#cdInputMinutos').val(), 10) || 0;
+            if (m > 0) $('#cdInputMinutos').val(m - 1);
+            atualizarUiCountdown();
+        }
+    });
+
     // Controles de reprodução de vídeo na lista Ao Vivo (#livesongs)
     $('#livesongs').off('click', '.btn-vid-toggle').on('click', '.btn-vid-toggle', function(e) {
         e.preventDefault();
@@ -1300,6 +1616,10 @@ $(document).ready(function() {
     $('#livesongs').off('click', '.vid-progress-slider').on('click', '.vid-progress-slider', function(e) {
         e.stopPropagation();
     });
+
+    if (typeof atualizarUiCountdown === 'function') {
+        atualizarUiCountdown();
+    }
 });
 
 if (typeof window !== 'undefined') {
@@ -1308,6 +1628,12 @@ if (typeof window !== 'undefined') {
     window.ajustarAspectPreview = ajustarAspectPreview;
     window.alternarProximaProporcaoPreview = alternarProximaProporcaoPreview;
     window.restaurarAspectPreviewPadrao = restaurarAspectPreviewPadrao;
+    window.iniciarCountdown = iniciarCountdown;
+    window.pausarRetomarCountdown = pausarRetomarCountdown;
+    window.ajustarTempoCountdown = ajustarTempoCountdown;
+    window.pararCountdown = pararCountdown;
+    window.obterEstadoCountdown = obterEstadoCountdown;
+    window.sincronizarCountdownTelao = sincronizarCountdownTelao;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports.normalizarTextoAviso = normalizarTextoAviso;
@@ -1315,4 +1641,10 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports.ajustarAspectPreview = ajustarAspectPreview;
     module.exports.alternarProximaProporcaoPreview = alternarProximaProporcaoPreview;
     module.exports.restaurarAspectPreviewPadrao = restaurarAspectPreviewPadrao;
+    module.exports.iniciarCountdown = iniciarCountdown;
+    module.exports.pausarRetomarCountdown = pausarRetomarCountdown;
+    module.exports.ajustarTempoCountdown = ajustarTempoCountdown;
+    module.exports.pararCountdown = pararCountdown;
+    module.exports.obterEstadoCountdown = obterEstadoCountdown;
+    module.exports.sincronizarCountdownTelao = sincronizarCountdownTelao;
 }

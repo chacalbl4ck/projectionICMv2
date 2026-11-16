@@ -22,7 +22,17 @@ Painel do Operador
 * **Layout Fluido para Telas Menores (1360x768):** O painel de controle ajusta seus elementos proporcionalmente para atender com perfeição monitores e notebooks a partir de 1360x768 (ou 1280x720 com barra oculta), garantindo que listas de acervo, fila de projeção e prévia caibam na tela sem transbordar nem cortar controles essenciais.
 * **Quebra Automática de Linhas em Textos Bíblicos e Títulos Longos:** A fila de projeção (`#livesongs` e `#projections`) e a interface móvel quebram automaticamente o texto de versículos grandes (`word-wrap: break-word`, `white-space: normal !important`), exibindo a totalidade das passagens litúrgicas sem truncamento.
 
-### 2. Otimização de Memória, Processador e Eliminação de Dependências Redundantes
+### 2. Contagem Regressiva Pré-Culto (Timer Pre-Service Inteligente)
+* **Cronômetro Litúrgico Integrado:** Permite acionar contagem regressiva para início do culto com botão dedicado no cabeçalho do painel do operador (`index.html`), badge de tempo no navbar e alerta pulsante.
+* **Modal Completo de Configuração:** Presets rápidos (1m, 2m, 3m, 5m, 10m, 15m), ajuste fino manual de minutos/segundos e controles de ação em tempo real (`Iniciar`, `Pausar / Retomar`, `+1 Min`, `-1 Min`, `Parar`).
+* **Personalização Total:** Título superior ("O CULTO INICIARÁ EM"), subtítulo ("Igreja Cristã Maranata"), mensagem final após zerar ("O CULTO ESTÁ INICIANDO - Deus seja louvado!") e opção de fechamento automático configurável (5s, 10s, 15s ou manual).
+* **Temas Visuais de Alto Padrão:** Três temas integrados — *ICM Clássico Madeira & Ouro*, *Escuro Cinema* e *Transparente / Stream*.
+* **Overlay Não-Destrutivo no Telão (`view.html`):** Camada em `z-index: 900` com dígitos dourados luminosos (`clamp`), dois-pontos pulsante, barra de progresso suave e mensagem final animada, sem interferir na fila de slides já preparados.
+* **Integração com OBS / Streaming (`obs.html`):** Card translúcido central em *glassmorphism* dourado refletindo a contagem ao vivo na transmissão online.
+* **Controle pelo Smartphone (`controle.html`):** Visualização do cronômetro, pausa/retomada, ajuste de minutagem e início remoto de contagens diretamente da mão do operador pelo Wi-Fi.
+* **Sincronismo Determinístico Sem Drift:** Sincronizado por timestamp `targetEndTime` via `BroadcastChannel`, `postMessage` e SSE sem descompasso entre monitores.
+
+### 3. Otimização de Memória, Processador e Eliminação de Dependências Redundantes
 * **Auditoria Profunda de Memória:** Correção de retenção de objetos `File` em memória durante o escaneamento de pastas automáticas, desalocação de buffers ao regenerar filas de slides, loop `while` determinístico para evicção de Blobs no cache LRU (`MAX_ACTIVE_BLOBS`) e reutilização de conexões IndexedDB.
 * **Resiliência e Descarte de Streams SSE:** Proteção com blocos `try ... finally` no servidor nativo em C# (`ProjecaoICM.cs`) e no Node.js (`server.js`), garantindo que conexões fechadas de hosts ou celulares sejam removidas instantaneamente sem vazamento de handles ou timers.
 * **Limpeza de Pacote:** Remoção de arquivos SCSS não compilados e folhas de estilo duplicadas (`bootstrap-grid.min.css` e `bootstrap-reboot.min.css`, já embutidas no `bootstrap.min.css`), reduzindo o tamanho do executável e agilizando a inicialização.

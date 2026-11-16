@@ -175,9 +175,34 @@
         <button type="button" id="rmBtnFreeze" class="btn btn-outline-info btn-live-action flex-fill">
           <i class="fas fa-snowflake"></i> Congelar
         </button>
+        <button type="button" id="rmBtnCountdown" class="btn btn-outline-warning btn-live-action flex-fill" title="Contagem Regressiva Pré-Culto">
+          <i class="fas fa-stopwatch"></i> Timer
+        </button>
         <button type="button" id="rmBtnPadrao" class="btn btn-outline-light btn-live-action flex-fill">
           <i class="fas fa-home"></i> Padrão
         </button>
+      </div>
+
+      <!-- Card de Contagem Regressiva Pré-Culto no Celular -->
+      <div class="remote-card" id="rmCountdownCard" style="display: none; border-color: #ffd700; background: linear-gradient(135deg, rgba(30, 22, 10, 0.95), rgba(15, 18, 24, 0.95));">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <strong class="text-warning small"><i class="fas fa-stopwatch mr-1"></i> CONTAGEM PRÉ-CULTO</strong>
+          <span id="rmCountdownStatusBadge" class="badge badge-warning text-dark font-weight-bold">ATIVO</span>
+        </div>
+        <div class="text-center py-2">
+          <div id="rmCountdownDigits" style="font-family: 'Courier New', Courier, monospace; font-size: 2.6rem; font-weight: 800; color: #ffd700; letter-spacing: 2px; line-height: 1;">05:00</div>
+          <div id="rmCountdownTitle" class="small text-muted font-weight-bold mt-1">O CULTO INICIARÁ EM</div>
+        </div>
+        <div class="d-flex" style="gap: 6px;">
+          <button type="button" id="rmBtnCountdownPause" class="btn btn-sm btn-outline-warning flex-fill font-weight-bold">
+            <i class="fas fa-pause"></i> Pausar
+          </button>
+          <button type="button" id="rmBtnCountdownAdd1" class="btn btn-sm btn-outline-secondary font-weight-bold" title="Adicionar 1 minuto">+1m</button>
+          <button type="button" id="rmBtnCountdownSub1" class="btn btn-sm btn-outline-secondary font-weight-bold" title="Reduzir 1 minuto">-1m</button>
+          <button type="button" id="rmBtnCountdownStop" class="btn btn-sm btn-outline-danger flex-fill font-weight-bold">
+            <i class="fas fa-stop"></i> Parar
+          </button>
+        </div>
       </div>
 
       <!-- Slide Atual -->
@@ -246,6 +271,35 @@
     <button type="button" id="rmBtnNext" class="btn btn-primary btn-nav-huge">
       Próximo <i class="fas fa-chevron-right"></i>
     </button>
+  </div>
+
+  <!-- Modal de Configuração de Contagem no Celular -->
+  <div class="modal fade" id="rmModalCountdown" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content text-light bg-dark border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title"><i class="fas fa-stopwatch text-warning mr-2"></i> Iniciar Contagem no Telão</h5>
+          <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <label class="small text-muted mb-2 font-weight-bold text-uppercase">Escolha a Duração:</label>
+          <div class="d-flex flex-wrap mb-3" style="gap: 6px;">
+            <button type="button" class="btn btn-outline-warning btn-rm-preset flex-fill" data-sec="60">1 min</button>
+            <button type="button" class="btn btn-outline-warning btn-rm-preset flex-fill" data-sec="120">2 min</button>
+            <button type="button" class="btn btn-outline-warning btn-rm-preset flex-fill" data-sec="180">3 min</button>
+            <button type="button" class="btn btn-outline-warning btn-rm-preset flex-fill" data-sec="300">5 min</button>
+            <button type="button" class="btn btn-outline-warning btn-rm-preset flex-fill" data-sec="600">10 min</button>
+          </div>
+          <div class="form-group mb-2">
+            <label for="rmInputCountdownMin" class="small text-muted mb-1">Ou digite os minutos:</label>
+            <input type="number" id="rmInputCountdownMin" class="form-control form-control-sm bg-secondary text-light border-0 text-center font-weight-bold" value="5" min="1" max="120">
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" id="rmBtnStartCountdownSubmit" class="btn btn-success btn-block font-weight-bold"><i class="fas fa-play mr-1"></i> Iniciar no Telão</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -337,11 +391,61 @@
 
         var btnB = document.getElementById('rmBtnBlackout');
         var btnF = document.getElementById('rmBtnFreeze');
+        var btnCd = document.getElementById('rmBtnCountdown');
         if (btnB) {
           btnB.className = 'btn btn-live-action flex-fill ' + (st.isBlackout ? 'btn-danger' : 'btn-outline-danger');
         }
         if (btnF) {
           btnF.className = 'btn btn-live-action flex-fill ' + (st.isFrozen ? 'btn-info' : 'btn-outline-info');
+        }
+
+        var cd = st.countdown;
+        var cdCard = document.getElementById('rmCountdownCard');
+        if (cd && cd.active) {
+          if (btnCd) btnCd.className = 'btn btn-live-action flex-fill btn-warning text-dark font-weight-bold';
+          if (cdCard) {
+            cdCard.style.display = 'block';
+            var remaining = 0;
+            if (cd.paused) {
+              remaining = Math.max(0, cd.remainingSec || 0);
+            } else if (cd.targetEndTime) {
+              remaining = Math.max(0, Math.ceil((cd.targetEndTime - Date.now()) / 1000));
+            } else {
+              remaining = Math.max(0, cd.remainingSec || 0);
+            }
+
+            var m = Math.floor(remaining / 60);
+            var s = remaining % 60;
+            var timeStr = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+
+            var digitsEl = document.getElementById('rmCountdownDigits');
+            if (digitsEl) digitsEl.textContent = timeStr;
+
+            var titleEl = document.getElementById('rmCountdownTitle');
+            if (titleEl && cd.title) titleEl.textContent = cd.title;
+
+            var statusBadge = document.getElementById('rmCountdownStatusBadge');
+            if (statusBadge) {
+              if (cd.isComplete || remaining <= 0) {
+                statusBadge.className = 'badge badge-danger font-weight-bold';
+                statusBadge.textContent = 'FINALIZADO';
+              } else if (cd.paused) {
+                statusBadge.className = 'badge badge-warning text-dark font-weight-bold';
+                statusBadge.textContent = 'PAUSADO';
+              } else {
+                statusBadge.className = 'badge badge-success font-weight-bold';
+                statusBadge.textContent = 'ATIVO';
+              }
+            }
+
+            var btnPause = document.getElementById('rmBtnCountdownPause');
+            if (btnPause) {
+              btnPause.innerHTML = cd.paused ? '<i class="fas fa-play"></i> Retomar' : '<i class="fas fa-pause"></i> Pausar';
+            }
+          }
+        } else {
+          if (btnCd) btnCd.className = 'btn btn-live-action flex-fill btn-outline-warning';
+          if (cdCard) cdCard.style.display = 'none';
         }
 
         var slides = Array.isArray(st.slides) ? st.slides : [];
@@ -626,6 +730,85 @@
       document.getElementById('rmBtnBlackout').addEventListener('click', function() { sendCommand({ type: 'TOGGLE_BLACKOUT' }); });
       document.getElementById('rmBtnFreeze').addEventListener('click', function() { sendCommand({ type: 'TOGGLE_FREEZE' }); });
       document.getElementById('rmBtnPadrao').addEventListener('click', function() { sendCommand({ type: 'GOTO_TELAPADRAO' }); });
+
+      // Controles da Contagem Regressiva no Celular
+      function abrirModalCountdownMobile() {
+        var modal = document.getElementById('rmModalCountdown');
+        if (modal) {
+          modal.classList.add('show');
+          modal.style.display = 'block';
+          modal.removeAttribute('aria-hidden');
+        }
+      }
+      function fecharModalCountdownMobile() {
+        var modal = document.getElementById('rmModalCountdown');
+        if (modal) {
+          modal.classList.remove('show');
+          modal.style.display = 'none';
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      }
+      document.querySelectorAll('#rmModalCountdown [data-dismiss="modal"]').forEach(function(btn) {
+        btn.addEventListener('click', fecharModalCountdownMobile);
+      });
+
+      var btnCd = document.getElementById('rmBtnCountdown');
+      if (btnCd) {
+        btnCd.addEventListener('click', function() {
+          if (currentState && currentState.countdown && currentState.countdown.active) {
+            var card = document.getElementById('rmCountdownCard');
+            if (card) card.scrollIntoView({ behavior: 'smooth' });
+          } else {
+            abrirModalCountdownMobile();
+          }
+        });
+      }
+
+      var btnCdPause = document.getElementById('rmBtnCountdownPause');
+      if (btnCdPause) {
+        btnCdPause.addEventListener('click', function() {
+          sendCommand({ type: 'COUNTDOWN_PAUSE' });
+        });
+      }
+
+      var btnCdAdd1 = document.getElementById('rmBtnCountdownAdd1');
+      if (btnCdAdd1) {
+        btnCdAdd1.addEventListener('click', function() {
+          sendCommand({ type: 'COUNTDOWN_ADJUST', delta: 60 });
+        });
+      }
+
+      var btnCdSub1 = document.getElementById('rmBtnCountdownSub1');
+      if (btnCdSub1) {
+        btnCdSub1.addEventListener('click', function() {
+          sendCommand({ type: 'COUNTDOWN_ADJUST', delta: -60 });
+        });
+      }
+
+      var btnCdStop = document.getElementById('rmBtnCountdownStop');
+      if (btnCdStop) {
+        btnCdStop.addEventListener('click', function() {
+          sendCommand({ type: 'COUNTDOWN_STOP' });
+        });
+      }
+
+      var btnCdSubmit = document.getElementById('rmBtnStartCountdownSubmit');
+      if (btnCdSubmit) {
+        btnCdSubmit.addEventListener('click', function() {
+          var min = parseInt(document.getElementById('rmInputCountdownMin').value, 10) || 5;
+          sendCommand({ type: 'COUNTDOWN_START', seconds: min * 60 });
+          fecharModalCountdownMobile();
+        });
+      }
+
+      document.querySelectorAll('.btn-rm-preset').forEach(function(pBtn) {
+        pBtn.addEventListener('click', function() {
+          var sec = parseInt(this.getAttribute('data-sec'), 10) || 300;
+          document.getElementById('rmInputCountdownMin').value = Math.round(sec / 60);
+          sendCommand({ type: 'COUNTDOWN_START', seconds: sec });
+          fecharModalCountdownMobile();
+        });
+      });
 
       document.getElementById('rmVidToggle').addEventListener('click', function() {
         sendCommand({ type: 'VIDEO_CONTROL', slideIndex: currentState.activeSlide, command: 'toggle' });
