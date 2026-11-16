@@ -637,6 +637,163 @@ runTest('Gerenciamento de Streams e Concorrência em desktop/ProjecaoICM.cs', ()
   );
 });
 
+// 11. Validação do Aspect Ratio e Redimensionamento da Pré-visualização
+console.log('11) Validação do Aspect Ratio e Redimensionamento da Pré-visualização:');
+
+runTest('Estrutura HTML e classes de proporção em index.html e css/style.css', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const styleCss = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
+
+  assert(indexHtml.includes('id="previewContainer"'), 'index.html deve conter #previewContainer');
+  assert(indexHtml.includes('id="previewRatioWrapper"'), 'index.html deve conter #previewRatioWrapper');
+  assert(indexHtml.includes('id="previewAspectRatioBadge"'), 'index.html deve conter #previewAspectRatioBadge');
+  assert(styleCss.includes('.preview-card-body'), 'style.css deve definir .preview-card-body');
+  assert(styleCss.includes('.preview-ratio-wrapper'), 'style.css deve definir .preview-ratio-wrapper');
+  assert(styleCss.includes('aspect-ratio: 16 / 9;'), 'style.css deve definir aspect-ratio padrão 16 / 9');
+  assert(styleCss.includes('max-height: 38vh;'), 'style.css deve restringir altura máxima a 38vh para harmonizar com a lista');
+});
+
+runTest('Desbloqueio de Escala e Telemetria de Dimensões em view.html', () => {
+  const viewHtml = fs.readFileSync(path.join(root, 'view.html'), 'utf8');
+
+  assert(
+    viewHtml.includes('minScale: 0.01'),
+    'Reveal.initialize em view.html deve configurar minScale: 0.01 para permitir que a miniatura escale sem corte'
+  );
+  assert(
+    viewHtml.includes('function getTelaoDimensions()'),
+    'view.html deve implementar getTelaoDimensions() para calcular largura, altura e aspect ratio'
+  );
+  assert(
+    viewHtml.includes('action: \'TELAO_DIMENSIONS\''),
+    'view.html deve emitir TELAO_DIMENSIONS no evento resize quando janela for o telão externo'
+  );
+  assert(
+    viewHtml.includes('aspectRatio: dims.aspectRatio'),
+    'view.html deve enviar aspectRatio nas mensagens TELAO_READY e TELAO_DIMENSIONS'
+  );
+});
+
+runTest('Lógica de Cálculo e Sincronização de Aspect Ratio em js/modules/projection.js', () => {
+  const vm = require('vm');
+  const projCode = fs.readFileSync(path.join(root, 'js', 'modules', 'projection.js'), 'utf8');
+
+  const noop = () => {};
+  const mockJQueryObj = {
+    on: () => mockJQueryObj,
+    off: () => mockJQueryObj,
+    append: () => mockJQueryObj,
+    html: () => mockJQueryObj,
+    click: () => mockJQueryObj,
+    each: () => mockJQueryObj,
+    addClass: () => mockJQueryObj,
+    removeClass: () => mockJQueryObj,
+    attr: () => '',
+    show: () => mockJQueryObj,
+    hide: () => mockJQueryObj,
+    ready: (fn) => { if (typeof fn === 'function') fn(); return mockJQueryObj; }
+  };
+  const mockJQuery = function() { return mockJQueryObj; };
+  mockJQuery.each = function(arr, fn) { if (Array.isArray(arr)) arr.forEach((item, idx) => fn(idx, item)); };
+
+  const storageMap = {};
+  const mockLocalStorage = {
+    getItem: (k) => storageMap[k] || null,
+    setItem: (k, v) => { storageMap[k] = String(v); },
+    removeItem: (k) => { delete storageMap[k]; }
+  };
+
+  const badgeEl = { textContent: '', className: '', title: '', addEventListener: noop };
+  const wrapperEl = { style: {} };
+  const containerEl = { clientWidth: 320 };
+
+  const mockWindow = {
+    addEventListener: noop,
+    removeEventListener: noop,
+    location: { protocol: 'http:' },
+    innerHeight: 900,
+    innerWidth: 1600
+  };
+
+  const mockDoc = {
+    querySelectorAll: () => [],
+    getElementById: (id) => {
+      if (id === 'previewAspectRatioBadge') return badgeEl;
+      if (id === 'previewRatioWrapper') return wrapperEl;
+      if (id === 'previewContainer') return containerEl;
+      return null;
+    },
+    addEventListener: noop,
+    readyState: 'complete'
+  };
+
+  const sandbox = {
+    dados: [],
+    projecao: [],
+    projecaoAtiva: 0,
+    window: mockWindow,
+    document: mockDoc,
+    localStorage: mockLocalStorage,
+    $: mockJQuery,
+    jQuery: mockJQuery,
+    console: console,
+    Date: Date,
+    Math: Math,
+    parseFloat: parseFloat,
+    parseInt: parseInt,
+    isNaN: isNaN,
+    setTimeout: noop,
+    clearTimeout: noop,
+    setInterval: noop,
+    clearInterval: noop
+  };
+
+  vm.createContext(sandbox);
+  vm.runInContext(projCode, sandbox);
+
+  assert(typeof sandbox.ajustarAspectPreview === 'function', 'ajustarAspectPreview deve ser exportada');
+  assert(typeof sandbox.alternarProximaProporcaoPreview === 'function', 'alternarProximaProporcaoPreview deve ser exportada');
+
+  // Teste 1: Configuração para 16:9 padrão
+  let r1 = sandbox.ajustarAspectPreview(16 / 9, false);
+  assert.strictEqual(r1.text, '16:9');
+  assert.strictEqual(r1.cssRatio, '16 / 9');
+  assert.strictEqual(badgeEl.textContent, '16:9');
+  assert.strictEqual(wrapperEl.style.aspectRatio, '16 / 9');
+
+  // Teste 2: Configuração para 4:3 vinda do Telão externo
+  let r2 = sandbox.ajustarAspectPreview(4 / 3, true);
+  assert.strictEqual(r2.text, '4:3');
+  assert.strictEqual(r2.cssRatio, '4 / 3');
+  assert.strictEqual(r2.isFromTelao, true);
+  assert.strictEqual(badgeEl.textContent, '4:3');
+  assert(badgeEl.className.includes('badge-success'), 'Badge deve ter classe de sucesso quando sincronizado com Telão');
+
+  // Teste 3: Alternância manual de proporções (4:3 -> 16:10 -> 16:9)
+  let r3 = sandbox.alternarProximaProporcaoPreview();
+  assert.strictEqual(r3.text, '16:10');
+  assert.strictEqual(r3.isFromTelao, false);
+  assert(badgeEl.className.includes('badge-secondary'));
+
+  let r4 = sandbox.alternarProximaProporcaoPreview();
+  assert.strictEqual(r4.text, '16:9');
+
+  // Teste 4: Mensagem TELAO_DIMENSIONS recebida do telão
+  sandbox.processarMensagemJanela({
+    action: 'TELAO_DIMENSIONS',
+    aspectRatio: 1.333333
+  });
+  assert.strictEqual(badgeEl.textContent, '4:3');
+  assert(badgeEl.className.includes('badge-success'));
+
+  // Teste 5: Telão fechado restaura aspecto
+  sandbox.processarMensagemJanela({
+    action: 'TELAO_CLOSED'
+  });
+  // Após fechamento, não deve mais estar marcado como isFromTelao
+  assert.strictEqual(badgeEl.className.includes('badge-secondary'), true);
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

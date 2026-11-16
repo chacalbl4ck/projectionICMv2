@@ -49,6 +49,11 @@
       center: true,
       theme: Reveal.getQueryHash().theme,
       transition: 'fade',
+      width: 1920,
+      height: 1080,
+      margin: 0.02,
+      minScale: 0.01,
+      maxScale: 2.5
     });  
     (function(){
     // ==========================================
@@ -58,6 +63,14 @@
 
     // Distingue se esta janela é o TELÃO EXTERNO real ou apenas o IFRAME de miniatura no painel
     const isExternalTelao = (window.self === window.top);
+
+    // Obtém as dimensões e proporção (aspect ratio) físicas reais da janela do Telão
+    function getTelaoDimensions() {
+      var w = window.innerWidth || (document.documentElement ? document.documentElement.clientWidth : 1920);
+      var h = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 1080);
+      var ratio = (h > 0) ? (w / h) : (16 / 9);
+      return { width: w, height: h, aspectRatio: ratio };
+    }
 
     // ==========================================
     // AJUSTE DINÂMICO DE TEXTO PARA IMPEDIR TRUNCAMENTO
@@ -205,7 +218,15 @@
         }
       } else if (funcName === 'REQUEST_STATUS') {
         if (isExternalTelao) {
-          enviarMensagemParaPainel({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
+          var dims = getTelaoDimensions();
+          enviarMensagemParaPainel({
+            action: 'TELAO_READY',
+            isExternal: true,
+            timestamp: Date.now(),
+            width: dims.width,
+            height: dims.height,
+            aspectRatio: dims.aspectRatio
+          });
         }
       }
     }
@@ -1058,14 +1079,36 @@
       verificarEResolverMidias();
     });
 
+    var resizeDimTimeout = null;
     window.addEventListener('resize', function() {
       fitTextToSlide();
+      if (isExternalTelao) {
+        if (resizeDimTimeout) clearTimeout(resizeDimTimeout);
+        resizeDimTimeout = setTimeout(function() {
+          var dims = getTelaoDimensions();
+          enviarMensagemParaPainel({
+            action: 'TELAO_DIMENSIONS',
+            width: dims.width,
+            height: dims.height,
+            aspectRatio: dims.aspectRatio,
+            timestamp: Date.now()
+          });
+        }, 150);
+      }
     });
 
     // Notifica o painel que o Telão externo está pronto
     function notifyPainelReady() {
       if (isExternalTelao) {
-        enviarMensagemParaPainel({ action: 'TELAO_READY', isExternal: true, timestamp: Date.now() });
+        var dims = getTelaoDimensions();
+        enviarMensagemParaPainel({
+          action: 'TELAO_READY',
+          isExternal: true,
+          timestamp: Date.now(),
+          width: dims.width,
+          height: dims.height,
+          aspectRatio: dims.aspectRatio
+        });
         if (window.opener && typeof window.opener.postMessage === 'function') {
           try {
             window.opener.postMessage(JSON.stringify({
@@ -1073,7 +1116,7 @@
               function: 'opened',
               isExternal: true,
               url: window.location.href,
-              data: { data: "ok" }
+              data: { data: "ok", width: dims.width, height: dims.height, aspectRatio: dims.aspectRatio }
             }), "*");
           } catch (e) {}
         }
