@@ -166,18 +166,173 @@ async function enviarMidiaParaJanelaTelao(mid, fileName, forceBuffer) {
     }
 }
 
+// ==========================================
+// CONTROLE DO ASPECT RATIO DA PRÉ-VISUALIZAÇÃO
+// ==========================================
+var currentPreviewAspect = 16 / 9;
+var previewAspectFromTelao = false;
+
+function obterTextoAspect(ratio) {
+    if (Math.abs(ratio - (16 / 9)) < 0.05) return "16:9";
+    if (Math.abs(ratio - (4 / 3)) < 0.05) return "4:3";
+    if (Math.abs(ratio - (16 / 10)) < 0.05) return "16:10";
+    if (Math.abs(ratio - (21 / 9)) < 0.05) return "21:9";
+    return ratio.toFixed(2) + ":1";
+}
+
+function obterCssRatio(ratio) {
+    if (Math.abs(ratio - (16 / 9)) < 0.05) return "16 / 9";
+    if (Math.abs(ratio - (4 / 3)) < 0.05) return "4 / 3";
+    if (Math.abs(ratio - (16 / 10)) < 0.05) return "16 / 10";
+    if (Math.abs(ratio - (21 / 9)) < 0.05) return "21 / 9";
+    return ratio.toString();
+}
+
+function ajustarAspectPreview(aspectRatio, isFromTelao) {
+    var ratio = 16 / 9;
+    if (typeof aspectRatio === 'string') {
+        if (aspectRatio.indexOf(':') !== -1 || aspectRatio.indexOf('/') !== -1) {
+            var parts = aspectRatio.split(/[:/]/);
+            if (parts.length === 2 && parseFloat(parts[1]) > 0) {
+                ratio = parseFloat(parts[0]) / parseFloat(parts[1]);
+            }
+        } else {
+            var parsed = parseFloat(aspectRatio);
+            if (!isNaN(parsed) && parsed > 0) ratio = parsed;
+        }
+    } else if (typeof aspectRatio === 'number' && !isNaN(aspectRatio) && aspectRatio > 0) {
+        ratio = aspectRatio;
+    }
+
+    currentPreviewAspect = ratio;
+    if (isFromTelao !== undefined) {
+        previewAspectFromTelao = !!isFromTelao;
+    }
+
+    var wrapper = (typeof document !== 'undefined') ? document.getElementById('previewRatioWrapper') : null;
+    var container = (typeof document !== 'undefined') ? document.getElementById('previewContainer') : null;
+    var badge = (typeof document !== 'undefined') ? document.getElementById('previewAspectRatioBadge') : null;
+
+    var text = obterTextoAspect(ratio);
+    var cssRatio = obterCssRatio(ratio);
+
+    if (badge) {
+        badge.textContent = text;
+        if (previewAspectFromTelao) {
+            badge.className = 'badge badge-success';
+            badge.title = 'Proporção sincronizada com o Telão: ' + text + ' (Clique para alternar manualmente)';
+        } else {
+            badge.className = 'badge badge-secondary';
+            badge.title = 'Proporção da prévia: ' + text + ' (Clique para alternar: 16:9 / 4:3 / 16:10)';
+        }
+    }
+
+    if (wrapper) {
+        wrapper.style.aspectRatio = cssRatio;
+        var maxHeightPx = (typeof window !== 'undefined' && window.innerHeight) ? (window.innerHeight * 0.38) : 300;
+        var containerWidth = container ? container.clientWidth : (wrapper.parentElement ? wrapper.parentElement.clientWidth : 300);
+        if (containerWidth > 0 && maxHeightPx > 0) {
+            var expectedHeight = containerWidth / ratio;
+            if (expectedHeight > maxHeightPx) {
+                var maxWidth = maxHeightPx * ratio;
+                wrapper.style.width = Math.floor(maxWidth) + 'px';
+            } else {
+                wrapper.style.width = '100%';
+            }
+        } else {
+            wrapper.style.width = '100%';
+        }
+    }
+
+    var iframe = (typeof document !== 'undefined') ? (document.getElementById('iframeProjection') || document.getElementById('viewIframe')) : null;
+    if (iframe && iframe.contentWindow) {
+        try {
+            if (iframe.contentWindow.Reveal && typeof iframe.contentWindow.Reveal.layout === 'function') {
+                iframe.contentWindow.Reveal.layout();
+            }
+        } catch(e) {}
+    }
+
+    return { ratio: ratio, text: text, cssRatio: cssRatio, isFromTelao: previewAspectFromTelao };
+}
+
+function alternarProximaProporcaoPreview() {
+    previewAspectFromTelao = false;
+    var proximo = 16 / 9;
+    if (Math.abs(currentPreviewAspect - (16 / 9)) < 0.05) {
+        proximo = 4 / 3;
+    } else if (Math.abs(currentPreviewAspect - (4 / 3)) < 0.05) {
+        proximo = 16 / 10;
+    } else {
+        proximo = 16 / 9;
+    }
+    var res = ajustarAspectPreview(proximo, false);
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('icm_preview_aspect_manual', obterTextoAspect(proximo));
+        }
+    } catch(e) {}
+    return res;
+}
+
+function restaurarAspectPreviewPadrao() {
+    var savedManual = null;
+    try {
+        if (typeof localStorage !== 'undefined') {
+            savedManual = localStorage.getItem('icm_preview_aspect_manual');
+        }
+    } catch(e) {}
+    if (savedManual) {
+        return ajustarAspectPreview(savedManual, false);
+    } else {
+        return ajustarAspectPreview(16 / 9, false);
+    }
+}
+
+function inicializarAspectPreview() {
+    if (typeof document === 'undefined') return;
+    var badge = document.getElementById('previewAspectRatioBadge');
+    if (badge && typeof badge.addEventListener === 'function' && !badge._aspectBound) {
+        badge._aspectBound = true;
+        badge.addEventListener('click', function(e) {
+            e.preventDefault();
+            alternarProximaProporcaoPreview();
+        });
+    }
+    restaurarAspectPreviewPadrao();
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('resize', function() {
+            ajustarAspectPreview(currentPreviewAspect, previewAspectFromTelao);
+        });
+    }
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializarAspectPreview);
+    } else {
+        inicializarAspectPreview();
+    }
+}
+
 function processarMensagemJanela(data) {
     if (!data) return;
     var action = data.action || data.function;
     var payload = data.payload || data.data || {};
 
-    if (action === 'TELAO_READY') {
+    if (action === 'TELAO_READY' || action === 'TELAO_DIMENSIONS') {
         telaoConnected = true;
         lastTelaoPong = Date.now();
         atualizarStatusTelao(true);
-        updateViewSlides(projecaoAtiva);
-        if (isBlackout) broadcastCommand('BLACKOUT', true);
-        if (isFrozen) broadcastCommand('FREEZE', true);
+        var aspect = (typeof data.aspectRatio === 'number') ? data.aspectRatio : ((payload && typeof payload.aspectRatio === 'number') ? payload.aspectRatio : null);
+        if (aspect && aspect > 0) {
+            ajustarAspectPreview(aspect, true);
+        }
+        if (action === 'TELAO_READY') {
+            updateViewSlides(projecaoAtiva);
+            if (isBlackout) broadcastCommand('BLACKOUT', true);
+            if (isFrozen) broadcastCommand('FREEZE', true);
+        }
     } else if (action === 'OBS_READY' || action === 'REQUEST_SLIDES') {
         if (action === 'OBS_READY' && windowObs && !windowObs.closed) {
             try {
@@ -205,6 +360,7 @@ function processarMensagemJanela(data) {
     } else if (action === 'TELAO_CLOSED') {
         telaoConnected = false;
         atualizarStatusTelao(false);
+        restaurarAspectPreviewPadrao();
     } else if (action === 'REQUEST_MEDIA_BLOB') {
         var mid = data.mediaId || payload.mediaId || "";
         var fName = data.fileName || payload.fileName || "";
@@ -1141,8 +1297,14 @@ $(document).ready(function() {
 if (typeof window !== 'undefined') {
     window.normalizarTextoAviso = normalizarTextoAviso;
     window.converterTextoParaHtmlAviso = converterTextoParaHtmlAviso;
+    window.ajustarAspectPreview = ajustarAspectPreview;
+    window.alternarProximaProporcaoPreview = alternarProximaProporcaoPreview;
+    window.restaurarAspectPreviewPadrao = restaurarAspectPreviewPadrao;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports.normalizarTextoAviso = normalizarTextoAviso;
     module.exports.converterTextoParaHtmlAviso = converterTextoParaHtmlAviso;
+    module.exports.ajustarAspectPreview = ajustarAspectPreview;
+    module.exports.alternarProximaProporcaoPreview = alternarProximaProporcaoPreview;
+    module.exports.restaurarAspectPreviewPadrao = restaurarAspectPreviewPadrao;
 }
