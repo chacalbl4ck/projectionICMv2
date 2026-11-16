@@ -667,9 +667,14 @@
             case 'REMOVE_QUEUE_ITEM':
                 var rIdx = parseInt(cmd.queueIndex, 10);
                 if (!isNaN(rIdx) && Array.isArray(projecao) && rIdx >= 0 && rIdx < projecao.length) {
-                    projecao.splice(rIdx, 1);
-                    if (projecao.length === 0) projecaoAtiva = 0;
-                    if (typeof reloadProjectionList === 'function') reloadProjectionList();
+                    if (typeof removerItemDaProjecao === 'function') {
+                        removerItemDaProjecao(rIdx);
+                    } else {
+                        var aInfo = (typeof obterInfoSlideAtivo === 'function') ? obterInfoSlideAtivo(projecaoAtiva) : null;
+                        projecao.splice(rIdx, 1);
+                        if (projecao.length === 0) projecaoAtiva = 0;
+                        if (typeof reloadProjectionList === 'function') reloadProjectionList(aInfo);
+                    }
                 }
                 break;
 
@@ -695,8 +700,9 @@
 
         if (tipo === 'song') {
             if (!isNaN(fId) && dados[fId] && dados[fId].songs && dados[fId].songs[iId]) {
+                var activeInfo = (typeof obterInfoSlideAtivo === 'function') ? obterInfoSlideAtivo(projecaoAtiva) : null;
                 projecao.push({ id: iId, folderId: fId, type: 's' });
-                if (typeof reloadProjectionList === 'function') reloadProjectionList();
+                if (typeof reloadProjectionList === 'function') reloadProjectionList(activeInfo);
             }
             return;
         }

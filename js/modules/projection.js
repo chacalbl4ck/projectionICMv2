@@ -673,9 +673,99 @@ function enviarComandoControleVideo(slideId, command, value) {
 }
 
 // ==========================================
+// RASTREAMENTO SEMÂNTICO E RESOLUÇÃO DE SLIDES
+// ==========================================
+function obterInfoSlideAtivo(slideIdx) {
+    if (typeof slideIdx !== 'number' || slideIdx <= 0 || !Array.isArray(projecao) || projecao.length === 0) {
+        return { isTelaPadraoGlobal: true };
+    }
+    var currentSlide = 1;
+    for (var i = 0; i < projecao.length; i++) {
+        var item = projecao[i];
+        var itemCount = 0;
+        if (item.type === "s") {
+            if (typeof dados !== 'undefined' && dados && dados[item.folderId] && dados[item.folderId].songs && dados[item.folderId].songs[item.id]) {
+                var content = dados[item.folderId].songs[item.id].content || "";
+                var parsed = content.split("\n\n");
+                itemCount = parsed.length;
+            }
+        } else if (item.type === "b") {
+            itemCount = Math.max(0, (item.to - item.from + 1));
+        } else if (item.type === "i" || item.type === "w") {
+            itemCount = 1;
+        }
+
+        var itemTotalSlides = itemCount + 1; // Estrofes/versículos + tela padrão intermediária
+        if (slideIdx >= currentSlide && slideIdx < currentSlide + itemTotalSlides) {
+            var subOffset = slideIdx - currentSlide;
+            var isEndPadrao = (subOffset === itemCount);
+            return {
+                queueIndex: i,
+                itemRef: item,
+                subOffset: subOffset,
+                isEndPadrao: isEndPadrao,
+                isTelaPadraoGlobal: false
+            };
+        }
+        currentSlide += itemTotalSlides;
+    }
+    return { isTelaPadraoGlobal: true };
+}
+
+function resolverNovoSlideAtivo(activeInfo) {
+    if (!activeInfo || activeInfo.isTelaPadraoGlobal || !activeInfo.itemRef || !Array.isArray(projecao) || projecao.length === 0) {
+        return 0;
+    }
+    var currentSlide = 1;
+    for (var i = 0; i < projecao.length; i++) {
+        var item = projecao[i];
+        var itemCount = 0;
+        if (item.type === "s") {
+            if (typeof dados !== 'undefined' && dados && dados[item.folderId] && dados[item.folderId].songs && dados[item.folderId].songs[item.id]) {
+                var content = dados[item.folderId].songs[item.id].content || "";
+                var parsed = content.split("\n\n");
+                itemCount = parsed.length;
+            }
+        } else if (item.type === "b") {
+            itemCount = Math.max(0, (item.to - item.from + 1));
+        } else if (item.type === "i" || item.type === "w") {
+            itemCount = 1;
+        }
+
+        var itemTotalSlides = itemCount + 1;
+        if (item === activeInfo.itemRef) {
+            if (activeInfo.isEndPadrao) {
+                return currentSlide + itemCount;
+            }
+            var targetSub = Math.min(activeInfo.subOffset, Math.max(0, itemCount - 1));
+            return currentSlide + targetSub;
+        }
+        currentSlide += itemTotalSlides;
+    }
+    return 0;
+}
+
+function removerItemDaProjecao(index) {
+    if (isNaN(index) || index < 0 || !Array.isArray(projecao) || index >= projecao.length) return;
+    var activeInfo = obterInfoSlideAtivo(projecaoAtiva);
+    projecao.splice(index, 1);
+    if (projecao.length === 0) {
+        projecaoAtiva = 0;
+    }
+    reloadProjectionList(activeInfo);
+}
+
+if (typeof window !== 'undefined') {
+    window.obterInfoSlideAtivo = obterInfoSlideAtivo;
+    window.resolverNovoSlideAtivo = resolverNovoSlideAtivo;
+    window.removerItemDaProjecao = removerItemDaProjecao;
+}
+
+// ==========================================
 // MOTOR DE CONSTRUÇÃO DE SLIDES LITÚRGICOS
 // ==========================================
-function generateLiveList(){ 
+function generateLiveList(activeInfoPreset){ 
+    var activeInfo = activeInfoPreset || (typeof obterInfoSlideAtivo === 'function' ? obterInfoSlideAtivo(projecaoAtiva) : null);
     var telaPadraoPainel = '<td>Tela Padrão</td><td></td>';
     $("#livesongs tbody").html(""); 
     $('#livesongs tbody').append('<tr data-id="0">'+telaPadraoPainel+'</tr>');
@@ -843,8 +933,11 @@ function generateLiveList(){
         mudaProjecaoAtiva();
     });
 
-    // Preserva a estrofe/slide ativo caso seja válido, impedindo retorno indesejado à tela padrão
-    if (typeof projecaoAtiva !== 'number' || projecaoAtiva < 0 || projecaoAtiva >= f) {
+    // Preserva a estrofe/slide ativo usando rastreamento semântico, impedindo retorno indesejado à tela padrão
+    var novoSlideAtivo = (typeof resolverNovoSlideAtivo === 'function') ? resolverNovoSlideAtivo(activeInfo) : projecaoAtiva;
+    if (typeof novoSlideAtivo === 'number' && novoSlideAtivo >= 0 && novoSlideAtivo < f) {
+        projecaoAtiva = novoSlideAtivo;
+    } else {
         projecaoAtiva = 0;
     }
     mudaProjecaoAtiva();
@@ -894,7 +987,7 @@ function mudaProjecaoAtiva(){
     if (typeof window.notificarEstadoRemoto === 'function') window.notificarEstadoRemoto(false);
 }
 
-function reloadProjectionList(){
+function reloadProjectionList(activeInfoPreset){
     $('#projections tbody').html("");
 
     if (!Array.isArray(projecao) || projecao.length === 0) {
@@ -925,7 +1018,7 @@ function reloadProjectionList(){
         }
     });
 
-    generateLiveList();
+    generateLiveList(activeInfoPreset);
 }
 
 // Configuração de eventos da barra de projeção e lista para projeção (delegados)
@@ -944,11 +1037,7 @@ $(document).ready(function() {
         e.stopPropagation();
         var index = parseInt($(this).attr('data-index'));
         if (!isNaN(index) && index >= 0 && index < projecao.length) {
-            projecao.splice(index, 1);
-            if (projecao.length === 0) {
-                projecaoAtiva = 0;
-            }
-            reloadProjectionList();
+            removerItemDaProjecao(index);
         }
     });
 
