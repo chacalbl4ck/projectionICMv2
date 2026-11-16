@@ -543,6 +543,100 @@ runTest('Rastreamento de slide na adição e exclusão em fila simulada', () => 
   assert.strictEqual(novoSlide, 0, 'Excluir o próprio item sendo projetado deve resetar limpa e corretamente para a Tela Padrão (0)');
 });
 
+// ----------------------------------------------------
+// 10. Validação da Otimização de Memória e Processador (Evicção de Blobs, Revogação de URLs, Desacoplamento de Sync Ocioso e Reconciliação Diferencial)
+// ----------------------------------------------------
+console.log('\n10) Validação da Otimização de Memória e Processador:');
+
+runTest('Gerenciamento de Ciclo de Vida de Blobs e ObjectURLs em js/modules/media.js', () => {
+  const mediaCode = fs.readFileSync(path.join(root, 'js', 'modules', 'media.js'), 'utf8');
+  assert(
+    mediaCode.includes('var MAX_ACTIVE_BLOBS =') && mediaCode.includes('var blobAccessOrder ='),
+    'media.js deve definir MAX_ACTIVE_BLOBS e blobAccessOrder para política LRU de evicção'
+  );
+  assert(
+    mediaCode.includes('function revogarBlobMidia(') && mediaCode.includes('URL.revokeObjectURL('),
+    'media.js deve implementar revogarBlobMidia com chamada explícita a URL.revokeObjectURL'
+  );
+  assert(
+    mediaCode.includes('function obterIdsMidiasEmUso(') && mediaCode.includes('function limparCacheMidiasInativas('),
+    'media.js deve implementar obterIdsMidiasEmUso e limparCacheMidiasInativas'
+  );
+  assert(
+    mediaCode.includes('function purgarCacheExcedenteSeNecessario('),
+    'media.js deve implementar purgarCacheExcedenteSeNecessario antes de alocar novos ObjectURLs'
+  );
+  assert(
+    !mediaCode.includes('MediaDB.save(idVid, typedBlob)'),
+    'escanearPastasAutomaticas não deve salvar blobs pesados de vídeo no IndexedDB a cada ciclo de varredura'
+  );
+});
+
+runTest('Desacoplamento e Liberação de Hardware / VRAM em view.html', () => {
+  const viewHtml = fs.readFileSync(path.join(root, 'view.html'), 'utf8');
+  assert(
+    viewHtml.includes('canvas.width = 0;') && viewHtml.includes('canvas.height = 0;'),
+    'ocultarCanvasCongelado deve zerar dimensões do canvas para desalocar o buffer de 1080p da GPU/RAM'
+  );
+  assert(
+    viewHtml.includes('function armazenarTelaoBlobUrl(') && viewHtml.includes('URL.revokeObjectURL(antiga)'),
+    'view.html deve implementar armazenarTelaoBlobUrl com revogação explícita da URL anterior'
+  );
+  assert(
+    viewHtml.includes('mEl.pause();') && viewHtml.includes('mEl.removeAttribute(\'src\');') && viewHtml.includes('mEl.load();'),
+    'reloadReveal deve pausar, desvincular src e chamar load() nos elementos de vídeo/áudio antigos antes de recriar o DOM'
+  );
+  assert(
+    viewHtml.includes('function obterVideoAtivoParaSync(somenteSeTocando)') &&
+    viewHtml.includes('if (somenteSeTocando && (sVid.paused || sVid.ended || sVid.readyState < 2)) return null;'),
+    'obterVideoAtivoParaSync deve suportar somenteSeTocando para anular ticks periódicos em vídeos pausados ou estáticos'
+  );
+});
+
+runTest('Throttling e Caching Diferencial em js/modules/remote.js', () => {
+  const remoteCode = fs.readFileSync(path.join(root, 'js', 'modules', 'remote.js'), 'utf8');
+  assert(
+    remoteCode.includes('if (!activeRow) return;'),
+    'notificarEstadoRemoto com isVideoTickOnly deve abortar imediatamente se não houver linha de vídeo ativa'
+  );
+  assert(
+    remoteCode.includes('var minThrottle = isVideoTickOnly ? 1000 : 350;'),
+    'enviarEstadoRemoto deve limitar a telemetria periódica de vídeo a no mínimo 1000ms'
+  );
+  assert(
+    remoteCode.includes('cachedLiveSlides !== null && cachedLiveQueue !== null && lastCachedSlidesVersion === curVer'),
+    'construirSnapshotRemoto deve reutilizar slides e fila cacheados sem reconsultar o DOM quando a versão da lista for idêntica'
+  );
+});
+
+runTest('Reconciliação DOM sem Recriação Desnecessária em controle.html', () => {
+  const controleHtml = fs.readFileSync(path.join(root, 'controle.html'), 'utf8');
+  assert(
+    controleHtml.includes('lastRenderedSlidesSig') && controleHtml.includes('lastRenderedQueueSig'),
+    'controle.html deve manter assinaturas das listas para evitar destruição e recriação do DOM a cada tick'
+  );
+  assert(
+    controleHtml.includes('listEl.querySelectorAll(\'.slide-list-item\').forEach('),
+    'controle.html deve atualizar apenas a classe active quando a estrutura dos slides for idêntica'
+  );
+});
+
+runTest('Gerenciamento de Streams e Concorrência em desktop/ProjecaoICM.cs', () => {
+  const csCode = fs.readFileSync(path.join(root, 'desktop', 'ProjecaoICM.cs'), 'utf8');
+  assert(
+    csCode.includes('using (MemoryStream headerBuf = new MemoryStream())'),
+    'ReadHttpRequest deve envolver headerBuf em bloco using para descarte imediato da memória'
+  );
+  assert(
+    csCode.includes('lock (s)') && csCode.includes('lock (stream)'),
+    'ProjecaoICM.cs deve sincronizar escritas SSE simultâneas com lock para prevenir corrupção de sockets'
+  );
+  assert(
+    csCode.includes('// Conexão encerrada pelo cliente prematuramente'),
+    'CopyFileSlice deve tratar desconexões prematuras do cliente durante streaming sem vazar threads'
+  );
+});
+
 console.log('\n==================================================');
 if (failures === 0) {
   console.log('✅ \x1b[32mTODOS OS TESTES PASSARAM COM SUCESSO!\x1b[0m');

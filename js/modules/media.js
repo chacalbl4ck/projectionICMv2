@@ -4,6 +4,78 @@
 
 var mediaBlobUrls = {}; // Cache de Blob URLs em memória na janela principal
 var rawBlobsCache = {}; // Cache de Blobs/Files com MIME types válidos
+var MAX_ACTIVE_BLOBS = 12; // Limite prudente de Blobs e URLs ativas simultâneas
+var blobAccessOrder = []; // Fila LRU para evicção e revogação determinística de ObjectURLs
+
+// Gerencia ciclo de vida, evicção e revogação explícita de ObjectURLs para evitar acúmulo de memória (RAM/VRAM)
+function registrarUsoBlob(mediaId) {
+    if (!mediaId) return;
+    var idx = blobAccessOrder.indexOf(mediaId);
+    if (idx !== -1) blobAccessOrder.splice(idx, 1);
+    blobAccessOrder.push(mediaId);
+}
+
+function revogarBlobMidia(mediaId) {
+    if (!mediaId) return;
+    if (mediaBlobUrls[mediaId]) {
+        try {
+            if (typeof mediaBlobUrls[mediaId] === 'string' && mediaBlobUrls[mediaId].startsWith('blob:')) {
+                URL.revokeObjectURL(mediaBlobUrls[mediaId]);
+            }
+        } catch(e) {}
+        delete mediaBlobUrls[mediaId];
+    }
+    if (rawBlobsCache[mediaId]) {
+        delete rawBlobsCache[mediaId];
+    }
+    var idx = blobAccessOrder.indexOf(mediaId);
+    if (idx !== -1) blobAccessOrder.splice(idx, 1);
+}
+window.revogarBlobMidia = revogarBlobMidia;
+
+function obterIdsMidiasEmUso() {
+    var inUse = new Set();
+    if (typeof projecao !== 'undefined' && Array.isArray(projecao)) {
+        projecao.forEach(function(item) {
+            if (!item) return;
+            if (item.id) inUse.add(item.id);
+            if (item.mediaId) inUse.add(item.mediaId);
+        });
+    }
+    if (window.currentViewerMediaId) {
+        inUse.add(window.currentViewerMediaId);
+    }
+    var sImg = document.getElementById('telaoStageImg');
+    var sVid = document.getElementById('telaoStageVideo');
+    if (sImg && sImg.getAttribute('data-media-id')) inUse.add(sImg.getAttribute('data-media-id'));
+    if (sVid && sVid.getAttribute('data-media-id')) inUse.add(sVid.getAttribute('data-media-id'));
+    return inUse;
+}
+window.obterIdsMidiasEmUso = obterIdsMidiasEmUso;
+
+function limparCacheMidiasInativas(forcarTodos) {
+    var inUse = forcarTodos ? new Set() : obterIdsMidiasEmUso();
+    var keys = Object.keys(mediaBlobUrls);
+    for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (!inUse.has(k)) {
+            revogarBlobMidia(k);
+        }
+    }
+}
+window.limparCacheMidiasInativas = limparCacheMidiasInativas;
+
+function purgarCacheExcedenteSeNecessario() {
+    if (blobAccessOrder.length < MAX_ACTIVE_BLOBS) return;
+    var inUse = obterIdsMidiasEmUso();
+    for (var i = 0; i < blobAccessOrder.length; i++) {
+        var candid = blobAccessOrder[i];
+        if (!inUse.has(candid)) {
+            revogarBlobMidia(candid);
+            break;
+        }
+    }
+}
 
 // Listas de arquivos escaneados automaticamente
 var autoVideosFiles = [];
@@ -207,30 +279,25 @@ async function obterBlobAssincronoParaTelao(mediaId, fileName) {
 }
 window.obterBlobAssincronoParaTelao = obterBlobAssincronoParaTelao;
 
-// Pré-hidrata mídias salvas manualmente do IndexedDB na inicialização
+// Pré-hidrata mídias salvas ativas na fila de projeção (sob demanda, evitando carregar todo o acervo na RAM)
 async function hidratarMidiasDoMediaDB() {
     try {
         await MediaDB.init();
-        var listaTodos = [];
-        if (typeof imagens !== 'undefined' && Array.isArray(imagens)) {
-            listaTodos = listaTodos.concat(imagens);
-        }
-        if (typeof dados !== 'undefined' && Array.isArray(dados)) {
-            dados.forEach(function(p) {
-                if (Array.isArray(p.media)) listaTodos = listaTodos.concat(p.media);
-            });
-        }
-        for (var i = 0; i < listaTodos.length; i++) {
-            var item = listaTodos[i];
-            if (item && item.id && !mediaBlobUrls[item.id] && !rawBlobsCache[item.id]) {
-                await resolverUrlMidia(item);
+        if (typeof projecao !== 'undefined' && Array.isArray(projecao)) {
+            for (var i = 0; i < projecao.length; i++) {
+                var item = projecao[i];
+                if (item && item.id && (item.tipo === 'media' || item.tipo === 'auto-video' || item.tipo === 'auto-image' || item.type === 'video' || item.type === 'image')) {
+                    if (!mediaBlobUrls[item.id]) {
+                        await resolverUrlMidia(item);
+                    }
+                }
             }
         }
     } catch(e){}
 }
 window.hidratarMidiasDoMediaDB = hidratarMidiasDoMediaDB;
 
-// Resolve a URL de reprodução da mídia dinamicamente (Blob-First)
+// Resolve a URL de reprodução da mídia dinamicamente (Blob-First com gestão e revogação de memória)
 async function resolverUrlMidia(mediaItem) {
     if (!mediaItem) return "";
 
@@ -239,6 +306,7 @@ async function resolverUrlMidia(mediaItem) {
 
     // 1. Reutiliza Blob URL ativo no cache se existente
     if (mediaItem.id && mediaBlobUrls[mediaItem.id]) {
+        registrarUsoBlob(mediaItem.id);
         return mediaBlobUrls[mediaItem.id];
     }
 
@@ -277,10 +345,19 @@ async function resolverUrlMidia(mediaItem) {
 
     // Se obtivemos o File/Blob, cria Blob URL tipado garantido com MIME type correto
     if (fileObj && (fileObj instanceof Blob || fileObj instanceof File)) {
+        purgarCacheExcedenteSeNecessario();
         var typedBlob = garantirBlobComMimeType(fileObj, fileName);
-        if (mediaItem.id) rawBlobsCache[mediaItem.id] = typedBlob;
+        if (mediaItem.id) {
+            if (mediaBlobUrls[mediaItem.id]) {
+                try { URL.revokeObjectURL(mediaBlobUrls[mediaItem.id]); } catch(e) {}
+            }
+            rawBlobsCache[mediaItem.id] = typedBlob;
+        }
         var url = URL.createObjectURL(typedBlob);
-        if (mediaItem.id) mediaBlobUrls[mediaItem.id] = url;
+        if (mediaItem.id) {
+            mediaBlobUrls[mediaItem.id] = url;
+            registrarUsoBlob(mediaItem.id);
+        }
         mediaItem.src = url;
         return url;
     }
@@ -307,16 +384,26 @@ function resolverUrlMidiaSync(mediaItem) {
 
     // 1. Se já temos Blob URL ativo no cache, usa imediatamente
     if (mediaItem.id && mediaBlobUrls[mediaItem.id]) {
+        registrarUsoBlob(mediaItem.id);
         return mediaBlobUrls[mediaItem.id];
     }
 
     // 2. Se temos objeto File ou rawBlob no cache, gera o Blob URL
     var fileObj = mediaItem.file || (mediaItem.id ? rawBlobsCache[mediaItem.id] : null);
     if (fileObj && (fileObj instanceof Blob || fileObj instanceof File)) {
+        purgarCacheExcedenteSeNecessario();
         var typedBlob = garantirBlobComMimeType(fileObj, fileName);
-        if (mediaItem.id) rawBlobsCache[mediaItem.id] = typedBlob;
+        if (mediaItem.id) {
+            if (mediaBlobUrls[mediaItem.id]) {
+                try { URL.revokeObjectURL(mediaBlobUrls[mediaItem.id]); } catch(e) {}
+            }
+            rawBlobsCache[mediaItem.id] = typedBlob;
+        }
         var bUrl = URL.createObjectURL(typedBlob);
-        if (mediaItem.id) mediaBlobUrls[mediaItem.id] = bUrl;
+        if (mediaItem.id) {
+            mediaBlobUrls[mediaItem.id] = bUrl;
+            registrarUsoBlob(mediaItem.id);
+        }
         return bUrl;
     }
 
@@ -651,33 +738,21 @@ async function restaurarCachePastasAutomaticas() {
             var cacheDedup = (m.fileName || m.id).toLowerCase();
             if (seenCacheIds.has(cacheDedup)) continue;
             seenCacheIds.add(cacheDedup);
-            var blob = null;
-            try {
-                var stored = await MediaDB.get(m.id);
-                if (stored instanceof Blob || stored instanceof File) {
-                    blob = garantirBlobComMimeType(stored, m.fileName || m.name);
-                }
-            } catch(e) {}
-            if (blob) {
-                rawBlobsCache[m.id] = blob;
-                if (!mediaBlobUrls[m.id]) {
-                    mediaBlobUrls[m.id] = URL.createObjectURL(blob);
-                }
-                targetArr.push({
-                    id: m.id,
-                    name: m.name,
-                    fileName: m.fileName,
-                    fileSize: m.fileSize || blob.size || 0,
-                    modTime: m.modTime || 0,
-                    type: m.type || defaultType,
-                    file: blob,
-                    folder: m.folder || fallbackFolder,
-                    isAutoFolder: true,
-                    fromCache: true,
-                    src: mediaBlobUrls[m.id]
-                });
-                carregou = true;
-            }
+            // Hidratação leve: metadados essenciais sem carregar Blobs pesados ou alocar URLs antecipadamente
+            targetArr.push({
+                id: m.id,
+                name: m.name,
+                fileName: m.fileName,
+                fileSize: m.fileSize || 0,
+                modTime: m.modTime || 0,
+                type: m.type || defaultType,
+                file: null, // Resolvido sob demanda por resolverUrlMidia
+                folder: m.folder || fallbackFolder,
+                isAutoFolder: true,
+                fromCache: true,
+                src: "" // Resolvido sob demanda por resolverUrlMidia
+            });
+            carregou = true;
         }
         targetArr.sort(compararArquivosDeterministico);
     }
@@ -763,18 +838,6 @@ async function escanearPastasAutomaticas() {
             // É vídeo se a extensão for mp4/avi ou tipoForcado for 'video'
             if ((ext === 'mp4' || ext === 'avi') && tipoForcado !== 'image') {
                 var idVid = "auto_vid_" + nome;
-                var prevVid = prevVidMap[idVid];
-                var vidCacheValido = prevVid && prevVid.modTime === modTime && prevVid.fileSize === size && rawBlobsCache[idVid] && mediaBlobUrls[idVid];
-
-                if (!vidCacheValido) {
-                    var typedBlob = file ? garantirBlobComMimeType(file, nome) : null;
-                    if (typedBlob) {
-                        rawBlobsCache[idVid] = typedBlob;
-                        mediaBlobUrls[idVid] = URL.createObjectURL(typedBlob);
-                        try { MediaDB.save(idVid, typedBlob); } catch(e){}
-                    }
-                }
-
                 novosVideos.push({
                     id: idVid,
                     name: cleanName,
@@ -783,7 +846,7 @@ async function escanearPastasAutomaticas() {
                     modTime: modTime,
                     type: "video",
                     fileHandle: entry,
-                    file: rawBlobsCache[idVid] || file,
+                    file: file,
                     folder: pastaOrigem || "videos",
                     isAutoFolder: true,
                     src: mediaBlobUrls[idVid] || ""
@@ -792,18 +855,6 @@ async function escanearPastasAutomaticas() {
             // É imagem se a extensão for permitida de imagem
             else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) && tipoForcado !== 'video') {
                 var idImg = "auto_img_" + nome;
-                var prevImg = prevImgMap[idImg];
-                var imgCacheValido = prevImg && prevImg.modTime === modTime && prevImg.fileSize === size && rawBlobsCache[idImg] && mediaBlobUrls[idImg];
-
-                if (!imgCacheValido) {
-                    var typedImgBlob = file ? garantirBlobComMimeType(file, nome) : null;
-                    if (typedImgBlob) {
-                        rawBlobsCache[idImg] = typedImgBlob;
-                        mediaBlobUrls[idImg] = URL.createObjectURL(typedImgBlob);
-                        try { MediaDB.save(idImg, typedImgBlob); } catch(e){}
-                    }
-                }
-
                 novasImagens.push({
                     id: idImg,
                     name: cleanName,
@@ -812,7 +863,7 @@ async function escanearPastasAutomaticas() {
                     modTime: modTime,
                     type: "image",
                     fileHandle: entry,
-                    file: rawBlobsCache[idImg] || file,
+                    file: file,
                     folder: pastaOrigem || "imagens",
                     isAutoFolder: true,
                     src: mediaBlobUrls[idImg] || ""
@@ -913,6 +964,17 @@ async function escanearPastasAutomaticas() {
             } else {
                 autoImagensFiles = novasImagens;
             }
+        }
+
+        if (mudou) {
+            var currentAutoIds = new Set();
+            autoVideosFiles.forEach(function(v) { if (v && v.id) currentAutoIds.add(v.id); });
+            autoImagensFiles.forEach(function(im) { if (im && im.id) currentAutoIds.add(im.id); });
+            Object.keys(mediaBlobUrls).forEach(function(k) {
+                if ((k.startsWith('auto_vid_') || k.startsWith('auto_img_')) && !currentAutoIds.has(k)) {
+                    revogarBlobMidia(k);
+                }
+            });
         }
 
         var permMudou = (prevPermV !== autoFolderPermVideos || prevPermI !== autoFolderPermImagens || prevPermS !== autoFolderPermSoftware);
@@ -1047,6 +1109,7 @@ function renderizarItensPastasAutomaticas() {
 // Visualizador de mídias (Modal de Pré-visualização com decodificação H.264 garantida)
 async function exibirVisualizadorMidia(mediaItem, tipo, itemId, folderId) {
     if (!mediaItem) return;
+    window.currentViewerMediaId = mediaItem.id || null;
 
     var src = await resolverUrlMidia(mediaItem);
     if (!src) {
@@ -1299,10 +1362,15 @@ $(document).ready(function() {
             while (videoEl.firstChild) {
                 videoEl.removeChild(videoEl.firstChild);
             }
+            try { videoEl.load(); } catch(e) {}
         }
         $('#mediaViewerImg').attr('src', '');
         var alertDiv = document.getElementById('mediaViewerErrorAlert');
         if (alertDiv) $(alertDiv).hide();
+        window.currentViewerMediaId = null;
+        if (typeof window.limparCacheMidiasInativas === 'function') {
+            window.limparCacheMidiasInativas();
+        }
     });
 
     $("#btnPreviewMedia").click(async function(){

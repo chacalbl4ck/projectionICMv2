@@ -321,6 +321,9 @@
         document.getElementById('rmBtnPinLogout').style.display = 'inline-block';
       }
 
+      var lastRenderedSlidesSig = "";
+      var lastRenderedQueueSig = "";
+
       function renderState(st) {
         if (!st) return;
         currentState = st;
@@ -382,61 +385,79 @@
           vidCard.style.display = 'none';
         }
 
-        // Renderiza lista Ao Vivo
+        // Renderiza lista Ao Vivo com reconciliação diferencial
         var listEl = document.getElementById('rmSlideList');
-        listEl.innerHTML = '';
-        if (slides.length === 0) {
-          listEl.innerHTML = '<div class="text-muted text-center p-3 small">Nenhum item na lista Ao Vivo.</div>';
-        } else {
-          slides.forEach(function(s) {
-            var item = document.createElement('div');
-            item.className = 'slide-list-item' + (s.index === activeIdx ? ' active' : '');
-            var titleDiv = document.createElement('div');
-            titleDiv.className = 's-title';
-            titleDiv.textContent = (s.index + 1) + '. ' + s.title;
-            var bodyDiv = document.createElement('div');
-            bodyDiv.className = 's-body';
-            bodyDiv.textContent = s.text ? s.text.replace(/\n/g, ' ') : '';
-            item.appendChild(titleDiv);
-            item.appendChild(bodyDiv);
-            item.addEventListener('click', function() {
-              sendCommand({ type: 'GOTO_SLIDE', slideIndex: s.index });
+        var slidesSig = slides.map(function(s) { return s.index + ':' + s.title + ':' + (s.text ? s.text.length : 0); }).join('|');
+        if (slidesSig !== lastRenderedSlidesSig) {
+          lastRenderedSlidesSig = slidesSig;
+          listEl.innerHTML = '';
+          if (slides.length === 0) {
+            listEl.innerHTML = '<div class="text-muted text-center p-3 small">Nenhum item na lista Ao Vivo.</div>';
+          } else {
+            slides.forEach(function(s) {
+              var item = document.createElement('div');
+              item.className = 'slide-list-item' + (s.index === activeIdx ? ' active' : '');
+              item.dataset.slideIndex = s.index;
+              var titleDiv = document.createElement('div');
+              titleDiv.className = 's-title';
+              titleDiv.textContent = (s.index + 1) + '. ' + s.title;
+              var bodyDiv = document.createElement('div');
+              bodyDiv.className = 's-body';
+              bodyDiv.textContent = s.text ? s.text.replace(/\n/g, ' ') : '';
+              item.appendChild(titleDiv);
+              item.appendChild(bodyDiv);
+              item.addEventListener('click', function() {
+                sendCommand({ type: 'GOTO_SLIDE', slideIndex: s.index });
+              });
+              listEl.appendChild(item);
             });
-            listEl.appendChild(item);
+          }
+        } else {
+          listEl.querySelectorAll('.slide-list-item').forEach(function(el) {
+            var idx = parseInt(el.dataset.slideIndex, 10);
+            if (idx === activeIdx) {
+              if (!el.classList.contains('active')) el.classList.add('active');
+            } else {
+              if (el.classList.contains('active')) el.classList.remove('active');
+            }
           });
         }
 
-        // Renderiza fila (#projections)
+        // Renderiza fila (#projections) com reconciliação diferencial
         var qEl = document.getElementById('rmQueueList');
         var queue = Array.isArray(st.queue) ? st.queue : [];
-        qEl.innerHTML = '';
-        if (queue.length === 0) {
-          qEl.innerHTML = '<p class="text-muted small mb-0">Fila vazia.</p>';
-        } else {
-          queue.forEach(function(q) {
-            var row = document.createElement('div');
-            row.className = 'd-flex justify-content-between align-items-center p-2 mb-1 rounded';
-            row.style.background = '#262c3a';
-            var span = document.createElement('span');
-            span.className = 'small font-weight-bold flex-fill';
-            span.style.cursor = 'pointer';
-            span.textContent = (q.index + 1) + '. ' + q.label;
-            span.addEventListener('click', function() {
-              sendCommand({ type: 'GOTO_QUEUE_ITEM', queueIndex: q.index });
-              switchTab('live');
+        var queueSig = queue.map(function(q) { return q.index + ':' + q.label; }).join('|');
+        if (queueSig !== lastRenderedQueueSig) {
+          lastRenderedQueueSig = queueSig;
+          qEl.innerHTML = '';
+          if (queue.length === 0) {
+            qEl.innerHTML = '<p class="text-muted small mb-0">Fila vazia.</p>';
+          } else {
+            queue.forEach(function(q) {
+              var row = document.createElement('div');
+              row.className = 'd-flex justify-content-between align-items-center p-2 mb-1 rounded';
+              row.style.background = '#262c3a';
+              var span = document.createElement('span');
+              span.className = 'small font-weight-bold flex-fill';
+              span.style.cursor = 'pointer';
+              span.textContent = (q.index + 1) + '. ' + q.label;
+              span.addEventListener('click', function() {
+                sendCommand({ type: 'GOTO_QUEUE_ITEM', queueIndex: q.index });
+                switchTab('live');
+              });
+              var delBtn = document.createElement('button');
+              delBtn.type = 'button';
+              delBtn.className = 'btn btn-sm btn-outline-danger ml-2';
+              delBtn.innerHTML = '<i class="fas fa-times"></i>';
+              delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                sendCommand({ type: 'REMOVE_QUEUE_ITEM', queueIndex: q.index });
+              });
+              row.appendChild(span);
+              row.appendChild(delBtn);
+              qEl.appendChild(row);
             });
-            var delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'btn btn-sm btn-outline-danger ml-2';
-            delBtn.innerHTML = '<i class="fas fa-times"></i>';
-            delBtn.addEventListener('click', function(e) {
-              e.stopPropagation();
-              sendCommand({ type: 'REMOVE_QUEUE_ITEM', queueIndex: q.index });
-            });
-            row.appendChild(span);
-            row.appendChild(delBtn);
-            qEl.appendChild(row);
-          });
+          }
         }
       }
 

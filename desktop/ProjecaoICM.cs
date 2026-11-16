@@ -705,8 +705,11 @@ namespace ProjecaoICMDesktop
             {
                 try
                 {
-                    s.Write(frame, 0, frame.Length);
-                    s.Flush();
+                    lock (s)
+                    {
+                        s.Write(frame, 0, frame.Length);
+                        s.Flush();
+                    }
                 }
                 catch
                 {
@@ -718,8 +721,11 @@ namespace ProjecaoICMDesktop
         private void SendSseEvent(Stream s, string eventName, object dataObj)
         {
             byte[] frame = BuildSseFrame(eventName, dataObj);
-            s.Write(frame, 0, frame.Length);
-            s.Flush();
+            lock (s)
+            {
+                s.Write(frame, 0, frame.Length);
+                s.Flush();
+            }
         }
 
         private static byte[] BuildSseFrame(string eventName, object dataObj)
@@ -738,8 +744,11 @@ namespace ProjecaoICMDesktop
                 if (!_running) break;
                 try
                 {
-                    stream.Write(ping, 0, ping.Length);
-                    stream.Flush();
+                    lock (stream)
+                    {
+                        stream.Write(ping, 0, ping.Length);
+                        stream.Flush();
+                    }
                 }
                 catch
                 {
@@ -842,7 +851,15 @@ namespace ProjecaoICMDesktop
                     int toRead = (int)Math.Min(buf.Length, remaining);
                     int n = fs.Read(buf, 0, toRead);
                     if (n <= 0) break;
-                    dest.Write(buf, 0, n);
+                    try
+                    {
+                        dest.Write(buf, 0, n);
+                    }
+                    catch
+                    {
+                        // Conexão encerrada pelo cliente prematuramente (ex: seek ou aba fechada)
+                        break;
+                    }
                     remaining -= n;
                 }
             }
@@ -905,111 +922,113 @@ namespace ProjecaoICMDesktop
 
         private static ParsedHttpRequest ReadHttpRequest(Stream stream)
         {
-            MemoryStream headerBuf = new MemoryStream();
-            byte[] tmp = new byte[4096];
-            int headerEnd = -1;
-
-            while (headerBuf.Length < 65536)
+            using (MemoryStream headerBuf = new MemoryStream())
             {
-                int n = stream.Read(tmp, 0, tmp.Length);
-                if (n <= 0) break;
-                headerBuf.Write(tmp, 0, n);
-                byte[] cur = headerBuf.GetBuffer();
-                int len = (int)headerBuf.Length;
-                for (int i = 0; i <= len - 4; i++)
+                byte[] tmp = new byte[4096];
+                int headerEnd = -1;
+
+                while (headerBuf.Length < 65536)
                 {
-                    if (cur[i] == 13 && cur[i + 1] == 10 && cur[i + 2] == 13 && cur[i + 3] == 10)
-                    {
-                        headerEnd = i;
-                        break;
-                    }
-                }
-                if (headerEnd >= 0) break;
-            }
-
-            if (headerEnd < 0) return null;
-
-            byte[] all = headerBuf.ToArray();
-            string headerText = Encoding.ASCII.GetString(all, 0, headerEnd);
-            string[] lines = headerText.Split(new string[] { "\r\n" }, StringSplitOptions.None);
-            if (lines.Length == 0) return null;
-
-            string[] parts = lines[0].Split(' ');
-            if (parts.Length < 2) return null;
-
-            ParsedHttpRequest req = new ParsedHttpRequest();
-            req.Method = parts[0].Trim().ToUpperInvariant();
-            req.RawUrl = parts[1].Trim();
-            req.Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            req.Query = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                int idx = lines[i].IndexOf(':');
-                if (idx > 0)
-                {
-                    string hk = lines[i].Substring(0, idx).Trim();
-                    string hv = lines[i].Substring(idx + 1).Trim();
-                    req.Headers[hk] = hv;
-                }
-            }
-
-            int qIdx = req.RawUrl.IndexOf('?');
-            string rawPath = qIdx >= 0 ? req.RawUrl.Substring(0, qIdx) : req.RawUrl;
-            string rawQuery = qIdx >= 0 ? req.RawUrl.Substring(qIdx + 1) : "";
-            try { req.PathName = Uri.UnescapeDataString(rawPath); }
-            catch { req.PathName = rawPath; }
-
-            if (!string.IsNullOrEmpty(rawQuery))
-            {
-                string[] pairs = rawQuery.Split('&');
-                foreach (string pair in pairs)
-                {
-                    if (string.IsNullOrEmpty(pair)) continue;
-                    int eq = pair.IndexOf('=');
-                    string k = eq >= 0 ? pair.Substring(0, eq) : pair;
-                    string v = eq >= 0 ? pair.Substring(eq + 1) : "";
-                    try
-                    {
-                        k = Uri.UnescapeDataString(k.Replace('+', ' '));
-                        v = Uri.UnescapeDataString(v.Replace('+', ' '));
-                    }
-                    catch { }
-                    req.Query[k] = v;
-                }
-            }
-
-            int contentLength = 0;
-            string clStr;
-            if (req.Headers.TryGetValue("content-length", out clStr))
-            {
-                int.TryParse(clStr, out contentLength);
-            }
-            if (contentLength > 4 * 1024 * 1024) contentLength = 4 * 1024 * 1024;
-
-            if (contentLength > 0)
-            {
-                byte[] body = new byte[contentLength];
-                int bodyOffsetInAll = headerEnd + 4;
-                int already = Math.Min(contentLength, all.Length - bodyOffsetInAll);
-                if (already > 0)
-                    Buffer.BlockCopy(all, bodyOffsetInAll, body, 0, already);
-
-                int readTotal = already;
-                while (readTotal < contentLength)
-                {
-                    int n = stream.Read(body, readTotal, contentLength - readTotal);
+                    int n = stream.Read(tmp, 0, tmp.Length);
                     if (n <= 0) break;
-                    readTotal += n;
+                    headerBuf.Write(tmp, 0, n);
+                    byte[] cur = headerBuf.GetBuffer();
+                    int len = (int)headerBuf.Length;
+                    for (int i = 0; i <= len - 4; i++)
+                    {
+                        if (cur[i] == 13 && cur[i + 1] == 10 && cur[i + 2] == 13 && cur[i + 3] == 10)
+                        {
+                            headerEnd = i;
+                            break;
+                        }
+                    }
+                    if (headerEnd >= 0) break;
                 }
-                req.BodyBytes = body;
-            }
-            else
-            {
-                req.BodyBytes = new byte[0];
-            }
 
-            return req;
+                if (headerEnd < 0) return null;
+
+                byte[] all = headerBuf.ToArray();
+                string headerText = Encoding.ASCII.GetString(all, 0, headerEnd);
+                string[] lines = headerText.Split(new string[] { "\r\n" }, StringSplitOptions.None);
+                if (lines.Length == 0) return null;
+
+                string[] parts = lines[0].Split(' ');
+                if (parts.Length < 2) return null;
+
+                ParsedHttpRequest req = new ParsedHttpRequest();
+                req.Method = parts[0].Trim().ToUpperInvariant();
+                req.RawUrl = parts[1].Trim();
+                req.Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                req.Query = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    int idx = lines[i].IndexOf(':');
+                    if (idx > 0)
+                    {
+                        string hk = lines[i].Substring(0, idx).Trim();
+                        string hv = lines[i].Substring(idx + 1).Trim();
+                        req.Headers[hk] = hv;
+                    }
+                }
+
+                int qIdx = req.RawUrl.IndexOf('?');
+                string rawPath = qIdx >= 0 ? req.RawUrl.Substring(0, qIdx) : req.RawUrl;
+                string rawQuery = qIdx >= 0 ? req.RawUrl.Substring(qIdx + 1) : "";
+                try { req.PathName = Uri.UnescapeDataString(rawPath); }
+                catch { req.PathName = rawPath; }
+
+                if (!string.IsNullOrEmpty(rawQuery))
+                {
+                    string[] pairs = rawQuery.Split('&');
+                    foreach (string pair in pairs)
+                    {
+                        if (string.IsNullOrEmpty(pair)) continue;
+                        int eq = pair.IndexOf('=');
+                        string k = eq >= 0 ? pair.Substring(0, eq) : pair;
+                        string v = eq >= 0 ? pair.Substring(eq + 1) : "";
+                        try
+                        {
+                            k = Uri.UnescapeDataString(k.Replace('+', ' '));
+                            v = Uri.UnescapeDataString(v.Replace('+', ' '));
+                        }
+                        catch { }
+                        req.Query[k] = v;
+                    }
+                }
+
+                int contentLength = 0;
+                string clStr;
+                if (req.Headers.TryGetValue("content-length", out clStr))
+                {
+                    int.TryParse(clStr, out contentLength);
+                }
+                if (contentLength > 4 * 1024 * 1024) contentLength = 4 * 1024 * 1024;
+
+                if (contentLength > 0)
+                {
+                    byte[] body = new byte[contentLength];
+                    int bodyOffsetInAll = headerEnd + 4;
+                    int already = Math.Min(contentLength, all.Length - bodyOffsetInAll);
+                    if (already > 0)
+                        Buffer.BlockCopy(all, bodyOffsetInAll, body, 0, already);
+
+                    int readTotal = already;
+                    while (readTotal < contentLength)
+                    {
+                        int n = stream.Read(body, readTotal, contentLength - readTotal);
+                        if (n <= 0) break;
+                        readTotal += n;
+                    }
+                    req.BodyBytes = body;
+                }
+                else
+                {
+                    req.BodyBytes = new byte[0];
+                }
+
+                return req;
+            }
         }
     }
 
