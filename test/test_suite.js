@@ -92,6 +92,8 @@ runTest('Parser de referências e busca textual', () => {
     return {
       ready: function(cb) { if (cb) cb(); return this; },
       val: function() { return ''; },
+      text: function() { return this; },
+      modal: function() { return this; },
       hide: function() { return this; },
       show: function() { return this; },
       html: function() { return this; },
@@ -896,6 +898,133 @@ runTest('Otimizações anti-vazamento de memória em JavaScript e C#', () => {
   assert(csCode.includes('finally\n                    {\n                        lock (_sync) { _hostClients.Remove(stream); }'), 'ProjecaoICM.cs deve ter finally guard para hostClients');
   assert(csCode.includes('finally\n                {\n                    lock (_sync) { _remoteClients.Remove(stream); }'), 'ProjecaoICM.cs deve ter finally guard para remoteClients');
   assert(csCode.includes('_picLogo.Image.Dispose()'), 'ProjecaoICM.cs deve descartar explicitamente imagem do logo em FormClosing');
+});
+
+// 15. Validação da Contagem Regressiva Pré-Culto (Pre-Service Countdown Timer)
+console.log('\n15) Validação da Contagem Regressiva Pré-Culto (Timer Pre-Service):');
+
+runTest('Estrutura de Controles e Modal em index.html', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert(indexHtml.includes('id="btnCountdown"'), 'index.html deve conter botão #btnCountdown na barra de navegação');
+  assert(indexHtml.includes('id="countdownNavBadge"'), 'index.html deve conter badge de tempo #countdownNavBadge');
+  assert(indexHtml.includes('id="alertCountdownActive"'), 'index.html deve conter alerta pulsante #alertCountdownActive');
+  assert(indexHtml.includes('id="alertCountdownTimer"'), 'index.html deve conter span #alertCountdownTimer');
+  assert(indexHtml.includes('id="modalCountdown"'), 'index.html deve conter modal #modalCountdown');
+  assert(indexHtml.includes('id="modalCountdownDigits"'), 'index.html deve conter visor de dígitos #modalCountdownDigits');
+  assert(indexHtml.includes('id="modalCountdownStatusBadge"'), 'index.html deve conter badge de status no modal');
+  assert(indexHtml.includes('btn-cd-preset'), 'index.html deve conter botões de preset .btn-cd-preset');
+  assert(indexHtml.includes('id="cdInputMinutos"'), 'index.html deve conter campo de minutos #cdInputMinutos');
+  assert(indexHtml.includes('id="cdInputSegundos"'), 'index.html deve conter campo de segundos #cdInputSegundos');
+  assert(indexHtml.includes('id="cdInputTitulo"'), 'index.html deve conter campo de título #cdInputTitulo');
+  assert(indexHtml.includes('id="cdInputSubtitulo"'), 'index.html deve conter campo de subtítulo #cdInputSubtitulo');
+  assert(indexHtml.includes('id="cdInputFinalMsg"'), 'index.html deve conter campo de mensagem final #cdInputFinalMsg');
+  assert(indexHtml.includes('id="cdSelectTheme"'), 'index.html deve conter seletor de tema #cdSelectTheme');
+  assert(indexHtml.includes('id="cdAutoDismissSec"'), 'index.html deve conter seletor de auto fechar #cdAutoDismissSec');
+  assert(indexHtml.includes('id="cdBtnStart"'), 'index.html deve conter botão #cdBtnStart');
+  assert(indexHtml.includes('id="cdBtnPause"'), 'index.html deve conter botão #cdBtnPause');
+  assert(indexHtml.includes('id="cdBtnStop"'), 'index.html deve conter botão #cdBtnStop');
+  assert(indexHtml.includes('id="cdBtnAdd1Min"'), 'index.html deve conter botão #cdBtnAdd1Min');
+  assert(indexHtml.includes('id="cdBtnSub1Min"'), 'index.html deve conter botão #cdBtnSub1Min');
+});
+
+runTest('Camada de Overlay e Renderização no Telão (view.html e view.css)', () => {
+  const viewHtml = fs.readFileSync(path.join(root, 'view.html'), 'utf8');
+  assert(viewHtml.includes('id="countdownOverlay"'), 'view.html deve conter camada #countdownOverlay');
+  assert(viewHtml.includes('id="countdownTitle"'), 'view.html deve conter elemento de título #countdownTitle');
+  assert(viewHtml.includes('id="countdownSubtitle"'), 'view.html deve conter elemento de subtítulo #countdownSubtitle');
+  assert(viewHtml.includes('id="countdownClockBox"'), 'view.html deve conter container do relógio #countdownClockBox');
+  assert(viewHtml.includes('id="countdownMin"'), 'view.html deve conter dígitos de minutos #countdownMin');
+  assert(viewHtml.includes('id="countdownColon"'), 'view.html deve conter dois-pontos piscante #countdownColon');
+  assert(viewHtml.includes('id="countdownSec"'), 'view.html deve conter dígitos de segundos #countdownSec');
+  assert(viewHtml.includes('id="countdownProgressBar"'), 'view.html deve conter barra de progresso #countdownProgressBar');
+  assert(viewHtml.includes('id="countdownFinalBox"'), 'view.html deve conter caixa de mensagem final #countdownFinalBox');
+  assert(viewHtml.includes('id="countdownFinalText"'), 'view.html deve conter texto de mensagem final #countdownFinalText');
+  assert(viewHtml.includes('atualizarCountdownOverlay'), 'view.html deve implementar atualizarCountdownOverlay()');
+  assert(viewHtml.includes('renderizarQuadroCountdown'), 'view.html deve implementar renderizarQuadroCountdown()');
+  assert(viewHtml.includes("funcName === 'COUNTDOWN'") || viewHtml.includes("funcName === 'COUNTDOWN_STATE'"), 'view.html deve escutar comandos COUNTDOWN / COUNTDOWN_STATE');
+
+  const viewCss = fs.readFileSync(path.join(root, 'css', 'view.css'), 'utf8');
+  assert(viewCss.includes('.countdown-overlay'), 'view.css deve definir classe .countdown-overlay');
+  assert(viewCss.includes('.countdown-overlay.theme-icm'), 'view.css deve definir tema ICM clássico');
+  assert(viewCss.includes('.countdown-overlay.theme-dark'), 'view.css deve definir tema escuro cinema');
+  assert(viewCss.includes('.countdown-overlay.theme-transparent'), 'view.css deve definir tema transparente');
+  assert(viewCss.includes('.countdown-digits'), 'view.css deve definir classe .countdown-digits');
+  assert(viewCss.includes('.countdown-colon'), 'view.css deve definir classe .countdown-colon');
+  assert(viewCss.includes('.countdown-progress-bar'), 'view.css deve definir classe .countdown-progress-bar');
+  assert(viewCss.includes('.countdown-final-box'), 'view.css deve definir classe .countdown-final-box');
+});
+
+runTest('Integração com Transmissão OBS Studio / vMix (obs.html)', () => {
+  const obsHtml = fs.readFileSync(path.join(root, 'obs.html'), 'utf8');
+  assert(obsHtml.includes('id="obsCountdownWrapper"'), 'obs.html deve conter container #obsCountdownWrapper');
+  assert(obsHtml.includes('id="obsCountdownDigits"'), 'obs.html deve conter visor digital #obsCountdownDigits');
+  assert(obsHtml.includes('id="obsCountdownTitle"'), 'obs.html deve conter título #obsCountdownTitle');
+  assert(obsHtml.includes('id="obsCountdownSubtitle"'), 'obs.html deve conter subtítulo #obsCountdownSubtitle');
+  assert(obsHtml.includes('id="obsCountdownFinalText"'), 'obs.html deve conter texto final #obsCountdownFinalText');
+  assert(obsHtml.includes('atualizarObsCountdown'), 'obs.html deve implementar atualizarObsCountdown()');
+  assert(obsHtml.includes('renderizarObsCountdown'), 'obs.html deve implementar renderizarObsCountdown()');
+  assert(obsHtml.includes("action === 'COUNTDOWN'") || obsHtml.includes("action === 'COUNTDOWN_STATE'"), 'obs.html deve processar COUNTDOWN / COUNTDOWN_STATE');
+});
+
+runTest('Controle Remoto Celular via Wi-Fi (controle.html e js/modules/remote.js)', () => {
+  const controleHtml = fs.readFileSync(path.join(root, 'controle.html'), 'utf8');
+  assert(controleHtml.includes('id="rmBtnCountdown"'), 'controle.html deve conter botão rápido #rmBtnCountdown');
+  assert(controleHtml.includes('id="rmCountdownCard"'), 'controle.html deve conter card dedicado #rmCountdownCard');
+  assert(controleHtml.includes('id="rmCountdownDigits"'), 'controle.html deve conter dígitos #rmCountdownDigits');
+  assert(controleHtml.includes('id="rmBtnCountdownPause"'), 'controle.html deve conter botão pausar #rmBtnCountdownPause');
+  assert(controleHtml.includes('id="rmBtnCountdownAdd1"'), 'controle.html deve conter botão +1m #rmBtnCountdownAdd1');
+  assert(controleHtml.includes('id="rmBtnCountdownStop"'), 'controle.html deve conter botão parar #rmBtnCountdownStop');
+  assert(controleHtml.includes('id="rmModalCountdown"'), 'controle.html deve conter modal #rmModalCountdown');
+  assert(controleHtml.includes('btn-rm-preset'), 'controle.html deve conter presets de tempo .btn-rm-preset');
+
+  const remoteJs = fs.readFileSync(path.join(root, 'js', 'modules', 'remote.js'), 'utf8');
+  assert(remoteJs.includes('countdown:'), 'construirSnapshotRemoto deve incluir estado de countdown');
+  assert(remoteJs.includes("case 'COUNTDOWN_START':"), 'executarComandoRemoto deve tratar COUNTDOWN_START');
+  assert(remoteJs.includes("case 'COUNTDOWN_PAUSE':"), 'executarComandoRemoto deve tratar COUNTDOWN_PAUSE');
+  assert(remoteJs.includes("case 'COUNTDOWN_ADJUST':"), 'executarComandoRemoto deve tratar COUNTDOWN_ADJUST');
+  assert(remoteJs.includes("case 'COUNTDOWN_STOP':"), 'executarComandoRemoto deve tratar COUNTDOWN_STOP');
+});
+
+runTest('Ciclo de Vida e Sincronização em js/modules/projection.js', () => {
+  const proj = require(path.join(root, 'js', 'modules', 'projection.js'));
+  assert(typeof proj.iniciarCountdown === 'function', 'iniciarCountdown deve ser exportado');
+  assert(typeof proj.pausarRetomarCountdown === 'function', 'pausarRetomarCountdown deve ser exportado');
+  assert(typeof proj.ajustarTempoCountdown === 'function', 'ajustarTempoCountdown deve ser exportado');
+  assert(typeof proj.pararCountdown === 'function', 'pararCountdown deve ser exportado');
+  assert(typeof proj.obterEstadoCountdown === 'function', 'obterEstadoCountdown deve ser exportado');
+
+  // Teste de início do timer
+  proj.iniciarCountdown(300, { title: 'CULTO ESPECIAL', theme: 'dark', autoDismissSec: 10 });
+  let st = proj.obterEstadoCountdown();
+  assert(st.active === true, 'Timer deve estar ativo');
+  assert(st.paused === false, 'Timer não deve estar pausado');
+  assert(st.totalSec === 300, 'Total deve ser 300 segundos');
+  assert(st.title === 'CULTO ESPECIAL', 'Título customizado deve ser aplicado');
+  assert(st.theme === 'dark', 'Tema escuro deve ser aplicado');
+  assert(st.targetEndTime > Date.now(), 'targetEndTime deve estar no futuro');
+
+  // Teste de pausa
+  proj.pausarRetomarCountdown();
+  st = proj.obterEstadoCountdown();
+  assert(st.paused === true, 'Timer deve estar pausado');
+  assert(st.targetEndTime === 0, 'targetEndTime deve ser zerado enquanto pausado');
+
+  // Teste de retomada
+  proj.pausarRetomarCountdown();
+  st = proj.obterEstadoCountdown();
+  assert(st.paused === false, 'Timer deve estar despausado');
+  assert(st.targetEndTime > Date.now(), 'targetEndTime deve ser recalculado após retomar');
+
+  // Teste de ajuste de tempo (+60s)
+  const prevTarget = st.targetEndTime;
+  proj.ajustarTempoCountdown(60);
+  st = proj.obterEstadoCountdown();
+  assert(st.targetEndTime >= prevTarget + 59000, 'targetEndTime deve aumentar em ~60s');
+
+  // Teste de parada
+  proj.pararCountdown();
+  st = proj.obterEstadoCountdown();
+  assert(st.active === false, 'Timer deve estar inativo após parada');
 });
 
 console.log('\n==================================================');

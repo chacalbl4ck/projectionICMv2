@@ -258,6 +258,16 @@
     </div>
   </div>
 
+  <!-- Card de Contagem Regressiva Pré-Culto (Stream / Lower-Third) -->
+  <div id="obsCountdownWrapper" style="position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(40px); opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; z-index: 1001;">
+    <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.94) 0%, rgba(20, 15, 10, 0.96) 100%); border: 2px solid #ffd700; border-radius: 14px; padding: 14px 28px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.2); text-align: center; min-width: 340px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
+      <div id="obsCountdownTitle" style="color: #ffd700; font-family: 'Futura XBlk BT', 'Arial Black', sans-serif; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;">O CULTO INICIARÁ EM</div>
+      <div id="obsCountdownDigits" style="color: #ffffff; font-family: 'Courier New', Courier, monospace; font-size: 46px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);">05:00</div>
+      <div id="obsCountdownSubtitle" style="color: #cbd5e1; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px;">Igreja Cristã Maranata</div>
+      <div id="obsCountdownFinalText" style="display: none; color: #ffd700; font-family: 'Futura XBlk BT', 'Arial Black', sans-serif; font-size: 20px; font-weight: 800; text-transform: uppercase; padding: 10px 0;">O CULTO ESTÁ INICIANDO</div>
+    </div>
+  </div>
+
   <script src="js/jquery-3.3.1.min.js"></script>
   <script>
     (function(){
@@ -433,10 +443,97 @@
         } else if (action === 'BLACKOUT' || action === 'blackout') {
           isBlackout = !!payload;
           updateDisplay();
+          atualizarObsCountdown(obsCountdownState);
         } else if (action === 'FREEZE') {
           isFrozen = !!payload;
+        } else if (action === 'COUNTDOWN' || action === 'COUNTDOWN_STATE') {
+          atualizarObsCountdown(payload);
         } else if (action === 'REQUEST_STATUS' || action === 'PING') {
           enviarAoPainel('OBS_READY');
+        }
+      }
+
+      var obsCountdownState = null;
+      var obsCountdownTimer = null;
+
+      function atualizarObsCountdown(st) {
+        obsCountdownState = (st && st.active) ? Object.assign({}, st) : null;
+        var wrapper = document.getElementById('obsCountdownWrapper');
+        if (!obsCountdownState || !obsCountdownState.active || isBlackout) {
+          if (obsCountdownTimer) {
+            clearInterval(obsCountdownTimer);
+            obsCountdownTimer = null;
+          }
+          if (wrapper) {
+            wrapper.style.opacity = '0';
+            wrapper.style.transform = 'translateX(-50%) translateY(40px)';
+            wrapper.style.pointerEvents = 'none';
+          }
+          return;
+        }
+
+        if (wrapper) {
+          wrapper.style.opacity = '1';
+          wrapper.style.transform = 'translateX(-50%) translateY(0)';
+          wrapper.style.pointerEvents = 'auto';
+        }
+
+        var titleEl = document.getElementById('obsCountdownTitle');
+        if (titleEl && obsCountdownState.title) titleEl.textContent = obsCountdownState.title;
+
+        var subtitleEl = document.getElementById('obsCountdownSubtitle');
+        if (subtitleEl && obsCountdownState.subtitle) subtitleEl.textContent = obsCountdownState.subtitle;
+
+        renderizarObsCountdown();
+
+        if (!obsCountdownTimer) {
+          obsCountdownTimer = setInterval(renderizarObsCountdown, 250);
+        }
+      }
+
+      function renderizarObsCountdown() {
+        var wrapper = document.getElementById('obsCountdownWrapper');
+        if (!obsCountdownState || !obsCountdownState.active || isBlackout) {
+          if (obsCountdownTimer) {
+            clearInterval(obsCountdownTimer);
+            obsCountdownTimer = null;
+          }
+          if (wrapper) {
+            wrapper.style.opacity = '0';
+            wrapper.style.transform = 'translateX(-50%) translateY(40px)';
+            wrapper.style.pointerEvents = 'none';
+          }
+          return;
+        }
+
+        var remaining = 0;
+        if (obsCountdownState.paused) {
+          remaining = Math.max(0, obsCountdownState.remainingSec || 0);
+        } else if (obsCountdownState.targetEndTime) {
+          remaining = Math.max(0, Math.ceil((obsCountdownState.targetEndTime - Date.now()) / 1000));
+        } else {
+          remaining = Math.max(0, obsCountdownState.remainingSec || 0);
+        }
+
+        var digitsEl = document.getElementById('obsCountdownDigits');
+        var finalEl = document.getElementById('obsCountdownFinalText');
+
+        if (remaining <= 0 || obsCountdownState.isComplete) {
+          if (digitsEl) digitsEl.style.display = 'none';
+          if (finalEl) {
+            finalEl.style.display = 'block';
+            if (obsCountdownState.finalMessage) {
+              finalEl.innerHTML = obsCountdownState.finalMessage.replace(/\n/g, '<br>');
+            }
+          }
+        } else {
+          if (finalEl) finalEl.style.display = 'none';
+          if (digitsEl) {
+            digitsEl.style.display = 'block';
+            var m = Math.floor(remaining / 60);
+            var s = remaining % 60;
+            digitsEl.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+          }
         }
       }
 
@@ -445,12 +542,17 @@
           var raw = localStorage.getItem('obs_live_sync');
           if (!raw) return false;
           var snap = JSON.parse(raw);
-          if (snap && snap.html) {
-            isBlackout = !!snap.isBlackout;
-            isFrozen = !!snap.isFrozen;
-            parseSlides({ html: snap.html, currentSlide: snap.currentSlide || 0 });
-            updateDisplay();
-            return true;
+          if (snap) {
+            if (snap.countdown) {
+              atualizarObsCountdown(snap.countdown);
+            }
+            if (snap.html) {
+              isBlackout = !!snap.isBlackout;
+              isFrozen = !!snap.isFrozen;
+              parseSlides({ html: snap.html, currentSlide: snap.currentSlide || 0 });
+              updateDisplay();
+              return true;
+            }
           }
         } catch(e) {}
         return false;

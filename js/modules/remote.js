@@ -453,6 +453,7 @@
             telaoConnected: (typeof telaoConnected !== 'undefined') ? !!telaoConnected : false,
             slides: slides,
             queue: queue,
+            countdown: (typeof window.obterEstadoCountdown === 'function') ? window.obterEstadoCountdown() : null,
             updatedAt: Date.now()
         };
     }
@@ -676,6 +677,30 @@
                 }
                 break;
 
+            case 'COUNTDOWN_START':
+                if (typeof window.iniciarCountdown === 'function') {
+                    window.iniciarCountdown(cmd.seconds, cmd.options);
+                }
+                break;
+
+            case 'COUNTDOWN_PAUSE':
+                if (typeof window.pausarRetomarCountdown === 'function') {
+                    window.pausarRetomarCountdown();
+                }
+                break;
+
+            case 'COUNTDOWN_ADJUST':
+                if (typeof window.ajustarTempoCountdown === 'function') {
+                    window.ajustarTempoCountdown(cmd.delta || 0);
+                }
+                break;
+
+            case 'COUNTDOWN_STOP':
+                if (typeof window.pararCountdown === 'function') {
+                    window.pararCountdown();
+                }
+                break;
+
             case 'VIDEO_CONTROL':
                 if (typeof enviarComandoControleVideo === 'function') {
                     var targetSlide = (typeof cmd.slideIndex === 'number') ? cmd.slideIndex : projecaoAtiva;
@@ -874,6 +899,8 @@
             } catch (e) {}
         });
     }
+
+    window.enviarEstadoRemoto = enviarEstadoRemoto;
 
     // Expõe helpers para testes unitários e acesso global controlado
     window.__remoteWifiHooks = {
